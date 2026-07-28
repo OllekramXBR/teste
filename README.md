@@ -1,10 +1,40 @@
-# HyperFrames no Unraid
+# HyperFrames — instalação no macOS e no Unraid
 
-Pacote de deploy do [HyperFrames](https://github.com/heygen-com/hyperframes) — framework open-source (Apache 2.0) da HeyGen que transforma **HTML + CSS + animações em vídeo MP4 determinístico** (Chromium headless + FFmpeg) — para rodar como container Docker no Unraid.
+Pacote de instalação do [HyperFrames](https://github.com/heygen-com/hyperframes) — framework open-source (Apache 2.0) da HeyGen que transforma **HTML + CSS + animações em vídeo MP4 determinístico** (Chromium headless + FFmpeg).
 
-Não existe imagem oficial publicada em registry, então a imagem é construída localmente a partir do `Dockerfile` deste repositório (baseado no ambiente de renderização de produção do projeto: Node 22, Chromium do sistema, FFmpeg e o conjunto completo de fontes Noto).
+Duas formas de rodar: nativamente **no Mac** (via CLI, o caminho normal de desenvolvimento) ou como **container Docker no Unraid** (para deixar um preview/render server na rede).
+
+## Instalação no macOS
+
+Requisitos: Node.js 22+ e FFmpeg. O Chromium usado na renderização é baixado automaticamente pelo Puppeteer na primeira execução.
+
+Script automático (verifica/instala Homebrew, Node 22, FFmpeg, cria o projeto e roda o diagnóstico):
+
+```bash
+bash install-mac.sh meu-video
+```
+
+Ou manualmente:
+
+```bash
+brew install node ffmpeg
+npx hyperframes init meu-video
+cd meu-video
+npx hyperframes preview    # preview no navegador com live reload
+npx hyperframes render     # renderiza o MP4
+```
+
+Para usar com um agente de IA (Claude Code, Cursor, Codex), instale as 19 skills do projeto:
+
+```bash
+npx skills add heygen-com/hyperframes --full-depth
+```
+
+Depois basta pedir em linguagem natural, por exemplo: *"Usando `/hyperframes`, cria um vídeo de 10 segundos com um título em fade-in e música de fundo."*
 
 ## Instalação no Unraid
+
+Não existe imagem oficial publicada em registry, então a imagem é construída localmente a partir do `Dockerfile` deste repositório (baseado no ambiente de renderização de produção do projeto: Node 22, Chromium do sistema, FFmpeg e o conjunto completo de fontes Noto).
 
 ### Opção A — Docker Compose (recomendado)
 
