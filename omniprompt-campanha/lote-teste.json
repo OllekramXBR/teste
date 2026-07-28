@@ -1,0 +1,10 @@
+[
+  { "slug": "ribeirao-preto-implante", "cidade": "Ribeirão Preto", "especialidade": "implante" },
+  { "slug": "londrina-ortodontia", "cidade": "Londrina", "especialidade": "ortodontia" },
+  { "slug": "joinville-estetica", "cidade": "Joinville", "especialidade": "estética" },
+  {
+    "slug": "sj-rio-preto-protese",
+    "cidade": "São José do Rio Preto",
+    "especialidade": "prótese"
+  }
+]

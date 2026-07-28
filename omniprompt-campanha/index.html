@@ -1,0 +1,533 @@
+<!doctype html>
+<!--
+  Template de campanha. Só variam praça, especialidade e CTA.
+
+  Os números de prova (244 / 20) e a linha de fonte NÃO são variáveis, de
+  propósito: são de UMA clínica. Parametrizá-los faria cada vídeo insinuar
+  que o dado é da clínica destinatária — dado falso com cara de prova.
+-->
+<html
+  lang="pt-BR"
+  data-composition-variables='[
+    {"id":"cidade","type":"string","label":"Praça","default":"sua cidade","maxLength":28},
+    {"id":"especialidade","type":"string","label":"Especialidade","default":"implante","maxLength":18},
+    {"id":"cta","type":"string","label":"Chamada final","default":"Teste grátis 7 dias","maxLength":30},
+    {"id":"slug","type":"string","label":"Chave do arquivo","default":"padrao"}
+  ]'
+>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <title>OmniPrompt — a Sofia senta na recepção</title>
+    <script src="./vendor/gsap.min.js"></script>
+    <style>
+      /* Sora embutida (subsets latin + latin-ext do Google Fonts) — a marca usa
+         Sora nos títulos, e o renderer não resolve essa família sozinho. */
+      @font-face {
+        font-family: "Sora";
+        font-style: normal;
+        font-weight: 600;
+        src: url("./fonts/sora-latin.woff2") format("woff2");
+        unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+2000-206F, U+20AC, U+2122;
+      }
+      @font-face {
+        font-family: "Sora";
+        font-style: normal;
+        font-weight: 600;
+        src: url("./fonts/sora-latin-ext.woff2") format("woff2");
+        unicode-range: U+0100-02BA, U+1E00-1E9F, U+2020, U+20A0-20AB, U+2C60-2C7F;
+      }
+      @font-face {
+        font-family: "Sora";
+        font-style: normal;
+        font-weight: 700;
+        src: url("./fonts/sora-latin.woff2") format("woff2");
+        unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+2000-206F, U+20AC, U+2122;
+      }
+      @font-face {
+        font-family: "Sora";
+        font-style: normal;
+        font-weight: 800;
+        src: url("./fonts/sora-latin.woff2") format("woff2");
+        unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+2000-206F, U+20AC, U+2122;
+      }
+      @font-face {
+        font-family: "Sora";
+        font-style: normal;
+        font-weight: 800;
+        src: url("./fonts/sora-latin-ext.woff2") format("woff2");
+        unicode-range: U+0100-02BA, U+1E00-1E9F, U+2020, U+20A0-20AB, U+2C60-2C7F;
+      }
+
+      :root {
+        --bg: #0e0f10;
+        --tinta: #ececea;
+        --muted: #8a8a86;
+        --linha: #24262a;
+        --painel: #131517;
+        --teal: #2bc8db;
+        --teal-suave: rgba(43, 200, 219, 0.12);
+        --navy: #0d3b66;
+      }
+
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--tinta);
+        font-family: Inter, system-ui, sans-serif;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      #root {
+        position: relative;
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+      }
+
+      .clip {
+        position: absolute;
+        inset: 0;
+      }
+
+      /* Fundo em filho full-bleed — no root o compositor renderiza preto */
+      #fundo-fill {
+        position: absolute;
+        inset: 0;
+        background:
+          radial-gradient(1200px 820px at 26% 22%, rgba(43, 200, 219, 0.09), transparent 66%),
+          radial-gradient(900px 700px at 84% 84%, rgba(13, 59, 102, 0.3), transparent 64%),
+          var(--bg);
+      }
+
+      /* Monitor de sinal vital — do caixa, não do paciente */
+      #vital {
+        position: absolute;
+        left: 0;
+        bottom: 96px;
+        width: 1920px;
+        height: 120px;
+        opacity: 0.5;
+      }
+
+      #vital-traco {
+        fill: none;
+        stroke: var(--teal);
+        stroke-width: 2.5;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+
+      .palco {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        padding: 0 152px;
+        box-sizing: border-box;
+      }
+
+      h1,
+      h2,
+      .sora {
+        font-family: Sora, Inter, sans-serif;
+      }
+
+      /* ── Ato 1 ── */
+      #relogio {
+        display: block;
+        font-family: ui-monospace, monospace;
+        font-size: 26px;
+        letter-spacing: 0.08em;
+        color: var(--teal);
+        margin-bottom: 44px;
+      }
+
+      #ato1-l1 {
+        display: block;
+        margin: 0;
+        font-size: 116px;
+        font-weight: 600;
+        letter-spacing: -0.03em;
+        line-height: 1.06;
+        color: var(--muted);
+      }
+
+      #ato1-l2 {
+        display: block;
+        margin: 14px 0 0;
+        font-size: 116px;
+        font-weight: 800;
+        letter-spacing: -0.035em;
+        line-height: 1.06;
+        color: var(--tinta);
+      }
+
+      /* ── Ato 2 — a operação ── */
+      #ato2-palco {
+        display: grid;
+        grid-template-columns: 1fr 560px;
+        gap: 96px;
+        align-items: center;
+      }
+
+      #conversa {
+        display: block;
+      }
+
+      #conversa-topo {
+        display: flex;
+        align-items: baseline;
+        gap: 18px;
+        margin-bottom: 34px;
+        padding-bottom: 22px;
+        border-bottom: 1px solid var(--linha);
+      }
+
+      #conversa-titulo {
+        display: block;
+        margin: 0;
+        font-size: 34px;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+      }
+
+      #conversa-status {
+        display: block;
+        font-family: ui-monospace, monospace;
+        font-size: 20px;
+        color: var(--teal);
+      }
+
+      .msg {
+        display: block;
+        box-sizing: border-box;
+        max-width: 660px;
+        padding: 24px 30px;
+        margin-bottom: 20px;
+        border-radius: 20px;
+        font-size: 28px;
+        line-height: 1.42;
+      }
+
+      .msg-paciente {
+        background: var(--painel);
+        border: 1px solid var(--linha);
+        border-bottom-left-radius: 6px;
+      }
+
+      .msg-sofia {
+        margin-left: auto;
+        background: var(--teal-suave);
+        border: 1px solid rgba(43, 200, 219, 0.3);
+        border-bottom-right-radius: 6px;
+      }
+
+      .msg-hora {
+        display: block;
+        font-family: ui-monospace, monospace;
+        font-size: 17px;
+        /* mais claro que --muted: sobre o balão teal da Sofia o muted cai a 4.29:1 */
+        color: #a2a29e;
+        margin-top: 10px;
+      }
+
+      #ressalva {
+        display: block;
+        margin: 26px 0 0;
+        font-size: 19px;
+        color: var(--muted);
+      }
+
+      /* Agenda — o desfecho visível */
+      #agenda {
+        display: block;
+        box-sizing: border-box;
+        padding: 42px 38px;
+        border: 1px solid var(--linha);
+        border-radius: 22px;
+        background: rgba(19, 21, 23, 0.72);
+      }
+
+      #agenda-titulo {
+        display: block;
+        margin: 0 0 34px;
+        font-size: 27px;
+        font-weight: 700;
+        color: var(--muted);
+      }
+
+      .slot {
+        display: flex;
+        align-items: center;
+        gap: 22px;
+        padding: 22px 0;
+        border-top: 1px solid var(--linha);
+        font-size: 25px;
+      }
+
+      .slot-hora {
+        display: block;
+        width: 96px;
+        font-family: ui-monospace, monospace;
+        color: var(--muted);
+      }
+
+      .slot-txt {
+        display: block;
+        color: var(--muted);
+      }
+
+      #slot-9 {
+        border-left: 3px solid transparent;
+        padding-left: 20px;
+        margin-left: -23px;
+      }
+
+      #slot-9-txt {
+        color: var(--tinta);
+        font-weight: 600;
+      }
+
+      /* ── Ato 3 — a prova ── */
+      #ato3-palco {
+        justify-content: center;
+      }
+
+      #prova {
+        display: block;
+        margin: 0;
+        max-width: 1480px;
+        font-size: 84px;
+        font-weight: 600;
+        letter-spacing: -0.028em;
+        line-height: 1.22;
+        color: var(--muted);
+      }
+
+      #prova b {
+        font-weight: 800;
+        color: var(--tinta);
+      }
+
+      #prova .num {
+        color: var(--teal);
+      }
+
+      #fonte {
+        display: block;
+        margin: 52px 0 0;
+        font-size: 23px;
+        color: var(--muted);
+      }
+
+      /* ── Ato 4 — fecho ── */
+      #ato4-palco {
+        justify-content: center;
+      }
+
+      #marca {
+        display: block;
+        margin: 0;
+        font-size: 104px;
+        font-weight: 800;
+        letter-spacing: -0.04em;
+        color: var(--tinta);
+      }
+
+      #assinatura {
+        display: block;
+        margin: 30px 0 0;
+        font-size: 52px;
+        font-weight: 600;
+        letter-spacing: -0.02em;
+        color: var(--teal);
+      }
+
+      #cta {
+        display: block;
+        width: fit-content;
+        margin: 68px 0 0;
+        padding: 26px 46px;
+        border-radius: 12px;
+        background: var(--navy);
+        color: #fff;
+        font-size: 32px;
+        font-weight: 600;
+      }
+
+      #credencial {
+        display: block;
+        margin: 40px 0 0;
+        font-size: 24px;
+        color: var(--muted);
+      }
+    </style>
+  </head>
+
+  <body>
+    <div
+      id="root"
+      data-composition-id="main"
+      data-start="0"
+      data-width="1920"
+      data-height="1080"
+      data-duration="18"
+    >
+      <!-- Fundo + sinal vital: atravessam o filme inteiro -->
+      <div id="fundo" class="clip" data-start="0" data-duration="18" data-track-index="0">
+        <div id="fundo-fill"></div>
+        <svg id="vital" viewBox="0 0 1920 120" preserveAspectRatio="none">
+          <polyline
+            id="vital-traco"
+            points="0,60 320,60 360,60 380,26 400,94 420,60 470,60 700,60 740,60 760,34 780,86 800,60 860,60 1180,60 1220,60 1240,22 1260,98 1280,60 1340,60 1920,60"
+          />
+        </svg>
+      </div>
+
+      <!-- Ato 1 — a noite -->
+      <section id="ato1" class="clip" data-start="0" data-duration="4.2" data-track-index="1">
+        <div class="palco">
+          <span id="relogio">23:47 · <span data-var-text="cidade">sua cidade</span></span>
+          <h1 id="ato1-l1" class="sora">Sua clínica está fechada.</h1>
+          <h1 id="ato1-l2" class="sora">O paciente não está.</h1>
+        </div>
+      </section>
+
+      <!-- Ato 2 — a operação acontecendo -->
+      <section id="ato2" class="clip" data-start="4.2" data-duration="7.3" data-track-index="2">
+        <div class="palco" id="ato2-palco">
+          <div id="conversa">
+            <div id="conversa-topo">
+              <h2 id="conversa-titulo" class="sora">Sofia</h2>
+              <span id="conversa-status">respondendo no WhatsApp</span>
+            </div>
+
+            <div class="msg msg-paciente" id="msg-1">
+              Boa noite, vocês fazem <span data-var-text="especialidade">implante</span>? Queria
+              saber o valor.
+              <span class="msg-hora">23:47</span>
+            </div>
+
+            <div class="msg msg-sofia" id="msg-2">
+              Boa noite! Fazemos sim. O valor depende da avaliação — posso já deixar um horário
+              reservado para você.
+              <span class="msg-hora">23:47</span>
+            </div>
+
+            <div class="msg msg-paciente" id="msg-3">
+              Consigo sábado de manhã?
+              <span class="msg-hora">23:48</span>
+            </div>
+
+            <div class="msg msg-sofia" id="msg-4">
+              Consigo encaixar sábado às 09:00. Confirmo para você?
+              <span class="msg-hora">23:48</span>
+            </div>
+
+            <div class="msg msg-paciente" id="msg-5">
+              Pode confirmar.
+              <span class="msg-hora">23:49</span>
+            </div>
+
+            <p id="ressalva">Exemplo ilustrativo do fluxo da Sofia.</p>
+          </div>
+
+          <aside id="agenda">
+            <h2 id="agenda-titulo" class="sora">Sábado</h2>
+            <div class="slot">
+              <span class="slot-hora">08:00</span>
+              <span class="slot-txt">Livre</span>
+            </div>
+            <div class="slot" id="slot-9">
+              <span class="slot-hora">09:00</span>
+              <span class="slot-txt" id="slot-9-txt"
+                >Avaliação — <span data-var-text="especialidade">implante</span></span
+              >
+            </div>
+            <div class="slot">
+              <span class="slot-hora">10:00</span>
+              <span class="slot-txt">Livre</span>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <!-- Ato 3 — a prova, com fonte honesta -->
+      <section id="ato3" class="clip" data-start="11.5" data-duration="3.3" data-track-index="3">
+        <div class="palco" id="ato3-palco">
+          <h2 id="prova" class="sora">
+            Em uma clínica real, a Sofia respondeu <b class="num">244</b> mensagens fora do horário
+            e marcou <b class="num">20</b> consultas.
+          </h2>
+          <p id="fonte">Dados de uma clínica em operação, 14/mai a 07/jul de 2026.</p>
+        </div>
+      </section>
+
+      <!-- Ato 4 — fecho -->
+      <section id="ato4" class="clip" data-start="14.8" data-duration="3.2" data-track-index="4">
+        <div class="palco" id="ato4-palco">
+          <h2 id="marca" class="sora">OmniPrompt</h2>
+          <p id="assinatura" class="sora">A Sofia senta na recepção.</p>
+          <span id="cta" data-var-text="cta">Teste grátis 7 dias</span>
+          <p id="credencial">Criado por um cirurgião-dentista.</p>
+        </div>
+      </section>
+    </div>
+
+    <script>
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+
+      /* Sinal vital — desenha ao longo do filme inteiro (contagem finita) */
+      tl.fromTo(
+        "#vital-traco",
+        { strokeDasharray: 2600, strokeDashoffset: 2600 },
+        { strokeDashoffset: 0, duration: 17, ease: "none" },
+        0,
+      );
+
+      /* ── Ato 1 (0 – 4.2s) ── */
+      tl.from("#relogio", { autoAlpha: 0, duration: 0.5, ease: "power2.out" }, 0.2)
+        .from("#ato1-l1", { y: 42, autoAlpha: 0, duration: 0.8, ease: "power3.out" }, 0.5)
+        .from("#ato1-l2", { y: 42, autoAlpha: 0, duration: 0.8, ease: "power3.out" }, 1.5)
+        .to("#ato1 .palco", { y: -34, autoAlpha: 0, duration: 0.5, ease: "power2.in" }, 3.6)
+        .set("#ato1 .palco", { autoAlpha: 0 }, 4.2);
+
+      /* ── Ato 2 (4.2 – 11.5s) — a conversa chegando ── */
+      tl.from("#conversa-topo", { autoAlpha: 0, duration: 0.5, ease: "power2.out" }, 4.4)
+        .from("#agenda", { x: 40, autoAlpha: 0, duration: 0.7, ease: "power3.out" }, 4.5)
+        .from("#msg-1", { y: 26, autoAlpha: 0, duration: 0.5, ease: "power3.out" }, 4.9)
+        .from("#msg-2", { y: 26, autoAlpha: 0, duration: 0.5, ease: "power3.out" }, 5.7)
+        .from("#msg-3", { y: 26, autoAlpha: 0, duration: 0.5, ease: "power3.out" }, 6.6)
+        .from("#msg-4", { y: 26, autoAlpha: 0, duration: 0.5, ease: "power3.out" }, 7.3)
+        .from("#msg-5", { y: 26, autoAlpha: 0, duration: 0.5, ease: "power3.out" }, 8.1)
+        /* o horário sendo preenchido — o desfecho da conversa */
+        .fromTo(
+          "#slot-9",
+          { borderLeftColor: "rgba(43,200,219,0)" },
+          { borderLeftColor: "rgba(43,200,219,1)", duration: 0.5, ease: "power2.out" },
+          8.7,
+        )
+        .from("#slot-9-txt", { autoAlpha: 0, duration: 0.5, ease: "power2.out" }, 8.7)
+        .from("#ressalva", { autoAlpha: 0, duration: 0.5, ease: "power2.out" }, 9.3)
+        .to("#ato2 .palco", { y: -30, autoAlpha: 0, duration: 0.5, ease: "power2.in" }, 10.9)
+        .set("#ato2 .palco", { autoAlpha: 0 }, 11.5);
+
+      /* ── Ato 3 (11.5 – 14.8s) — a prova ── */
+      tl.from("#prova", { y: 34, autoAlpha: 0, duration: 0.75, ease: "power3.out" }, 11.7)
+        .from("#fonte", { autoAlpha: 0, duration: 0.6, ease: "power2.out" }, 12.7)
+        .to("#ato3 .palco", { y: -28, autoAlpha: 0, duration: 0.45, ease: "power2.in" }, 14.35)
+        .set("#ato3 .palco", { autoAlpha: 0 }, 14.8);
+
+      /* ── Ato 4 (14.8 – 18s) — fecho ── */
+      tl.from("#marca", { y: 34, autoAlpha: 0, duration: 0.7, ease: "power3.out" }, 15.0)
+        .from("#assinatura", { y: 26, autoAlpha: 0, duration: 0.6, ease: "power3.out" }, 15.4)
+        .from("#cta", { y: 22, autoAlpha: 0, duration: 0.55, ease: "power3.out" }, 15.9)
+        .from("#credencial", { autoAlpha: 0, duration: 0.55, ease: "power2.out" }, 16.4);
+
+      window.__timelines["main"] = tl;
+    </script>
+  </body>
+</html>
