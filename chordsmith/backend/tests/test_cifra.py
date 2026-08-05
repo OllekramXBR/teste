@@ -134,9 +134,88 @@ class TestLayout:
         assert "G" in intro and "D" in intro
 
     def test_solo_sections_are_labelled(self, analysis):
-        analysis["lead"]["sections"] = [{"start": 0.0, "end": 5.0, "isSolo": True}]
-        lyrics = {"words": [word("depois", 7.0, 7.4)]}
+        analysis["chords"] = [
+            chord("G", 0.0, 1.0),
+            chord("D", 1.0, 4.0),
+            chord("Em", 4.0, 8.0),
+            chord("C", 8.0, 12.0),
+        ]
+        analysis["lead"]["sections"] = [{"start": 4.0, "end": 12.0, "isSolo": True}]
+        lyrics = {"words": [word("antes", 0.0, 0.4), word("depois", 12.5, 12.9)]}
         assert "[Solo]" in cifra.render(analysis, lyrics)
+
+    def test_the_intro_is_never_relabelled_as_a_solo(self, analysis):
+        # An intro is very often a lead line, so the solo detector fires on it.
+        # Calling the opening of the song a solo tells the player something
+        # false about the form.
+        analysis["lead"]["sections"] = [{"start": 0.0, "end": 6.0, "isSolo": True}]
+        lyrics = {"words": [word("tarde", 6.5, 7.0)]}
+        text = cifra.render(analysis, lyrics)
+        assert "[Intro]" in text
+        assert "[Solo]" not in text
+
+    def test_a_new_transcribed_phrase_starts_a_new_line(self, analysis):
+        # The two phrases are only 0.3s apart — under PHRASE_GAP — so only the
+        # recogniser's own segmentation can tell them apart. Without it the
+        # first word of the second phrase gets dragged onto the first line.
+        lyrics = {
+            "segments": [
+                {"start": 0.0, "end": 0.9, "text": "primeira frase"},
+                {"start": 1.2, "end": 2.1, "text": "segunda frase"},
+            ],
+            "words": [
+                word("primeira", 0.0, 0.5),
+                word("frase", 0.5, 0.9),
+                word("segunda", 1.2, 1.7),
+                word("frase", 1.7, 2.1),
+            ],
+        }
+        rendered = cifra.render(analysis, lyrics)
+        assert "primeira frase" in rendered
+        assert "segunda frase" in rendered
+        assert "frase segunda" not in rendered
+
+
+class TestSimplify:
+    @pytest.mark.parametrize(
+        ("decoded", "simplified"),
+        [("C6", "C"), ("Csus2", "C"), ("Csus4", "C"), ("Cmaj7", "C"), ("Am7", "Am"), ("Am6", "Am")],
+    )
+    def test_extensions_collapse_to_the_triad(self, analysis, decoded, simplified):
+        analysis["chords"] = [chord(decoded, 0.0, 4.0)]
+        summary = cifra.render(analysis).split("Acordes:")[1].splitlines()[0].split()
+        assert summary == [simplified]
+
+    def test_diminished_and_augmented_survive(self, analysis):
+        analysis["chords"] = [chord("Bdim", 0.0, 2.0), chord("Caug", 2.0, 4.0)]
+        summary = cifra.render(analysis).split("Acordes:")[1].splitlines()[0]
+        assert "B°" in summary and "C+" in summary
+
+    def test_a_chord_shorter_than_one_beat_is_dropped(self, analysis):
+        # 129 BPM puts a beat at 0.465s; the D# lasts a fifth of that.
+        analysis["bpm"] = 129.0
+        analysis["chords"] = [
+            chord("G", 0.0, 2.0),
+            chord("D#", 2.0, 2.1),
+            chord("G", 2.1, 4.0),
+        ]
+        summary = cifra.render(analysis).split("Acordes:")[1].splitlines()[0].split()
+        assert summary == ["G"]
+
+    def test_neighbours_merge_once_they_look_the_same(self, analysis):
+        analysis["chords"] = [
+            chord("C", 0.0, 2.0),
+            chord("C6", 2.0, 4.0),
+            chord("Cmaj7", 4.0, 6.0),
+        ]
+        lyrics = {"words": [word("uma", 0.0, 0.4), word("linha", 0.5, 0.9)]}
+        chord_row, _ = _first_pair(cifra.render(analysis, lyrics))
+        assert chord_row.split() == ["C"]
+
+    def test_turning_simplification_off_shows_what_the_decoder_said(self, analysis):
+        analysis["chords"] = [chord("Cmaj7", 0.0, 4.0)]
+        assert "C7M" in cifra.render(analysis, simplify=False)
+        assert "C7M" not in cifra.render(analysis, simplify=True)
 
 
 class TestHeader:

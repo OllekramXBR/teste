@@ -172,6 +172,7 @@ def download_cifra(
     song_id: str,
     transpose: int = Query(0, ge=-11, le=11),
     capo: int = Query(0, ge=0, le=11),
+    simplify: bool = Query(True, description="Collapse decoder extensions to playable triads"),
     download: bool = Query(False),
 ) -> Response:
     """The chart in Brazilian cifra format: chords above the words, plain text."""

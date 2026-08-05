@@ -49,6 +49,25 @@ BR_QUALITY: dict[str, str] = {
     "dim7": "°7",
 }
 
+# What each quality becomes when the chart is simplified. Diminished and
+# augmented stay: they are rare enough that the decoder emitting one is usually
+# meaningful, and a player fingers them differently from any triad.
+SIMPLE_QUALITY: dict[str, str] = {
+    "": "",
+    "m": "m",
+    "7": "",
+    "m7": "m",
+    "maj7": "",
+    "sus4": "",
+    "sus2": "",
+    "6": "",
+    "m6": "m",
+    "dim": "dim",
+    "aug": "aug",
+    "m7b5": "m",
+    "dim7": "dim",
+}
+
 # How wide a lyric line may get before it is broken. Chosen so a line plus its
 # chord row still fits an A4 page and a phone screen in portrait.
 LINE_WIDTH = 52
@@ -89,6 +108,8 @@ class Word:
     text: str
     start: float
     end: float
+    # Index of the transcribed phrase this word came from; -1 when unknown.
+    phrase: int = -1
 
 
 @dataclass
@@ -116,7 +137,61 @@ class Line:
         return self.words[-1].end if self.words else 0.0
 
 
-def _chord_hits(analysis: dict, transpose: int, capo: int) -> list[ChordHit]:
+def simplify_quality(quality: str) -> str:
+    """Reduce a quality to the triad a player would actually strum.
+
+    A chroma decoder reads a passing note in the melody as an added sixth, a
+    suspended fourth, a major seventh — and each of those is defensible frame by
+    frame while being wrong about the song. Printing them turns a three-chord
+    verse into a chart with a dozen symbols, which is worse than useless: the
+    reader stops trusting it.
+
+    So this keeps only what changes the shape of the hand. Major and minor
+    survive; diminished and augmented survive because a player really does
+    finger those differently; everything else collapses to its triad.
+    """
+    return SIMPLE_QUALITY.get(quality, quality)
+
+
+def _simplified_spans(spans: list[dict], min_seconds: float) -> list[dict]:
+    """Collapse extensions, drop flickers, then merge what became identical.
+
+    The three steps are in that order for a reason. Simplifying first is what
+    makes a C6 followed by a C mergeable at all; merging before dropping would
+    leave a one-beat D# sitting between two G's as its own span; and dropping
+    before merging means the neighbours close the hole themselves.
+    """
+    simplified: list[dict] = []
+    for span in spans:
+        chord = theory.parse_label(span.get("label", ""))
+        if chord is None or chord.root is None:
+            continue
+        quality = simplify_quality(chord.quality)
+        simplified.append(
+            {
+                **span,
+                "label": theory.Chord(chord.root, quality).label(),
+                "start": float(span.get("start", 0.0)),
+                "end": float(span.get("end", 0.0)),
+            }
+        )
+
+    kept = [
+        span for span in simplified if span["end"] - span["start"] >= min_seconds
+    ] or simplified
+
+    merged: list[dict] = []
+    for span in kept:
+        if merged and merged[-1]["label"] == span["label"]:
+            merged[-1]["end"] = span["end"]
+        else:
+            merged.append(dict(span))
+    return merged
+
+
+def _chord_hits(
+    analysis: dict, transpose: int, capo: int, simplify: bool = True
+) -> list[ChordHit]:
     """Chord changes from the analysis, transposed, capoed and translated.
 
     Order matters: transposition changes the key the song is *heard* in, the
@@ -124,46 +199,85 @@ def _chord_hits(analysis: dict, transpose: int, capo: int) -> list[ChordHit]:
     labels that already carry the transposition.
     """
     use_flats = bool(analysis.get("useFlats"))
+    spans = [
+        span
+        for span in analysis.get("chords", [])
+        if span.get("label") and span.get("label") != theory.NO_CHORD_LABEL
+    ]
+
+    if simplify:
+        # One beat. A chord that does not last a single beat is, in this
+        # decoder's output, almost always a frame or two of a passing tone
+        # rather than a change the player is meant to make.
+        bpm = float(analysis.get("bpm") or 0) or 120.0
+        spans = _simplified_spans(spans, min_seconds=60.0 / bpm)
+
     hits: list[ChordHit] = []
-    for span in analysis.get("chords", []):
-        label = span.get("label", "")
-        if not label or label == theory.NO_CHORD_LABEL:
-            continue
+    for span in spans:
+        label = span["label"]
         if transpose:
             label = theory.transpose_label(label, transpose, use_flats)
         if capo:
             label = theory.capo_shift([label], capo, use_flats)[0]
-        hits.append(ChordHit(label=br_label(label, use_flats), start=float(span.get("start", 0.0))))
+        hits.append(ChordHit(label=br_label(label, use_flats), start=float(span["start"])))
     return hits
 
 
 def _words(lyrics: dict | None) -> list[Word]:
     if not lyrics:
         return []
+    segments = [
+        (float(segment.get("start", 0.0)), float(segment.get("end", 0.0)))
+        for segment in (lyrics.get("segments") or [])
+    ]
     words: list[Word] = []
     for entry in lyrics.get("words", []):
         text = str(entry.get("text", "")).strip()
         if not text:
             continue
+        start = float(entry.get("start", 0.0))
         words.append(
-            Word(text=text, start=float(entry.get("start", 0.0)), end=float(entry.get("end", 0.0)))
+            Word(
+                text=text,
+                start=start,
+                end=float(entry.get("end", 0.0)),
+                phrase=_phrase_of(start, segments),
+            )
         )
     return words
+
+
+def _phrase_of(start: float, segments: list[tuple[float, float]]) -> int:
+    """Index of the transcribed segment a word belongs to.
+
+    The recogniser already decided where one sung phrase ends and the next
+    begins; that judgement is better than any silence threshold measured after
+    the fact, because it accounts for a singer who runs two lines together.
+    ``-1`` means no segment covers this word, which puts it with its neighbours.
+    """
+    for index, (begin, finish) in enumerate(segments):
+        if begin - 0.05 <= start <= finish + 0.05:
+            return index
+    return -1
 
 
 def _break_into_lines(words: list[Word]) -> list[Line]:
     """Group words into printable lines.
 
-    Breaks on a long silence first and on width second, because a line broken
-    mid-phrase reads worse than a short one.
+    A new transcribed phrase always starts a new line. Inside a phrase the line
+    is broken on a long silence, and failing that on width — a line broken
+    mid-phrase reads worse than a short one, but an over-long line does not fit
+    the page at all.
     """
     lines: list[Line] = []
     current = Line()
     width = 0
     for word in words:
-        gap = word.start - current.words[-1].end if current.words else 0.0
+        previous = current.words[-1] if current.words else None
+        gap = word.start - previous.end if previous else 0.0
+        new_phrase = previous is not None and word.phrase != previous.phrase and word.phrase >= 0
         too_wide = width + len(word.text) + 1 > LINE_WIDTH
-        if current.words and (gap > PHRASE_GAP or too_wide):
+        if current.words and (new_phrase or gap > PHRASE_GAP or too_wide):
             lines.append(current)
             current, width = Line(), 0
         current.words.append(word)
@@ -228,7 +342,10 @@ def _tag_solos(lines: list[Line], analysis: dict) -> None:
     if not solos:
         return
     for line in lines:
-        if line.words or not line.chords or line.tag not in ("Instrumental", "Intro", "Final"):
+        # "Intro" is left alone on purpose: an intro is very often a lead line,
+        # so the solo detector fires on it, and relabelling the opening of the
+        # song as a solo tells the player something false about the form.
+        if line.words or not line.chords or line.tag not in ("Instrumental", "Final"):
             continue
         start = line.chords[0].start
         end = line.chords[-1].start
@@ -303,8 +420,14 @@ def render(
     artist: str = "",
     transpose: int = 0,
     capo: int = 0,
+    simplify: bool = True,
 ) -> str:
-    """Build the full cifra as plain text."""
+    """Build the full cifra as plain text.
+
+    ``simplify`` is on by default because an unsimplified cifra of a real
+    recording is not a usable chart — see :func:`simplify_quality`. Turn it off
+    to read exactly what the decoder produced.
+    """
     use_flats = bool(analysis.get("useFlats"))
     key = analysis.get("key") or {}
     tonic, mode = key.get("tonic"), key.get("mode", "major")
@@ -328,7 +451,7 @@ def render(
         if capo:
             header.append(f"Capotraste na {capo}ª casa  (formas de {played})")
 
-    hits = _chord_hits(analysis, transpose, capo)
+    hits = _chord_hits(analysis, transpose, capo, simplify=simplify)
     unique = sorted({hit.label for hit in hits})
     if unique:
         header.append("Acordes: " + "  ".join(unique))
