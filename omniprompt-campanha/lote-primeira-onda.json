@@ -1,0 +1,242 @@
+[
+  {
+    "slug": "ribeirao-preto-implante",
+    "cidade": "Ribeirão Preto",
+    "especialidade": "implante"
+  },
+  {
+    "slug": "ribeirao-preto-ortodontia",
+    "cidade": "Ribeirão Preto",
+    "especialidade": "ortodontia"
+  },
+  {
+    "slug": "ribeirao-preto-estetica",
+    "cidade": "Ribeirão Preto",
+    "especialidade": "estética"
+  },
+  {
+    "slug": "ribeirao-preto-protese",
+    "cidade": "Ribeirão Preto",
+    "especialidade": "prótese"
+  },
+  {
+    "slug": "sao-jose-do-rio-preto-implante",
+    "cidade": "São José do Rio Preto",
+    "especialidade": "implante"
+  },
+  {
+    "slug": "sao-jose-do-rio-preto-ortodontia",
+    "cidade": "São José do Rio Preto",
+    "especialidade": "ortodontia"
+  },
+  {
+    "slug": "sao-jose-do-rio-preto-estetica",
+    "cidade": "São José do Rio Preto",
+    "especialidade": "estética"
+  },
+  {
+    "slug": "sao-jose-do-rio-preto-protese",
+    "cidade": "São José do Rio Preto",
+    "especialidade": "prótese"
+  },
+  {
+    "slug": "bauru-implante",
+    "cidade": "Bauru",
+    "especialidade": "implante"
+  },
+  {
+    "slug": "bauru-ortodontia",
+    "cidade": "Bauru",
+    "especialidade": "ortodontia"
+  },
+  {
+    "slug": "bauru-estetica",
+    "cidade": "Bauru",
+    "especialidade": "estética"
+  },
+  {
+    "slug": "bauru-protese",
+    "cidade": "Bauru",
+    "especialidade": "prótese"
+  },
+  {
+    "slug": "piracicaba-implante",
+    "cidade": "Piracicaba",
+    "especialidade": "implante"
+  },
+  {
+    "slug": "piracicaba-ortodontia",
+    "cidade": "Piracicaba",
+    "especialidade": "ortodontia"
+  },
+  {
+    "slug": "piracicaba-estetica",
+    "cidade": "Piracicaba",
+    "especialidade": "estética"
+  },
+  {
+    "slug": "piracicaba-protese",
+    "cidade": "Piracicaba",
+    "especialidade": "prótese"
+  },
+  {
+    "slug": "franca-implante",
+    "cidade": "Franca",
+    "especialidade": "implante"
+  },
+  {
+    "slug": "franca-ortodontia",
+    "cidade": "Franca",
+    "especialidade": "ortodontia"
+  },
+  {
+    "slug": "franca-estetica",
+    "cidade": "Franca",
+    "especialidade": "estética"
+  },
+  {
+    "slug": "franca-protese",
+    "cidade": "Franca",
+    "especialidade": "prótese"
+  },
+  {
+    "slug": "uberlandia-implante",
+    "cidade": "Uberlândia",
+    "especialidade": "implante"
+  },
+  {
+    "slug": "uberlandia-ortodontia",
+    "cidade": "Uberlândia",
+    "especialidade": "ortodontia"
+  },
+  {
+    "slug": "uberlandia-estetica",
+    "cidade": "Uberlândia",
+    "especialidade": "estética"
+  },
+  {
+    "slug": "uberlandia-protese",
+    "cidade": "Uberlândia",
+    "especialidade": "prótese"
+  },
+  {
+    "slug": "juiz-de-fora-implante",
+    "cidade": "Juiz de Fora",
+    "especialidade": "implante"
+  },
+  {
+    "slug": "juiz-de-fora-ortodontia",
+    "cidade": "Juiz de Fora",
+    "especialidade": "ortodontia"
+  },
+  {
+    "slug": "juiz-de-fora-estetica",
+    "cidade": "Juiz de Fora",
+    "especialidade": "estética"
+  },
+  {
+    "slug": "juiz-de-fora-protese",
+    "cidade": "Juiz de Fora",
+    "especialidade": "prótese"
+  },
+  {
+    "slug": "londrina-implante",
+    "cidade": "Londrina",
+    "especialidade": "implante"
+  },
+  {
+    "slug": "londrina-ortodontia",
+    "cidade": "Londrina",
+    "especialidade": "ortodontia"
+  },
+  {
+    "slug": "londrina-estetica",
+    "cidade": "Londrina",
+    "especialidade": "estética"
+  },
+  {
+    "slug": "londrina-protese",
+    "cidade": "Londrina",
+    "especialidade": "prótese"
+  },
+  {
+    "slug": "maringa-implante",
+    "cidade": "Maringá",
+    "especialidade": "implante"
+  },
+  {
+    "slug": "maringa-ortodontia",
+    "cidade": "Maringá",
+    "especialidade": "ortodontia"
+  },
+  {
+    "slug": "maringa-estetica",
+    "cidade": "Maringá",
+    "especialidade": "estética"
+  },
+  {
+    "slug": "maringa-protese",
+    "cidade": "Maringá",
+    "especialidade": "prótese"
+  },
+  {
+    "slug": "joinville-implante",
+    "cidade": "Joinville",
+    "especialidade": "implante"
+  },
+  {
+    "slug": "joinville-ortodontia",
+    "cidade": "Joinville",
+    "especialidade": "ortodontia"
+  },
+  {
+    "slug": "joinville-estetica",
+    "cidade": "Joinville",
+    "especialidade": "estética"
+  },
+  {
+    "slug": "joinville-protese",
+    "cidade": "Joinville",
+    "especialidade": "prótese"
+  },
+  {
+    "slug": "blumenau-implante",
+    "cidade": "Blumenau",
+    "especialidade": "implante"
+  },
+  {
+    "slug": "blumenau-ortodontia",
+    "cidade": "Blumenau",
+    "especialidade": "ortodontia"
+  },
+  {
+    "slug": "blumenau-estetica",
+    "cidade": "Blumenau",
+    "especialidade": "estética"
+  },
+  {
+    "slug": "blumenau-protese",
+    "cidade": "Blumenau",
+    "especialidade": "prótese"
+  },
+  {
+    "slug": "caxias-do-sul-implante",
+    "cidade": "Caxias do Sul",
+    "especialidade": "implante"
+  },
+  {
+    "slug": "caxias-do-sul-ortodontia",
+    "cidade": "Caxias do Sul",
+    "especialidade": "ortodontia"
+  },
+  {
+    "slug": "caxias-do-sul-estetica",
+    "cidade": "Caxias do Sul",
+    "especialidade": "estética"
+  },
+  {
+    "slug": "caxias-do-sul-protese",
+    "cidade": "Caxias do Sul",
+    "especialidade": "prótese"
+  }
+]

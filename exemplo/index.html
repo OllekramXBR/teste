@@ -1,0 +1,316 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <title>HyperFrames — vídeo de exemplo</title>
+    <!-- GSAP embutido: a composição renderiza offline, sem depender de CDN -->
+    <script src="./vendor/gsap.min.js"></script>
+    <style>
+      :root {
+        --tinta: #e8edf5;
+        --fundo: #070b12;
+        --acento: #4cc2ff;
+        --acento-quente: #ffb454;
+        --suave: #8ea0b8;
+      }
+
+      body {
+        margin: 0;
+        background: var(--fundo);
+        color: var(--tinta);
+        font-family: Inter, system-ui, sans-serif;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      #root {
+        position: relative;
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+      }
+
+      .clip {
+        position: absolute;
+        inset: 0;
+      }
+
+      /* Fundo full-bleed — precisa ser um filho, nunca o próprio root,
+         senão o compositor de frames pode renderizar preto. */
+      #fundo-fill {
+        position: absolute;
+        inset: 0;
+        background:
+          radial-gradient(1100px 700px at 22% 18%, rgba(76, 194, 255, 0.16), transparent 62%),
+          radial-gradient(900px 600px at 82% 88%, rgba(255, 180, 84, 0.12), transparent 60%),
+          var(--fundo);
+      }
+
+      #grade {
+        position: absolute;
+        inset: 0;
+        background-image:
+          linear-gradient(rgba(255, 255, 255, 0.045) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(255, 255, 255, 0.045) 1px, transparent 1px);
+        background-size: 96px 96px;
+      }
+
+      .palco {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        padding: 0 168px;
+        box-sizing: border-box;
+      }
+
+      /* ── Cena 1 ── */
+      #etiqueta {
+        display: block;
+        width: fit-content;
+        padding: 14px 28px;
+        border: 1px solid rgba(76, 194, 255, 0.42);
+        border-radius: 999px;
+        color: var(--acento);
+        font-size: 24px;
+        font-weight: 600;
+        letter-spacing: 0.22em;
+        text-transform: uppercase;
+        margin-bottom: 46px;
+      }
+
+      #titulo {
+        display: block;
+        margin: 0;
+        font-size: 172px;
+        font-weight: 800;
+        line-height: 0.94;
+        letter-spacing: -0.045em;
+      }
+
+      #titulo em {
+        display: inline-block;
+        font-style: normal;
+        background: linear-gradient(96deg, var(--acento) 12%, var(--acento-quente) 88%);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+      }
+
+      #subtitulo {
+        display: block;
+        margin: 44px 0 0;
+        max-width: 1120px;
+        font-size: 40px;
+        line-height: 1.42;
+        color: var(--suave);
+      }
+
+      #risco {
+        position: absolute;
+        left: 168px;
+        bottom: 210px;
+        width: 1584px;
+        height: 3px;
+        transform-origin: left center;
+        background: linear-gradient(90deg, var(--acento), rgba(255, 180, 84, 0.15));
+      }
+
+      /* ── Cena 2 ── */
+      #cabecalho-cartoes {
+        display: block;
+        margin: 0 0 68px;
+        font-size: 58px;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+      }
+
+      #cartoes {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 44px;
+      }
+
+      .cartao {
+        display: block;
+        box-sizing: border-box;
+        height: 396px;
+        padding: 54px 48px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 28px;
+        background: linear-gradient(168deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0.02));
+      }
+
+      .cartao-num {
+        display: block;
+        font-size: 30px;
+        font-weight: 700;
+        color: var(--acento);
+        letter-spacing: 0.16em;
+        margin-bottom: 34px;
+      }
+
+      .cartao-titulo {
+        display: block;
+        margin: 0 0 22px;
+        font-size: 46px;
+        font-weight: 700;
+        letter-spacing: -0.015em;
+      }
+
+      .cartao-texto {
+        display: block;
+        margin: 0;
+        font-size: 28px;
+        line-height: 1.5;
+        color: var(--suave);
+      }
+
+      /* ── Cena 3 ── */
+      #outro-palco {
+        align-items: center;
+        text-align: center;
+      }
+
+      #outro-titulo {
+        display: block;
+        margin: 0;
+        font-size: 132px;
+        font-weight: 800;
+        letter-spacing: -0.04em;
+        line-height: 1.02;
+      }
+
+      #outro-comando {
+        display: block;
+        margin: 58px auto 0;
+        width: fit-content;
+        padding: 30px 56px;
+        border-radius: 20px;
+        border: 1px solid rgba(76, 194, 255, 0.34);
+        background: rgba(76, 194, 255, 0.08);
+        font-family: "JetBrains Mono", ui-monospace, monospace;
+        font-size: 40px;
+        color: var(--acento);
+      }
+
+      #outro-rodape {
+        display: block;
+        margin: 46px 0 0;
+        font-size: 28px;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+        color: var(--suave);
+      }
+    </style>
+  </head>
+
+  <body>
+    <div
+      id="root"
+      data-composition-id="main"
+      data-start="0"
+      data-width="1920"
+      data-height="1080"
+      data-duration="10"
+    >
+      <!-- Fundo: atravessa o vídeo inteiro -->
+      <div id="fundo" class="clip" data-start="0" data-duration="10" data-track-index="0">
+        <div id="fundo-fill"></div>
+        <div id="grade"></div>
+      </div>
+
+      <!-- Cena 1 — abertura -->
+      <section id="cena-abertura" class="clip" data-start="0" data-duration="4" data-track-index="1">
+        <div class="palco">
+          <span id="etiqueta">HTML → vídeo</span>
+          <h1 id="titulo">Escreva HTML.<em>Renderize vídeo.</em></h1>
+          <p id="subtitulo">
+            Composições determinísticas em Chromium headless, codificadas com FFmpeg.
+          </p>
+        </div>
+        <div id="risco"></div>
+      </section>
+
+      <!-- Cena 2 — os três pilares -->
+      <section id="cena-cartoes" class="clip" data-start="4" data-duration="3.6" data-track-index="2">
+        <div class="palco">
+          <h2 id="cabecalho-cartoes">Por que HyperFrames</h2>
+          <div id="cartoes">
+            <article class="cartao" id="cartao-1">
+              <span class="cartao-num">01</span>
+              <h3 class="cartao-titulo">Sem build</h3>
+              <p class="cartao-texto">
+                O index.html roda direto no navegador. Nenhum bundler no caminho.
+              </p>
+            </article>
+            <article class="cartao" id="cartao-2">
+              <span class="cartao-num">02</span>
+              <h3 class="cartao-titulo">Determinístico</h3>
+              <p class="cartao-texto">
+                A mesma entrada gera os mesmos frames. Feito para CI e automação.
+              </p>
+            </article>
+            <article class="cartao" id="cartao-3">
+              <span class="cartao-num">03</span>
+              <h3 class="cartao-titulo">Para agentes</h3>
+              <p class="cartao-texto">
+                Agentes de IA já escrevem HTML — e o CLI não exige interação.
+              </p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <!-- Cena 3 — encerramento -->
+      <section id="cena-outro" class="clip" data-start="7.6" data-duration="2.4" data-track-index="3">
+        <div class="palco" id="outro-palco">
+          <h2 id="outro-titulo">Seu primeiro render</h2>
+          <code id="outro-comando">npx hyperframes render</code>
+          <p id="outro-rodape">Apache 2.0 · heygen-com/hyperframes</p>
+        </div>
+      </section>
+    </div>
+
+    <script>
+      window.__timelines = window.__timelines || {};
+      const tl = gsap.timeline({ paused: true });
+
+      /* ── Cena 1 (0s – 4s) ── */
+      tl.from("#etiqueta", { y: 26, autoAlpha: 0, duration: 0.6, ease: "power3.out" }, 0.15)
+        .from("#titulo", { y: 60, autoAlpha: 0, duration: 0.9, ease: "power4.out" }, 0.3)
+        .from("#subtitulo", { y: 34, autoAlpha: 0, duration: 0.8, ease: "power3.out" }, 0.62)
+        .from("#risco", { scaleX: 0, duration: 1.1, ease: "power2.inOut" }, 0.5)
+        .to("#cena-abertura .palco", { y: -40, autoAlpha: 0, duration: 0.55, ease: "power2.in" }, 3.4)
+        .to("#risco", { autoAlpha: 0, duration: 0.4, ease: "power2.in" }, 3.5)
+        // hard kill no limite da cena: seek não-linear pode cair depois do fade
+        .set("#cena-abertura .palco", { autoAlpha: 0 }, 4.0);
+
+      /* ── Cena 2 (4s – 7.6s) ── */
+      tl.from("#cabecalho-cartoes", { y: 40, autoAlpha: 0, duration: 0.7, ease: "power3.out" }, 4.1)
+        .from(
+          ".cartao",
+          { y: 74, autoAlpha: 0, duration: 0.8, ease: "power3.out", stagger: 0.16 },
+          4.35,
+        )
+        .to("#cena-cartoes .palco", { y: -36, autoAlpha: 0, duration: 0.5, ease: "power2.in" }, 7.1)
+        .set("#cena-cartoes .palco", { autoAlpha: 0 }, 7.6);
+
+      /* ── Cena 3 (7.6s – 10s) ── */
+      tl.from("#outro-titulo", { y: 54, autoAlpha: 0, duration: 0.75, ease: "power4.out" }, 7.75)
+        .from("#outro-comando", { y: 30, autoAlpha: 0, duration: 0.65, ease: "power3.out" }, 8.05)
+        .from("#outro-rodape", { autoAlpha: 0, duration: 0.6, ease: "power2.out" }, 8.35);
+
+      /* Vinheta do fundo — leve respiro ao longo do vídeo (contagem finita) */
+      tl.fromTo(
+        "#grade",
+        { autoAlpha: 0.75 },
+        { autoAlpha: 0.35, duration: 5, ease: "sine.inOut", yoyo: true, repeat: 1 },
+        0,
+      );
+
+      window.__timelines["main"] = tl;
+    </script>
+  </body>
+</html>

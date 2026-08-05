@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+<Container version="2">
+  <Name>HyperFrames</Name>
+  <Repository>hyperframes-studio:latest</Repository>
+  <Registry/>
+  <Network>bridge</Network>
+  <Shell>sh</Shell>
+  <Privileged>false</Privileged>
+  <Support>https://github.com/heygen-com/hyperframes</Support>
+  <Project>https://hyperframes.heygen.com</Project>
+  <Overview>HyperFrames - framework open-source (Apache 2.0) da HeyGen que transforma HTML + CSS + animacoes em video MP4 deterministico. Este container roda o preview/studio na porta 3002 e renderiza videos com Chromium headless + FFmpeg. A imagem e construida localmente (docker build -t hyperframes-studio:latest .) a partir do Dockerfile deste repositorio; nao existe imagem publicada em registry.</Overview>
+  <Category>MediaApp:Video Productivity:</Category>
+  <WebUI>http://[IP]:[PORT:3002]/</WebUI>
+  <ExtraParams>--shm-size=1g</ExtraParams>
+  <Icon>https://raw.githubusercontent.com/heygen-com/hyperframes/main/docs/favicon.svg</Icon>
+  <Config Name="WebUI / Preview" Target="3002" Default="3002" Mode="tcp" Description="Porta do preview/studio do HyperFrames" Type="Port" Display="always" Required="true" Mask="false">3002</Config>
+  <Config Name="Workspace" Target="/workspace" Default="/mnt/user/appdata/hyperframes" Mode="rw" Description="Pasta com os projetos de video (composicoes HTML, midia e MP4s renderizados)" Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/hyperframes</Config>
+  <Config Name="HYPERFRAMES_PREVIEW_HOST" Target="HYPERFRAMES_PREVIEW_HOST" Default="0.0.0.0" Mode="" Description="Interface de bind do preview (0.0.0.0 para acesso pela LAN)" Type="Variable" Display="advanced" Required="false" Mask="false">0.0.0.0</Config>
+  <Config Name="HYPERFRAMES_PORT" Target="HYPERFRAMES_PORT" Default="3002" Mode="" Description="Porta interna do preview" Type="Variable" Display="advanced" Required="false" Mask="false">3002</Config>
+</Container>

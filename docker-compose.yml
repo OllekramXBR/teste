@@ -1,0 +1,17 @@
+# HyperFrames no Unraid via plugin "Docker Compose Manager"
+# (ou docker compose manualmente pelo terminal do Unraid)
+services:
+  hyperframes:
+    build: .
+    image: hyperframes-studio:latest
+    container_name: hyperframes
+    ports:
+      - "3002:3002"
+    volumes:
+      - /mnt/user/appdata/hyperframes:/workspace
+    environment:
+      - HYPERFRAMES_PREVIEW_HOST=0.0.0.0
+      - HYPERFRAMES_PORT=3002
+    # Chromium headless precisa de /dev/shm decente para não travar em 1080p+
+    shm_size: "1gb"
+    restart: unless-stopped
