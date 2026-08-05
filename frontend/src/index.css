@@ -1,0 +1,30 @@
+@import 'tailwindcss';
+
+/* The app follows the OS colour scheme; Tailwind's `dark:` variants key off it. */
+@custom-variant dark (&:where(.dark, .dark *), @media (prefers-color-scheme: dark));
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  font-family:
+    ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Printing produces the chord sheet only: screen chrome is hidden and the sheet
+   is revealed, which turns the browser's print dialog into "download PDF". */
+@media print {
+  body {
+    background: #fff;
+    color: #000;
+  }
+
+  .chord-sheet {
+    display: block !important;
+  }
+}
