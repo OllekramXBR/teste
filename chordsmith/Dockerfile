@@ -11,8 +11,10 @@ COPY frontend/ ./
 RUN npm run build
 
 
-# ---- Stage 2: runtime ------------------------------------------------------
-FROM python:3.11-slim AS runtime
+# ---- Stage 2: everything the API needs, minus the built frontend -----------
+# Split out so development can build this stage alone and skip the frontend
+# build entirely — in development Vite serves the UI itself.
+FROM python:3.11-slim AS backend
 
 # libsndfile is what actually decodes MP3/FLAC/OGG. The soundfile wheel bundles
 # a copy, but installing the system package keeps things working if a future
@@ -33,7 +35,6 @@ COPY backend/requirements.txt ./backend/requirements.txt
 RUN pip install --no-cache-dir -r backend/requirements.txt
 
 COPY backend/ ./backend/
-COPY --from=frontend /build/dist ./frontend/dist
 COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh
 RUN chmod +x /usr/local/bin/entrypoint.sh
 
@@ -45,3 +46,9 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
 
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--app-dir", "/app/backend"]
+
+
+# ---- Stage 3: production image, API plus the built UI ----------------------
+FROM backend AS runtime
+
+COPY --from=frontend /build/dist ./frontend/dist

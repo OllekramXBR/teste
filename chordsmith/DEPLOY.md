@@ -1,5 +1,9 @@
 # Deploying Chordsmith on Unraid
 
+If you want to **edit the code from your desktop while the app runs on Unraid**,
+skip to [Development on an Unraid share](#development-on-an-unraid-share) — it is
+a different setup from the three deployment options below.
+
 Three options. Pick one.
 
 - **Bind to the host's Tailscale interface (simplest).** If the Unraid box is
@@ -210,3 +214,127 @@ tar czf chordsmith-backup.tgz -C /mnt/user/appdata/chordsmith data
 | Upload rejected as unsupported | `.m4a`/AAC file | Convert to MP3, WAV, FLAC or OGG — the container has no ffmpeg |
 | Analysis fails on one file | Corrupt or zero-length audio | The error is shown on the song page; re-upload or re-encode |
 | Files under `appdata` owned by root | `PUID`/`PGID` unset | Set them in `.env` and recreate the container |
+
+---
+
+## Development on an Unraid share
+
+The setup this covers: the source lives on an Unraid **user share**, you edit it
+from your desktop over SMB (`A:\EasyChords`, say), and the app runs on the Unraid
+box with hot reload. Nothing is installed on the desktop — no Python, no Node.
+
+Uses `docker-compose.dev.yml`, which is separate from the production compose file
+and configured differently on purpose.
+
+### 1. Pick a share, not appdata
+
+Put the code somewhere exported over SMB. `appdata` usually is not, and is meant
+for container state rather than source:
+
+```sh
+mkdir -p /mnt/user/projetos/chordsmith
+```
+
+The **data** — uploaded audio and the database — stays out of the source tree,
+on `appdata`, where it belongs:
+
+```sh
+mkdir -p /mnt/user/appdata/chordsmith/data
+```
+
+### 2. Clone from the Unraid terminal
+
+Clone on the server, not from Windows. A clone made by Windows Git writes CRLF
+line endings, and `entrypoint.sh` will not run inside the container with those —
+it fails with a confusing `no such file or directory`.
+
+```sh
+cd /mnt/user/projetos/chordsmith
+git clone -b claude/chordfy-clone-v79xr7 https://github.com/OllekramXBR/teste.git .
+cd chordsmith
+```
+
+If you do end up editing shell scripts from Windows, set this once in the repo so
+Git stops rewriting their endings:
+
+```sh
+git config core.autocrlf input
+```
+
+### 3. Configure and start
+
+```sh
+cat > .env <<'ENVFILE'
+BIND_IP=100.100.112.45
+DATA_DIR=/mnt/user/appdata/chordsmith/data
+PUID=99
+PGID=100
+ENVFILE
+
+docker compose -f docker-compose.dev.yml up -d --build
+```
+
+`BIND_IP` is the host's Tailscale address, so the dev servers are published on
+the tailnet and nowhere else. Use `0.0.0.0` if you want them on the LAN too.
+
+Two things are now running:
+
+| URL | What |
+| --- | --- |
+| `http://<BIND_IP>:5173` | The UI, with hot reload. **Use this one.** |
+| `http://<BIND_IP>:8000` | The API directly, plus `/docs` |
+
+Vite proxies `/api` to the API container over the compose network, so the browser
+only ever talks to one origin and CORS never comes up.
+
+### 4. Edit from your desktop
+
+Map the share to a drive letter and open it in your editor. Save a file under
+`backend/` and uvicorn reloads; save one under `frontend/src/` and the browser
+updates.
+
+### Why this compose file differs from the production one
+
+Two problems come with running from a share, and both are handled in
+`docker-compose.dev.yml`:
+
+- **`node_modules` never touches the share.** It lives in a named volume on the
+  Docker disk. Thousands of small files over SMB/shfs is where this setup
+  otherwise becomes unusable — `npm install` alone can take many minutes.
+- **File watching is forced to polling** (`WATCHFILES_FORCE_POLLING` for uvicorn,
+  `VITE_USE_POLLING` for Vite). inotify does not fire reliably through Unraid's
+  shfs layer, so without this the reloaders never notice that you saved anything
+  and you are left wondering why nothing changes.
+
+The dev API image also builds only the `backend` stage of the Dockerfile — the
+frontend is not built into it, because Vite is serving the UI.
+
+### Running the tests against the running code
+
+```sh
+docker compose -f docker-compose.dev.yml exec api \
+  sh -c "cd /app/backend && python -m pytest"
+```
+
+### Going back to production
+
+When you are done iterating, stop the dev stack and start the real one. They bind
+the same ports, so do not run both:
+
+```sh
+docker compose -f docker-compose.dev.yml down
+docker compose up -d --build          # or the plain `docker run` from Option 0
+```
+
+The data directory is shared between the two, so your library survives the
+switch.
+
+### Troubleshooting
+
+| Symptom | Cause | Fix |
+| --- | --- | --- |
+| Edits do nothing | Polling not on | Check `.env` was picked up: `docker compose -f docker-compose.dev.yml config` |
+| `entrypoint.sh: no such file or directory` | CRLF line endings from a Windows clone | Re-clone from the Unraid terminal, or `dos2unix docker/entrypoint.sh` |
+| `npm install` never finishes | `node_modules` landed on the share | Confirm the `web-node-modules` volume exists: `docker volume ls` |
+| Port already in use | The production stack is still up | `docker compose down`, or stop the `chordsmith` container |
+| Files owned by root on the share | `PUID`/`PGID` unset | Set them in `.env` and recreate the containers |

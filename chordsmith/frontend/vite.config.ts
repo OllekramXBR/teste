@@ -15,6 +15,13 @@ export default defineConfig({
         changeOrigin: true,
       },
     },
+    // Network and FUSE filesystems — an Unraid user share reached over SMB,
+    // say — do not deliver inotify events reliably, so hot reload silently
+    // stops working there. Polling is slower but actually notices saves.
+    watch: {
+      usePolling: process.env.VITE_USE_POLLING === 'true',
+      interval: 400,
+    },
   },
   build: {
     outDir: 'dist',
