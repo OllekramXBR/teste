@@ -270,9 +270,37 @@ DATA_DIR=/mnt/user/appdata/chordsmith/data
 PUID=99
 PGID=100
 ENVFILE
-
-docker compose -f docker-compose.dev.yml up -d --build
 ```
+
+Unraid does **not** ship Docker Compose V2 by default. Check before going
+further:
+
+```sh
+docker compose version
+```
+
+If that fails with `unknown shorthand flag: 'f'` or `docker: 'compose' is not a
+docker command`, pick one:
+
+- **Install it** — Community Applications → **Docker Compose Manager**. This is
+  the tidier route, and it also gives you a stack UI in the Unraid web
+  interface. Then:
+
+  ```sh
+  docker compose -f docker-compose.dev.yml up -d --build
+  ```
+
+- **Skip Compose entirely** — `docker/dev-run.sh` does the same thing in plain
+  `docker run`, reading the same `.env`:
+
+  ```sh
+  sh docker/dev-run.sh              # start
+  sh docker/dev-run.sh stop         # stop and remove the containers
+  ```
+
+Older systems may have the V1 binary under its hyphenated name
+(`docker-compose -f docker-compose.dev.yml up -d --build`), but V1 is
+end-of-life and does not read every key used here — prefer one of the two above.
 
 `BIND_IP` is the host's Tailscale address, so the dev servers are published on
 the tailnet and nowhere else. Use `0.0.0.0` if you want them on the LAN too.
@@ -333,6 +361,7 @@ switch.
 
 | Symptom | Cause | Fix |
 | --- | --- | --- |
+| `unknown shorthand flag: 'f' in -f` | Compose V2 not installed | Install Docker Compose Manager, or use `sh docker/dev-run.sh` |
 | Edits do nothing | Polling not on | Check `.env` was picked up: `docker compose -f docker-compose.dev.yml config` |
 | `entrypoint.sh: no such file or directory` | CRLF line endings from a Windows clone | Re-clone from the Unraid terminal, or `dos2unix docker/entrypoint.sh` |
 | `npm install` never finishes | `node_modules` landed on the share | Confirm the `web-node-modules` volume exists: `docker volume ls` |
