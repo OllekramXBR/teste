@@ -236,8 +236,10 @@ class TestHeader:
         assert " F " in text.split("Acordes:")[1].splitlines()[0] + " "
 
     def test_chord_summary_uses_brazilian_notation(self, analysis):
+        # Simplification off: this is about how a seventh is spelled, and with
+        # it on the seventh is gone before the speller ever sees it.
         analysis["chords"] = [chord("Gmaj7", 0.0, 2.0), chord("Bdim", 2.0, 4.0)]
-        summary = cifra.render(analysis).split("Acordes:")[1].splitlines()[0]
+        summary = cifra.render(analysis, simplify=False).split("Acordes:")[1].splitlines()[0]
         assert "G7M" in summary
         assert "B°" in summary
 
