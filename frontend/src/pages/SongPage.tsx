@@ -10,9 +10,12 @@ import { ChordGrid, displayLabel, groupIntoBars } from '../components/ChordGrid'
 import { ChordSheet } from '../components/ChordSheet'
 import { ChordToneLegend, FretDiagram } from '../components/FretDiagram'
 import { PianoDiagram } from '../components/PianoDiagram'
+import { LeadSummary, TabStaff } from '../components/TabStaff'
 import { Toolbar, type ToolbarSettings } from '../components/Toolbar'
 import { Transport } from '../components/Transport'
 import { Tuner } from '../components/Tuner'
+
+type View = 'chords' | 'tab' | 'both'
 
 const SETTINGS_KEY = 'chordsmith.settings.v1'
 const POLL_INTERVAL_MS = 1500
@@ -66,6 +69,7 @@ export function SongPage() {
   const [settings, setSettings] = useState<ToolbarSettings>(loadSettings)
   const [loopBars, setLoopBars] = useState<{ start: number; end: number } | null>(null)
   const [shapeVariant, setShapeVariant] = useState(0)
+  const [view, setView] = useState<View>('chords')
 
   const engineRef = useRef<AudioEngine | null>(null)
   if (engineRef.current === null) engineRef.current = new AudioEngine()
@@ -377,18 +381,50 @@ export function SongPage() {
               transposed harmony.
             </p>
           )}
-          <ChordGrid
-            beats={analysis.beats}
-            beatsPerBar={analysis.beatsPerBar}
-            activeBeat={activeBeatIndex}
-            transpose={settings.transpose}
-            capo={settings.capo}
-            useFlats={analysis.useFlats}
-            loopBars={loopBars}
-            onSeek={handleSeek}
-            onBarSelect={handleBarSelect}
-            autoScroll={settings.autoScroll}
-          />
+          <div className="flex items-center gap-1 rounded-lg bg-slate-200 p-1 dark:bg-slate-700">
+            {(['chords', 'tab', 'both'] as View[]).map((option) => (
+              <button
+                key={option}
+                type="button"
+                onClick={() => setView(option)}
+                className={`flex-1 rounded px-3 py-1.5 text-xs font-semibold capitalize transition-colors ${
+                  view === option
+                    ? 'bg-white text-slate-900 shadow dark:bg-slate-900 dark:text-white'
+                    : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-200'
+                }`}
+              >
+                {option === 'tab' ? `Tab (${analysis.lead.notes.length} notes)` : option}
+              </button>
+            ))}
+          </div>
+
+          {(view === 'chords' || view === 'both') && (
+            <ChordGrid
+              beats={analysis.beats}
+              beatsPerBar={analysis.beatsPerBar}
+              activeBeat={activeBeatIndex}
+              transpose={settings.transpose}
+              capo={settings.capo}
+              useFlats={analysis.useFlats}
+              loopBars={loopBars}
+              onSeek={handleSeek}
+              onBarSelect={handleBarSelect}
+              autoScroll={settings.autoScroll && view !== 'both'}
+            />
+          )}
+
+          {(view === 'tab' || view === 'both') && (
+            <>
+              <LeadSummary lead={analysis.lead} onSeek={handleSeek} />
+              <TabStaff
+                lead={analysis.lead}
+                bars={bars}
+                currentTime={player.currentTime}
+                onSeek={handleSeek}
+                autoScroll={settings.autoScroll}
+              />
+            </>
+          )}
         </div>
 
         <aside className="space-y-4">

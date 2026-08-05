@@ -26,6 +26,43 @@ export interface ChordSpan {
   confidence: number
 }
 
+export interface LeadNote {
+  start: number
+  end: number
+  midi: number
+  name: string
+  /** Null when the note falls outside the guitar's range. */
+  string: number | null
+  fret: number | null
+  beat: number
+  bar: number
+  confidence: number
+  velocity: number
+}
+
+export interface LeadSection {
+  startBar: number
+  endBar: number
+  start: number
+  end: number
+  noteCount: number
+  notesPerBar: number
+  lowMidi: number
+  highMidi: number
+  lowName: string
+  highName: string
+  /** Dense and wide-ranging enough to read as an instrumental solo. */
+  isSolo: boolean
+}
+
+export interface Lead {
+  tuning: number[]
+  stringNames: string[]
+  coverage: number
+  notes: LeadNote[]
+  sections: LeadSection[]
+}
+
 export interface Analysis {
   duration: number
   bpm: number
@@ -35,6 +72,7 @@ export interface Analysis {
   beats: BeatEvent[]
   chords: ChordSpan[]
   uniqueChords: string[]
+  lead: Lead
   analysisSeconds: number
 }
 

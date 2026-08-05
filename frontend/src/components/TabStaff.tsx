@@ -1,0 +1,241 @@
+import { useEffect, useMemo, useRef } from 'react'
+import type { Lead, LeadNote } from '../lib/api'
+import type { Bar } from './ChordGrid'
+
+interface TabStaffProps {
+  lead: Lead
+  bars: Bar[]
+  currentTime: number
+  onSeek: (time: number) => void
+  autoScroll: boolean
+}
+
+const STRING_GAP = 13
+const BAR_MIN_WIDTH = 190
+const TOP_PADDING = 10
+
+interface BarNotes {
+  bar: Bar
+  notes: LeadNote[]
+  isSolo: boolean
+}
+
+/**
+ * Guitar tablature for the transcribed lead line.
+ *
+ * Notes are positioned by their real onset time within the bar rather than
+ * quantised to a rhythmic grid, so what you read lines up with what you hear
+ * even when the playing is loose.
+ */
+export function TabStaff({ lead, bars, currentTime, onSeek, autoScroll }: TabStaffProps) {
+  const containerRef = useRef<HTMLDivElement | null>(null)
+  const activeRef = useRef<HTMLDivElement | null>(null)
+  const stringCount = lead.stringNames.length
+  const staffHeight = TOP_PADDING * 2 + (stringCount - 1) * STRING_GAP
+
+  const barNotes = useMemo<BarNotes[]>(() => {
+    const soloBars = new Set<number>()
+    for (const section of lead.sections) {
+      if (!section.isSolo) continue
+      for (let bar = section.startBar; bar <= section.endBar; bar += 1) soloBars.add(bar)
+    }
+    const byBar = new Map<number, LeadNote[]>()
+    for (const note of lead.notes) {
+      const existing = byBar.get(note.bar)
+      if (existing) existing.push(note)
+      else byBar.set(note.bar, [note])
+    }
+    return bars
+      .map((bar) => ({
+        bar,
+        notes: byBar.get(bar.number) ?? [],
+        isSolo: soloBars.has(bar.number),
+      }))
+      .filter((entry) => entry.notes.length > 0)
+  }, [lead, bars])
+
+  const activeBarNumber = useMemo(() => {
+    const active = barNotes.find(
+      (entry) => currentTime >= entry.bar.start && currentTime < entry.bar.end,
+    )
+    return active?.bar.number ?? -1
+  }, [barNotes, currentTime])
+
+  useEffect(() => {
+    if (!autoScroll || !activeRef.current || !containerRef.current) return
+    const container = containerRef.current
+    const box = container.getBoundingClientRect()
+    const element = activeRef.current.getBoundingClientRect()
+    if (element.top < box.top + 20 || element.bottom > box.bottom - 20) {
+      container.scrollTo({
+        top: container.scrollTop + (element.top - box.top) - box.height / 3,
+        behavior: 'smooth',
+      })
+    }
+  }, [activeBarNumber, autoScroll])
+
+  if (!barNotes.length) {
+    return (
+      <div className="rounded-xl bg-slate-50 p-8 text-center text-sm text-slate-500 dark:bg-slate-900/60">
+        No lead line was picked out of this track. Transcription follows the loudest melodic voice,
+        so tracks that are all rhythm parts — or where the melody is buried — come back empty.
+      </div>
+    )
+  }
+
+  return (
+    <div
+      ref={containerRef}
+      className="max-h-[58vh] overflow-y-auto rounded-xl bg-slate-50 p-3 dark:bg-slate-900/60"
+    >
+      <div
+        className="grid gap-3"
+        style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${BAR_MIN_WIDTH}px, 1fr))` }}
+      >
+        {barNotes.map(({ bar, notes, isSolo }) => {
+          const isActive = bar.number === activeBarNumber
+          const span = Math.max(bar.end - bar.start, 0.001)
+          return (
+            <div
+              key={bar.number}
+              ref={isActive ? activeRef : undefined}
+              className={[
+                'relative rounded-lg border p-2 transition-colors',
+                isActive
+                  ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-950/40'
+                  : 'border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800/60',
+                isSolo ? 'ring-2 ring-fuchsia-400/70' : '',
+              ].join(' ')}
+            >
+              <div className="mb-1 flex items-center justify-between">
+                <span className="text-[9px] font-semibold text-slate-400">{bar.number}</span>
+                {isSolo && (
+                  <span className="rounded bg-fuchsia-500 px-1 text-[8px] font-bold uppercase text-white">
+                    solo
+                  </span>
+                )}
+              </div>
+
+              <div className="flex gap-1">
+                {/* String names down the left edge, high string on top, the way
+                    tab is conventionally written. */}
+                <div className="relative w-3 shrink-0" style={{ height: staffHeight }}>
+                  {lead.stringNames
+                    .slice()
+                    .reverse()
+                    .map((name, index) => (
+                      <span
+                        key={name + index}
+                        className="absolute text-[8px] leading-none text-slate-400"
+                        style={{ top: TOP_PADDING + index * STRING_GAP - 3 }}
+                      >
+                        {name}
+                      </span>
+                    ))}
+                </div>
+
+                <div className="relative flex-1" style={{ height: staffHeight }}>
+                  <svg
+                    width="100%"
+                    height={staffHeight}
+                    viewBox={`0 0 100 ${staffHeight}`}
+                    preserveAspectRatio="none"
+                    role="img"
+                    aria-label={`Tablature for bar ${bar.number}`}
+                    className="absolute inset-0"
+                  >
+                    {lead.stringNames.map((_, index) => (
+                      <line
+                        key={index}
+                        x1={0}
+                        x2={100}
+                        y1={TOP_PADDING + index * STRING_GAP}
+                        y2={TOP_PADDING + index * STRING_GAP}
+                        className="stroke-slate-300 dark:stroke-slate-600"
+                        strokeWidth={0.4}
+                        vectorEffect="non-scaling-stroke"
+                      />
+                    ))}
+                  </svg>
+
+                  {/* Fret numbers live outside the SVG so the stretched viewBox
+                      cannot distort their glyphs. */}
+                  {notes.map((note) => {
+                    if (note.string === null || note.fret === null) return null
+                    const left = ((note.start - bar.start) / span) * 100
+                    const sounding = currentTime >= note.start && currentTime < note.end
+                    // String 0 is the lowest-pitched string, drawn at the bottom.
+                    const row = stringCount - 1 - note.string
+                    return (
+                      <button
+                        key={`${note.start}-${note.midi}`}
+                        type="button"
+                        onClick={() => onSeek(note.start)}
+                        title={`${note.name} — string ${lead.stringNames[note.string]}, fret ${
+                          note.fret
+                        }`}
+                        className={`absolute -translate-x-1/2 -translate-y-1/2 rounded px-0.5 text-[10px] font-bold leading-tight tabular-nums ${
+                          sounding
+                            ? 'z-10 bg-indigo-600 text-white'
+                            : 'bg-white text-slate-700 dark:bg-slate-800 dark:text-slate-200'
+                        }`}
+                        style={{
+                          left: `${Math.min(Math.max(left, 2), 96)}%`,
+                          top: TOP_PADDING + row * STRING_GAP,
+                        }}
+                      >
+                        {note.fret}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+/** Summary strip listing the detected lead sections and which read as solos. */
+export function LeadSummary({
+  lead,
+  onSeek,
+}: {
+  lead: Lead
+  onSeek: (time: number) => void
+}) {
+  if (!lead.sections.length) return null
+  const solos = lead.sections.filter((section) => section.isSolo)
+
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-800/70">
+      <h3 className="mb-2 text-sm font-semibold">
+        Lead line — {lead.sections.length} section{lead.sections.length === 1 ? '' : 's'}
+        {solos.length > 0 &&
+          `, ${solos.length} of which ${solos.length === 1 ? 'reads' : 'read'} as a solo`}
+      </h3>
+      <div className="flex flex-wrap gap-1.5">
+        {lead.sections.map((section) => (
+          <button
+            key={section.startBar}
+            type="button"
+            onClick={() => onSeek(section.start)}
+            title={`${section.noteCount} notes, ${section.notesPerBar} per bar, ${section.lowName}–${section.highName}`}
+            className={`rounded px-2 py-1 text-xs font-semibold transition-colors ${
+              section.isSolo
+                ? 'bg-fuchsia-500 text-white hover:bg-fuchsia-400'
+                : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-300'
+            }`}
+          >
+            bars {section.startBar}–{section.endBar}
+            <span className="ml-1 font-normal opacity-80">
+              {section.lowName}–{section.highName}
+            </span>
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}

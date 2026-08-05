@@ -11,8 +11,11 @@ import librosa
 
 from . import beats as beat_module
 from . import chords as chord_module
+from . import melody as melody_module
+from . import tab as tab_module
 from . import theory
 from .beats import DEFAULT_SR, HOP_LENGTH
+from .melody import LeadSection, Note
 from .theory import Chord
 
 # Chroma is computed over this pitch range. Starting at C1 keeps the bass in
@@ -51,6 +54,17 @@ class ChordSpan:
 
 
 @dataclass
+class TabNote:
+    """A transcribed lead note placed on the fretboard and on the beat grid."""
+
+    note: Note
+    string: int | None
+    fret: int | None
+    beat: int
+    bar: int
+
+
+@dataclass
 class AnalysisResult:
     duration: float
     bpm: float
@@ -60,6 +74,9 @@ class AnalysisResult:
     key_confidence: float
     beat_events: list[BeatEvent] = field(default_factory=list)
     spans: list[ChordSpan] = field(default_factory=list)
+    tab_notes: list[TabNote] = field(default_factory=list)
+    lead_sections: list[LeadSection] = field(default_factory=list)
+    lead_coverage: float = 0.0
     analysis_seconds: float = 0.0
 
     @property
@@ -112,6 +129,42 @@ class AnalysisResult:
             "uniqueChords": sorted(
                 {s.chord.label(flats) for s in self.spans if not s.chord.is_none}
             ),
+            "lead": {
+                "tuning": list(tab_module.GUITAR_TUNING),
+                "stringNames": list(tab_module.GUITAR_STRING_NAMES),
+                "coverage": round(self.lead_coverage, 3),
+                "notes": [
+                    {
+                        "start": round(t.note.start, 4),
+                        "end": round(t.note.end, 4),
+                        "midi": t.note.midi,
+                        "name": tab_module.note_name(t.note.midi),
+                        "string": t.string,
+                        "fret": t.fret,
+                        "beat": t.beat,
+                        "bar": t.bar,
+                        "confidence": round(t.note.confidence, 3),
+                        "velocity": round(t.note.velocity, 3),
+                    }
+                    for t in self.tab_notes
+                ],
+                "sections": [
+                    {
+                        "startBar": s.start_bar,
+                        "endBar": s.end_bar,
+                        "start": round(s.start, 3),
+                        "end": round(s.end, 3),
+                        "noteCount": s.note_count,
+                        "notesPerBar": round(s.notes_per_bar, 2),
+                        "lowMidi": s.low_midi,
+                        "highMidi": s.high_midi,
+                        "lowName": tab_module.note_name(s.low_midi),
+                        "highName": tab_module.note_name(s.high_midi),
+                        "isSolo": s.is_solo,
+                    }
+                    for s in self.lead_sections
+                ],
+            },
             "analysisSeconds": round(self.analysis_seconds, 2),
         }
 
@@ -262,6 +315,8 @@ def analyze_file(path: str | Path, sr: int = DEFAULT_SR) -> AnalysisResult:
             )
         )
 
+    tab_notes, lead_sections, lead_coverage = transcribe_lead(y_harmonic, sr, events)
+
     return AnalysisResult(
         duration=duration,
         bpm=bpm,
@@ -271,5 +326,48 @@ def analyze_file(path: str | Path, sr: int = DEFAULT_SR) -> AnalysisResult:
         key_confidence=key_confidence,
         beat_events=events,
         spans=build_spans(events),
+        tab_notes=tab_notes,
+        lead_sections=lead_sections,
+        lead_coverage=lead_coverage,
         analysis_seconds=time.perf_counter() - started,
     )
+
+
+def bar_bounds(events: list[BeatEvent]) -> list[tuple[int, float, float]]:
+    """Start and end time of each bar, derived from the beat grid."""
+    bounds: dict[int, tuple[float, float]] = {}
+    for event in events:
+        start, end = bounds.get(event.bar, (event.time, event.time))
+        bounds[event.bar] = (min(start, event.time), max(end, event.time + event.duration))
+    return [(bar, start, end) for bar, (start, end) in sorted(bounds.items())]
+
+
+def transcribe_lead(
+    y_harmonic: np.ndarray, sr: int, events: list[BeatEvent]
+) -> tuple[list[TabNote], list[LeadSection], float]:
+    """Transcribe the lead line and lay it out as tablature on the beat grid."""
+    notes, sections, coverage = melody_module.extract_lead(y_harmonic, sr, bar_bounds(events))
+    if not notes:
+        return [], sections, coverage
+
+    positions = tab_module.assign_positions([note.midi for note in notes])
+    beat_times = np.array([event.time for event in events]) if events else np.zeros(0)
+
+    tab_notes: list[TabNote] = []
+    for note, position in zip(notes, positions):
+        if beat_times.size:
+            beat_index = int(np.searchsorted(beat_times, note.start, side="right") - 1)
+            beat_index = max(beat_index, 0)
+            bar = events[beat_index].bar
+        else:
+            beat_index, bar = 0, 1
+        tab_notes.append(
+            TabNote(
+                note=note,
+                string=position.string if position else None,
+                fret=position.fret if position else None,
+                beat=beat_index,
+                bar=bar,
+            )
+        )
+    return tab_notes, sections, coverage
