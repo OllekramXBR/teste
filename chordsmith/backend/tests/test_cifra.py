@@ -70,12 +70,21 @@ class TestNotation:
 
 class TestLayout:
     def test_chord_sits_above_the_word_it_lands_on(self, analysis):
+        # One sung phrase: the words have to stay inside PHRASE_GAP of each
+        # other or the renderer is right to split them across lines, and then
+        # there is no single row to check the columns against.
+        analysis["chords"] = [
+            chord("G", 0.0, 0.5),
+            chord("D", 0.5, 1.0),
+            chord("Em", 1.0, 1.5),
+            chord("C", 1.5, 2.0),
+        ]
         lyrics = {
             "words": [
                 word("um", 0.0, 0.4),
-                word("dois", 2.0, 2.4),
-                word("três", 4.0, 4.4),
-                word("quatro", 6.0, 6.4),
+                word("dois", 0.5, 0.9),
+                word("três", 1.0, 1.4),
+                word("quatro", 1.5, 1.9),
             ]
         }
         text = cifra.render(analysis, lyrics)

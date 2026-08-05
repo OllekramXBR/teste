@@ -40,6 +40,20 @@ ASR_BEAM_SIZE = int(os.environ.get("CHORDSMITH_ASR_BEAM", "5"))
 # 0 lets CTranslate2 pick, which is the core count.
 ASR_THREADS = int(os.environ.get("CHORDSMITH_ASR_THREADS", "0"))
 
+# Source separation. Stems are large — four Ogg files per song, roughly the
+# size of the original each — so they live beside the audio rather than in the
+# database, and can be deleted without losing the analysis.
+STEMS_DIR = DATA_DIR / "stems"
+STEM_MODEL = os.environ.get("CHORDSMITH_STEM_MODEL", "htdemucs")
+# Demucs is trained at 44.1 kHz stereo; changing this changes the model's input
+# distribution, not just the file size.
+STEM_SR = 44100
+STEM_FORMAT = os.environ.get("CHORDSMITH_STEM_FORMAT", "ogg")
+# Seconds of audio per inference chunk. Whole-track inference is where Demucs's
+# memory use gets out of hand; smaller segments cost a little speed and bound
+# the peak, which matters on a box that is also serving everything else.
+STEM_SEGMENT = float(os.environ.get("CHORDSMITH_STEM_SEGMENT", "10"))
+
 CORS_ORIGINS = os.environ.get(
     "CHORDSMITH_CORS_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173"
 ).split(",")
@@ -47,4 +61,5 @@ CORS_ORIGINS = os.environ.get(
 
 def ensure_directories() -> None:
     AUDIO_DIR.mkdir(parents=True, exist_ok=True)
+    STEMS_DIR.mkdir(parents=True, exist_ok=True)
     DATABASE_PATH.parent.mkdir(parents=True, exist_ok=True)
