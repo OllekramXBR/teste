@@ -190,6 +190,7 @@ def download_cifra(
         artist=song["artist"],
         transpose=transpose,
         capo=capo,
+        simplify=simplify,
     )
     headers = {}
     if download:
