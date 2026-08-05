@@ -269,8 +269,22 @@ BIND_IP=100.100.112.45
 DATA_DIR=/mnt/user/appdata/chordsmith/data
 PUID=99
 PGID=100
+API_PORT=8010
+WEB_PORT=5173
 ENVFILE
 ```
+
+`API_PORT` and `WEB_PORT` are the ports published on the host; they default to
+8000 and 5173. On a busy Unraid box 8000 is often already taken — Portainer
+publishes it, for one — so check before you start:
+
+```sh
+netstat -tln | awk '{print $4}' | sed 's/.*://' | sort -nu | tr '\n' ' '
+```
+
+Anything in that list is spoken for. Note that the ports the containers use
+*internally* stay 8000 and 5173 whatever you pick, so Vite's proxy target is
+unaffected.
 
 Unraid does **not** ship Docker Compose V2 by default. Check before going
 further:
@@ -309,8 +323,8 @@ Two things are now running:
 
 | URL | What |
 | --- | --- |
-| `http://<BIND_IP>:5173` | The UI, with hot reload. **Use this one.** |
-| `http://<BIND_IP>:8000` | The API directly, plus `/docs` |
+| `http://<BIND_IP>:<WEB_PORT>` | The UI, with hot reload. **Use this one.** |
+| `http://<BIND_IP>:<API_PORT>` | The API directly, plus `/docs` |
 
 Vite proxies `/api` to the API container over the compose network, so the browser
 only ever talks to one origin and CORS never comes up.
@@ -365,5 +379,6 @@ switch.
 | Edits do nothing | Polling not on | Check `.env` was picked up: `docker compose -f docker-compose.dev.yml config` |
 | `entrypoint.sh: no such file or directory` | CRLF line endings from a Windows clone | Re-clone from the Unraid terminal, or `dos2unix docker/entrypoint.sh` |
 | `npm install` never finishes | `node_modules` landed on the share | Confirm the `web-node-modules` volume exists: `docker volume ls` |
+| `Bind for 0.0.0.0:8000 failed: port is already allocated` | Another container already publishes that port on **all** interfaces, so binding it on one specific address cannot work either — the message names 0.0.0.0 even when you set `BIND_IP` | Find the holder with `docker ps --format '{{.Names}} {{.Ports}}' \| grep :8000`, then set `API_PORT` to a free port in `.env` |
 | Port already in use | The production stack is still up | `docker compose down`, or stop the `chordsmith` container |
 | Files owned by root on the share | `PUID`/`PGID` unset | Set them in `.env` and recreate the containers |

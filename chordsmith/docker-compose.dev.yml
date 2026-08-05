@@ -36,7 +36,9 @@ services:
       - ./backend:/app/backend
       - ${DATA_DIR:-/mnt/user/appdata/chordsmith/data}:/data
     ports:
-      - "${BIND_IP:-0.0.0.0}:8000:8000"
+      # Left side is the published port, right side is fixed: inside the network
+      # the API is always 8000, so `VITE_API_TARGET` never changes with this.
+      - "${BIND_IP:-0.0.0.0}:${API_PORT:-8000}:8000"
     environment:
       PUID: ${PUID:-99}
       PGID: ${PGID:-100}
@@ -55,7 +57,7 @@ services:
       - ./frontend:/app
       - web-node-modules:/app/node_modules
     ports:
-      - "${BIND_IP:-0.0.0.0}:5173:5173"
+      - "${BIND_IP:-0.0.0.0}:${WEB_PORT:-5173}:5173"
     environment:
       # Vite proxies /api to the API container over the compose network, so the
       # browser only ever talks to one origin and CORS never enters into it.
