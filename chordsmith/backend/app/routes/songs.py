@@ -10,6 +10,9 @@ from fastapi import APIRouter, File, Form, HTTPException, Query, Request, Upload
 from fastapi.responses import FileResponse, Response, StreamingResponse
 
 from .. import jobs, storage
+# `cifra` only pulls in the theory primitives, not librosa, so importing it at
+# module level does not put the numba import back on the API's startup path.
+from ..analysis import cifra
 from ..config import ALLOWED_EXTENSIONS, AUDIO_DIR, MAX_UPLOAD_BYTES, NATIVE_EXTENSIONS
 from ..midi import build_midi
 
@@ -126,6 +129,72 @@ def reanalyze(song_id: str) -> dict:
     storage.set_status(song_id, "pending")
     jobs.enqueue(song_id, stored[0])
     return storage.get_song(song_id, include_analysis=False)  # type: ignore[return-value]
+
+
+@router.post("/{song_id}/lyrics", status_code=202)
+def transcribe_lyrics(
+    song_id: str,
+    model: str = Query("", max_length=40, description="Whisper size; empty uses the default"),
+) -> dict:
+    """Queue a lyric transcription for this song."""
+    stored = storage.get_song_file(song_id)
+    if stored is None:
+        raise HTTPException(status_code=404, detail="Song not found")
+    if not (AUDIO_DIR / stored[0]).exists():
+        raise HTTPException(status_code=410, detail="The audio file is no longer available")
+    jobs.enqueue_lyrics(song_id, stored[0], model.strip() or None)
+    return storage.get_song(song_id, include_analysis=False)  # type: ignore[return-value]
+
+
+@router.get("/{song_id}/lyrics")
+def get_lyrics(song_id: str) -> dict:
+    song = storage.get_song(song_id, include_analysis=False)
+    if not song:
+        raise HTTPException(status_code=404, detail="Song not found")
+    return {
+        "status": song["lyricsStatus"],
+        "error": song["lyricsError"],
+        "lyrics": storage.get_lyrics(song_id),
+    }
+
+
+@router.delete("/{song_id}/lyrics", status_code=204)
+def delete_lyrics(song_id: str) -> Response:
+    if not storage.get_song(song_id, include_analysis=False):
+        raise HTTPException(status_code=404, detail="Song not found")
+    storage.set_lyrics_status(song_id, "none")
+    storage.clear_lyrics(song_id)
+    return Response(status_code=204)
+
+
+@router.get("/{song_id}/cifra")
+def download_cifra(
+    song_id: str,
+    transpose: int = Query(0, ge=-11, le=11),
+    capo: int = Query(0, ge=0, le=11),
+    download: bool = Query(False),
+) -> Response:
+    """The chart in Brazilian cifra format: chords above the words, plain text."""
+    song = storage.get_song(song_id)
+    if not song:
+        raise HTTPException(status_code=404, detail="Song not found")
+    analysis = song.get("analysis")
+    if not analysis:
+        raise HTTPException(status_code=409, detail="This song has not been analysed yet")
+
+    text = cifra.render(
+        analysis,
+        song.get("lyrics"),
+        title=song["title"],
+        artist=song["artist"],
+        transpose=transpose,
+        capo=capo,
+    )
+    headers = {}
+    if download:
+        safe_title = re.sub(r"[^\w\- ]+", "", song["title"]).strip() or "cifra"
+        headers["Content-Disposition"] = f'attachment; filename="{safe_title}.txt"'
+    return Response(content=text, media_type="text/plain; charset=utf-8", headers=headers)
 
 
 @router.get("/{song_id}/audio")

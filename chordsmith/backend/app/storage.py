@@ -39,6 +39,15 @@ CREATE TABLE IF NOT EXISTS songs (
 CREATE INDEX IF NOT EXISTS songs_created_at ON songs (created_at DESC);
 """
 
+# Columns added after the first release. SQLite has no "ADD COLUMN IF NOT
+# EXISTS", so they are applied by comparing against the live table — a library
+# recorded before lyrics existed keeps its rows and simply gains empty ones.
+MIGRATIONS: dict[str, str] = {
+    "lyrics": "ALTER TABLE songs ADD COLUMN lyrics TEXT",
+    "lyrics_status": "ALTER TABLE songs ADD COLUMN lyrics_status TEXT NOT NULL DEFAULT 'none'",
+    "lyrics_error": "ALTER TABLE songs ADD COLUMN lyrics_error TEXT",
+}
+
 
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
@@ -56,6 +65,10 @@ def connect() -> sqlite3.Connection:
 def init_db() -> None:
     with connect() as connection:
         connection.executescript(SCHEMA)
+        existing = {row["name"] for row in connection.execute("PRAGMA table_info(songs)")}
+        for column, statement in MIGRATIONS.items():
+            if column not in existing:
+                connection.execute(statement)
 
 
 def new_id() -> str:
@@ -122,6 +135,50 @@ def save_analysis(song_id: str, analysis: dict[str, Any]) -> None:
         )
 
 
+def set_lyrics_status(song_id: str, status: str, error: str | None = None) -> None:
+    with _write_lock, connect() as connection:
+        connection.execute(
+            "UPDATE songs SET lyrics_status = ?, lyrics_error = ?, updated_at = ? WHERE id = ?",
+            (status, error, _now(), song_id),
+        )
+
+
+def save_lyrics(song_id: str, lyrics: dict[str, Any]) -> None:
+    with _write_lock, connect() as connection:
+        connection.execute(
+            """
+            UPDATE songs
+               SET lyrics = ?, lyrics_status = 'ready', lyrics_error = NULL, updated_at = ?
+             WHERE id = ?
+            """,
+            (json.dumps(lyrics, separators=(",", ":"), ensure_ascii=False), _now(), song_id),
+        )
+
+
+def clear_lyrics(song_id: str) -> None:
+    with _write_lock, connect() as connection:
+        connection.execute(
+            "UPDATE songs SET lyrics = NULL, updated_at = ? WHERE id = ?", (_now(), song_id)
+        )
+
+
+def get_lyrics(song_id: str) -> dict[str, Any] | None:
+    with connect() as connection:
+        row = connection.execute("SELECT lyrics FROM songs WHERE id = ?", (song_id,)).fetchone()
+    if not row or not row["lyrics"]:
+        return None
+    return json.loads(row["lyrics"])
+
+
+def stale_lyrics_ids() -> Iterable[str]:
+    """Transcriptions left mid-flight by a process that died."""
+    with connect() as connection:
+        rows = connection.execute(
+            "SELECT id FROM songs WHERE lyrics_status IN ('pending', 'transcribing')"
+        ).fetchall()
+    return [row["id"] for row in rows]
+
+
 def _row_to_song(row: sqlite3.Row, include_analysis: bool) -> dict[str, Any]:
     song = {
         "id": row["id"],
@@ -138,9 +195,12 @@ def _row_to_song(row: sqlite3.Row, include_analysis: bool) -> dict[str, Any]:
         "createdAt": row["created_at"],
         "updatedAt": row["updated_at"],
         "audioUrl": f"/api/songs/{row['id']}/audio",
+        "lyricsStatus": row["lyrics_status"] or "none",
+        "lyricsError": row["lyrics_error"],
     }
     if include_analysis:
         song["analysis"] = json.loads(row["analysis"]) if row["analysis"] else None
+        song["lyrics"] = json.loads(row["lyrics"]) if row["lyrics"] else None
     return song
 
 

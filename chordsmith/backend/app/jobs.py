@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import logging
 import threading
+import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
@@ -54,8 +55,39 @@ def _run_analysis(song_id: str, path: Path) -> None:
         storage.set_status(song_id, "failed", error=str(exc))
 
 
+def _run_lyrics(song_id: str, path: Path, model_name: str | None) -> None:
+    from .analysis.lyrics import transcribe_file
+
+    try:
+        storage.set_lyrics_status(song_id, "transcribing")
+        started = time.perf_counter()
+        result = transcribe_file(path, model_name=model_name)
+        result["transcribeSeconds"] = round(time.perf_counter() - started, 2)
+        storage.save_lyrics(song_id, result)
+        logger.info(
+            "transcribed %s: %d words in %.1fs",
+            song_id,
+            result.get("wordCount", 0),
+            result["transcribeSeconds"],
+        )
+    except Exception as exc:  # noqa: BLE001 - surfaced to the client verbatim
+        logger.exception("transcription failed for %s", song_id)
+        storage.set_lyrics_status(song_id, "failed", error=str(exc))
+
+
 def enqueue(song_id: str, filename: str) -> None:
     get_executor().submit(_run_analysis, song_id, AUDIO_DIR / filename)
+
+
+def enqueue_lyrics(song_id: str, filename: str, model_name: str | None = None) -> None:
+    """Queue a transcription.
+
+    Kept off the upload path on purpose: recognising sung words costs minutes
+    where the chord analysis costs seconds, and most of the app is usable
+    without it. The user asks for lyrics when they want them.
+    """
+    storage.set_lyrics_status(song_id, "pending")
+    get_executor().submit(_run_lyrics, song_id, AUDIO_DIR / filename, model_name)
 
 
 def requeue_incomplete() -> int:
@@ -71,6 +103,11 @@ def requeue_incomplete() -> int:
             continue
         enqueue(song_id, stored[0])
         count += 1
+    # A transcription killed mid-flight is not requeued — it costs minutes and
+    # the user may not want it repeated on every restart — but it must not stay
+    # stuck showing a spinner either.
+    for song_id in storage.stale_lyrics_ids():
+        storage.set_lyrics_status(song_id, "failed", error="Interrupted by a restart")
     return count
 
 
