@@ -17,9 +17,18 @@ GUITAR_STRING_NAMES = ("E", "A", "D", "G", "B", "e")
 MAX_FRET = 17
 
 # Cost weights, in arbitrary units tuned against how the resulting tab reads.
-POSITION_SHIFT_COST = 1.0  # per fret the hand travels
-STRING_CHANGE_COST = 0.35  # per string crossed
-HIGH_FRET_COST = 0.06  # mild preference for the lower neck
+#
+# The distinction that matters is between reaching and *shifting*. Notes within
+# a hand span are all under the fingers already, so moving between them is
+# nearly free; going beyond that span means the whole hand relocates, which is
+# what players avoid. Charging flat per-fret distance instead would make running
+# a scale up a single string look cheap, since it never crosses a string — and
+# that is not how anyone plays one.
+HAND_SPAN = 3  # frets reachable without moving the hand
+POSITION_SHIFT_COST = 2.0  # per fret beyond the span
+FRET_TRAVEL_COST = 0.1  # per fret of movement, shift or not
+STRING_CHANGE_COST = 0.2  # per string crossed
+HIGH_FRET_COST = 0.12  # preference for the lower neck
 OPEN_STRING_BONUS = 0.8  # open strings are free to play and ring out
 
 
@@ -42,10 +51,15 @@ def candidates(midi: int, tuning: tuple[int, ...] = GUITAR_TUNING) -> list[TabPo
 def _transition_cost(previous: TabPosition, current: TabPosition) -> float:
     # Open strings do not move the hand, so they never incur a shift cost.
     if previous.fret == 0 or current.fret == 0:
-        shift = 0.0
+        travel = 0.0
     else:
-        shift = abs(previous.fret - current.fret) * POSITION_SHIFT_COST
-    return shift + abs(previous.string - current.string) * STRING_CHANGE_COST
+        travel = abs(previous.fret - current.fret)
+    shift = max(travel - HAND_SPAN, 0) * POSITION_SHIFT_COST
+    return (
+        shift
+        + travel * FRET_TRAVEL_COST
+        + abs(previous.string - current.string) * STRING_CHANGE_COST
+    )
 
 
 def _node_cost(position: TabPosition) -> float:

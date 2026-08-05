@@ -1,0 +1,63 @@
+<?xml version="1.0"?>
+<!--
+  Unraid Community Applications template for Chordsmith.
+
+  Use this when you want the container managed from the Unraid Docker tab and
+  reachable on the LAN. For Tailscale-only access, use docker-compose.yml
+  instead (see DEPLOY.md) — or keep this template and put the container behind
+  the Unraid Tailscale plugin.
+-->
+<Container version="2">
+  <Name>chordsmith</Name>
+  <Repository>chordsmith:latest</Repository>
+  <Registry/>
+  <Network>bridge</Network>
+  <MyIP/>
+  <Shell>sh</Shell>
+  <Privileged>false</Privileged>
+  <Support/>
+  <Project/>
+  <Overview>
+    Turns audio files you own into chords and guitar tablature. Detects beats,
+    downbeats, key and chords, transcribes the lead line, and plays everything
+    back in sync so you can play along. Transpose, capo, tempo change with the
+    pitch preserved, bar looping, chord diagrams for guitar/ukulele/piano, a
+    chromatic tuner, and MIDI and PDF export.
+  </Overview>
+  <Category>MediaApp:Music Tools:Utilities</Category>
+  <WebUI>http://[IP]:[PORT:8000]/</WebUI>
+  <Icon/>
+  <ExtraParams/>
+  <PostArgs/>
+  <CPUset/>
+  <DonateText/>
+  <DonateLink/>
+
+  <Config Name="WebUI Port" Target="8000" Default="8000" Mode="tcp"
+          Description="Port the web interface listens on."
+          Type="Port" Display="always" Required="true" Mask="false">8000</Config>
+
+  <Config Name="Data" Target="/data" Default="/mnt/user/appdata/chordsmith/data"
+          Mode="rw" Description="Uploaded audio and the analysis database."
+          Type="Path" Display="always" Required="true" Mask="false">/mnt/user/appdata/chordsmith/data</Config>
+
+  <Config Name="PUID" Target="PUID" Default="99"
+          Description="User ID files are written as."
+          Type="Variable" Display="advanced" Required="false" Mask="false">99</Config>
+
+  <Config Name="PGID" Target="PGID" Default="100"
+          Description="Group ID files are written as."
+          Type="Variable" Display="advanced" Required="false" Mask="false">100</Config>
+
+  <Config Name="Max upload (MB)" Target="CHORDSMITH_MAX_UPLOAD_MB" Default="60"
+          Description="Largest file the server accepts."
+          Type="Variable" Display="advanced" Required="false" Mask="false">60</Config>
+
+  <Config Name="Analysis workers" Target="CHORDSMITH_ANALYSIS_WORKERS" Default="2"
+          Description="Concurrent analyses. Each one is CPU-bound; keep this below your core count."
+          Type="Variable" Display="advanced" Required="false" Mask="false">2</Config>
+
+  <Config Name="CORS origins" Target="CHORDSMITH_CORS_ORIGINS" Default=""
+          Description="Extra origins allowed to call the API. Leave empty when the UI is served from the same host."
+          Type="Variable" Display="advanced" Required="false" Mask="false"/>
+</Container>

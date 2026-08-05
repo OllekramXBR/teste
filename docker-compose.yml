@@ -1,0 +1,52 @@
+# Chordsmith on Unraid, reachable from anywhere over Tailscale.
+#
+# The app container has no network of its own: it joins the Tailscale
+# container's network namespace (`network_mode: service:tailscale`). That means
+# Tailscale can proxy straight to 127.0.0.1:8000, the app is never exposed on
+# the LAN or the internet, and only devices on your tailnet can reach it.
+#
+# Set TS_AUTHKEY in a .env file next to this one before starting. Generate one
+# at https://login.tailscale.com/admin/settings/keys (reusable, ephemeral off,
+# so the node survives a container restart).
+
+services:
+  tailscale:
+    image: tailscale/tailscale:latest
+    container_name: chordsmith-tailscale
+    hostname: ${TS_HOSTNAME:-chordsmith}
+    environment:
+      TS_AUTHKEY: ${TS_AUTHKEY:?set TS_AUTHKEY in .env}
+      TS_STATE_DIR: /var/lib/tailscale
+      TS_SERVE_CONFIG: /config/serve.json
+      # Kernel networking rather than userspace: faster, and available because
+      # /dev/net/tun is passed through below.
+      TS_USERSPACE: "false"
+      TS_EXTRA_ARGS: --accept-dns=false
+    volumes:
+      - ${APPDATA:-/mnt/user/appdata/chordsmith}/tailscale:/var/lib/tailscale
+      - ./docker/tailscale-serve.json:/config/serve.json:ro
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
+    restart: unless-stopped
+
+  chordsmith:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: chordsmith:latest
+    container_name: chordsmith
+    depends_on:
+      - tailscale
+    network_mode: service:tailscale
+    environment:
+      PUID: ${PUID:-99}
+      PGID: ${PGID:-100}
+      CHORDSMITH_DATA_DIR: /data
+      CHORDSMITH_MAX_UPLOAD_MB: ${MAX_UPLOAD_MB:-60}
+      CHORDSMITH_ANALYSIS_WORKERS: ${ANALYSIS_WORKERS:-2}
+    volumes:
+      - ${APPDATA:-/mnt/user/appdata/chordsmith}/data:/data
+    restart: unless-stopped
