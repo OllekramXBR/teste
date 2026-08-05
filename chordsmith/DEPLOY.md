@@ -21,8 +21,11 @@ reach your server on its own.
 mkdir -p /mnt/user/appdata/chordsmith
 cd /mnt/user/appdata
 git clone -b claude/chordfy-clone-v79xr7 https://github.com/OllekramXBR/teste.git chordsmith-src
-cd chordsmith-src
+cd chordsmith-src/chordsmith
 ```
+
+The repository holds several projects; everything for this one lives in the
+`chordsmith/` subdirectory, which is where every command below is run from.
 
 ### 2. Create a Tailscale auth key
 
@@ -99,7 +102,7 @@ proxying to `http://127.0.0.1:8000`.
 ### 1. Build the image on the server
 
 ```sh
-cd /mnt/user/appdata/chordsmith-src
+cd /mnt/user/appdata/chordsmith-src/chordsmith
 docker build -t chordsmith:latest .
 ```
 
@@ -123,7 +126,7 @@ changes for that.
 ## Updating
 
 ```sh
-cd /mnt/user/appdata/chordsmith-src
+cd /mnt/user/appdata/chordsmith-src/chordsmith
 git pull
 docker compose up -d --build     # or: docker build -t chordsmith:latest .
 ```

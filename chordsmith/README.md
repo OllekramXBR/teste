@@ -42,6 +42,8 @@ the music.
 ### With Docker
 
 ```sh
+git clone -b claude/chordfy-clone-v79xr7 https://github.com/OllekramXBR/teste.git
+cd teste/chordsmith
 docker build -t chordsmith .
 docker run -p 8000:8000 -v chordsmith-data:/data chordsmith
 ```
@@ -53,6 +55,8 @@ For Unraid, Tailscale, and the deployment details, see **[DEPLOY.md](DEPLOY.md)*
 ### From source
 
 Two processes in development — the API, and Vite with hot reload:
+
+All paths below are relative to this directory (`chordsmith/` inside the repo).
 
 ```sh
 # API
