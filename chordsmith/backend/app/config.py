@@ -10,8 +10,9 @@ DATA_DIR = Path(os.environ.get("CHORDSMITH_DATA_DIR", BASE_DIR / "data"))
 AUDIO_DIR = DATA_DIR / "audio"
 DATABASE_PATH = Path(os.environ.get("CHORDSMITH_DB", DATA_DIR / "chordsmith.db"))
 
-# libsndfile decodes these without an external ffmpeg install.
-ALLOWED_EXTENSIONS = {".mp3", ".wav", ".flac", ".ogg", ".oga", ".aiff", ".aif", ".m4a"}
+# libsndfile decodes the native set on its own; the rest go through ffmpeg,
+# which is in the image now that source separation needs it anyway.
+ALLOWED_EXTENSIONS = {".mp3", ".wav", ".flac", ".ogg", ".oga", ".aiff", ".aif", ".m4a", ".aac"}
 NATIVE_EXTENSIONS = {".mp3", ".wav", ".flac", ".ogg", ".oga", ".aiff", ".aif"}
 
 MAX_UPLOAD_BYTES = int(os.environ.get("CHORDSMITH_MAX_UPLOAD_MB", "60")) * 1024 * 1024

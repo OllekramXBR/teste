@@ -4,12 +4,13 @@ from __future__ import annotations
 
 import mimetypes
 import re
+import subprocess
 from pathlib import Path
 
 from fastapi import APIRouter, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.responses import FileResponse, Response, StreamingResponse
 
-from .. import jobs, storage
+from .. import jobs, storage, transcode
 # `cifra` only pulls in the theory primitives, not librosa, so importing it at
 # module level does not put the numba import back on the API's startup path.
 from ..analysis import cifra
@@ -53,15 +54,6 @@ async def upload_song(
                 f"Supported: {', '.join(sorted(ALLOWED_EXTENSIONS))}"
             ),
         )
-    if extension not in NATIVE_EXTENSIONS:
-        raise HTTPException(
-            status_code=415,
-            detail=(
-                f"'{extension}' needs ffmpeg, which is not installed. "
-                "Convert the file to MP3, WAV, FLAC or OGG first."
-            ),
-        )
-
     song_id = storage.new_id()
     stored_name = f"{song_id}{extension}"
     destination = AUDIO_DIR / stored_name
@@ -88,6 +80,17 @@ async def upload_song(
     if size == 0:
         destination.unlink(missing_ok=True)
         raise HTTPException(status_code=400, detail="The uploaded file is empty")
+
+    if extension not in NATIVE_EXTENSIONS:
+        # Converted once, here, so that every stage downstream sees a file
+        # libsndfile can open and the pipeline never needs a second decoder.
+        try:
+            destination = transcode.to_flac(destination)
+        except (transcode.TranscodeError, subprocess.TimeoutExpired) as exc:
+            destination.unlink(missing_ok=True)
+            raise HTTPException(status_code=415, detail=str(exc)) from exc
+        stored_name = destination.name
+        size = destination.stat().st_size
 
     song = storage.create_song(
         song_id=song_id,

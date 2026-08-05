@@ -19,8 +19,12 @@ FROM python:3.11-slim AS backend
 # libsndfile is what actually decodes MP3/FLAC/OGG. The soundfile wheel bundles
 # a copy, but installing the system package keeps things working if a future
 # wheel stops doing so. gosu drops privileges to the PUID/PGID Unraid passes in.
+#
+# ffmpeg arrived with source separation, which needs it, and paid for itself
+# twice over: it is also what lets the app accept the .m4a/AAC files it used to
+# reject, and what encodes the stems as MP3 so four of them can stream at once.
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends libsndfile1 gosu curl \
+    && apt-get install -y --no-install-recommends libsndfile1 ffmpeg gosu curl \
     && rm -rf /var/lib/apt/lists/*
 
 ENV PYTHONUNBUFFERED=1 \
