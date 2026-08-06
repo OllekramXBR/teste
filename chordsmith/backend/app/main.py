@@ -1,4 +1,4 @@
-"""Chordsmith API — upload a track, get back a beat-aligned chord chart."""
+"""Metatron API — upload a track, get back a beat-aligned chord chart."""
 
 from __future__ import annotations
 
@@ -37,7 +37,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="Chordsmith",
+    title="Metatron",
     description="Automatic chord and beat detection for your own audio files.",
     version="1.0.0",
     lifespan=lifespan,

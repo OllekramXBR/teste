@@ -14,14 +14,24 @@ function StatusBadge({ status }: { status: Song['status'] }) {
     pending: 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300',
   }
   const labels: Record<Song['status'], string> = {
-    ready: 'ready',
-    failed: 'failed',
-    analyzing: 'analysing…',
-    pending: 'queued',
+    ready: 'pronta',
+    failed: 'falhou',
+    analyzing: 'analisando…',
+    pending: 'na fila',
   }
   return (
-    <span className={`rounded px-2 py-0.5 text-[10px] font-semibold ${styles[status]}`}>
+    <span
+      className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${styles[status]}`}
+    >
       {labels[status]}
+    </span>
+  )
+}
+
+function Chip({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="shrink-0 rounded-full border border-slate-200 px-1.5 py-0.5 text-[10px] text-slate-500 dark:border-slate-700">
+      {children}
     </span>
   )
 }
@@ -65,16 +75,16 @@ function Uploader({ onUploaded }: { onUploaded: (song: Song) => void }) {
           if (event.dataTransfer.files.length) void upload(event.dataTransfer.files)
         }}
         onClick={() => inputRef.current?.click()}
-        className={`cursor-pointer rounded-2xl border-2 border-dashed p-8 text-center transition-colors ${
+        className={`cursor-pointer rounded-2xl border border-dashed p-10 text-center transition-colors ${
           dragging
-            ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-950/30'
-            : 'border-slate-300 hover:border-indigo-400 dark:border-slate-600'
+            ? 'border-accent bg-accent-soft'
+            : 'border-slate-300 hover:border-accent dark:border-slate-700'
         }`}
       >
         <input
           ref={inputRef}
           type="file"
-          accept=".mp3,.wav,.flac,.ogg,.oga,.aiff,.aif,audio/*"
+          accept=".mp3,.wav,.flac,.ogg,.oga,.aiff,.aif,.m4a,.aac,audio/*"
           multiple
           className="hidden"
           onChange={(event) => {
@@ -82,14 +92,16 @@ function Uploader({ onUploaded }: { onUploaded: (song: Song) => void }) {
             event.target.value = ''
           }}
         />
-        <p className="text-base font-semibold">Drop an audio file to get its chords</p>
-        <p className="mt-1 text-xs text-slate-500">
-          MP3, WAV, FLAC, OGG or AIFF · analysed locally, nothing leaves your machine
+        <p className="text-[15px] font-semibold tracking-tight">
+          Arraste um arquivo de áudio para tirar a cifra
+        </p>
+        <p className="mt-1.5 text-xs text-slate-500">
+          MP3, WAV, FLAC, OGG, AIFF, M4A · analisado aqui no servidor, nada sai da sua rede
         </p>
         {progress !== null && (
-          <div className="mx-auto mt-4 h-1.5 w-56 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-700">
+          <div className="mx-auto mt-5 h-1 w-56 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-800">
             <div
-              className="h-full bg-indigo-500 transition-all"
+              className="h-full bg-accent transition-all"
               style={{ width: `${Math.round(progress * 100)}%` }}
             />
           </div>
@@ -97,15 +109,15 @@ function Uploader({ onUploaded }: { onUploaded: (song: Song) => void }) {
       </div>
 
       <div className="flex items-center gap-2">
-        <label htmlFor="artist" className="text-xs text-slate-500">
-          Artist for the next upload
+        <label htmlFor="artist" className="shrink-0 text-xs text-slate-500">
+          Artista do próximo envio
         </label>
         <input
           id="artist"
           value={artist}
           onChange={(event) => setArtist(event.target.value)}
-          placeholder="optional"
-          className="flex-1 rounded border border-slate-300 bg-white px-2 py-1 text-sm dark:border-slate-600 dark:bg-slate-800"
+          placeholder="opcional"
+          className="flex-1 rounded-lg border border-slate-200 bg-panel px-2.5 py-1.5 text-sm placeholder:text-slate-400 focus:border-accent focus:outline-none dark:border-slate-800"
         />
       </div>
 
@@ -143,47 +155,50 @@ export function LibraryPage() {
   return (
     <div className="mx-auto max-w-4xl space-y-6 px-4 py-8">
       <header className="text-center">
-        <h1 className="text-3xl font-bold">Chords for any track you own</h1>
-        <p className="mt-2 text-sm text-slate-500">
-          Upload a file and Chordsmith finds the beats, the key and the chords, then plays them back
-          in time with the music.
+        <h1 className="text-[28px] font-semibold tracking-tight">Sua música, aberta</h1>
+        <p className="mx-auto mt-2 max-w-lg text-sm leading-relaxed text-slate-500">
+          Suba um arquivo e o Metatron acha a batida, o tom e os acordes. Depois transcreve a
+          letra e separa a voz principal da banda, para você cantar por cima da sua própria
+          gravação.
         </p>
       </header>
 
       <Uploader onUploaded={(song) => setSongs((previous) => [song, ...(previous ?? [])])} />
 
-      <div className="flex items-center gap-3">
-        <input
-          value={search}
-          onChange={(event) => setSearch(event.target.value)}
-          placeholder="Search your library"
-          className="flex-1 rounded border border-slate-300 bg-white px-3 py-2 text-sm dark:border-slate-600 dark:bg-slate-800"
-        />
-      </div>
+      <input
+        value={search}
+        onChange={(event) => setSearch(event.target.value)}
+        placeholder="Buscar na biblioteca"
+        className="w-full rounded-lg border border-slate-200 bg-panel px-3.5 py-2.5 text-sm transition-colors placeholder:text-slate-400 focus:border-accent focus:outline-none dark:border-slate-800"
+      />
 
       {error && <p className="text-sm text-rose-500">{error}</p>}
 
       {songs === null ? (
-        <p className="text-center text-sm text-slate-500">Loading your library…</p>
+        <p className="text-center text-sm text-slate-500">Carregando a biblioteca…</p>
       ) : songs.length === 0 ? (
-        <p className="py-8 text-center text-sm text-slate-500">
-          {search ? 'Nothing matches that search.' : 'Your library is empty — upload a track above.'}
+        <p className="py-10 text-center text-sm text-slate-500">
+          {search ? 'Nada corresponde a essa busca.' : 'Biblioteca vazia — suba uma faixa acima.'}
         </p>
       ) : (
-        <ul className="divide-y divide-slate-200 overflow-hidden rounded-xl border border-slate-200 dark:divide-slate-700 dark:border-slate-700">
+        <ul className="divide-y divide-slate-200 overflow-hidden rounded-xl border border-slate-200 dark:divide-slate-800">
           {songs.map((song) => (
             <li key={song.id}>
               <Link
                 to={`/song/${song.id}`}
-                className="flex items-center gap-4 bg-white p-4 transition-colors hover:bg-slate-50 dark:bg-slate-800/60 dark:hover:bg-slate-700/60"
+                className="flex items-center gap-4 bg-panel p-4 transition-colors hover:bg-accent-soft"
               >
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
-                    <span className="truncate font-semibold">{song.title}</span>
+                    <span className="truncate font-medium tracking-tight">{song.title}</span>
                     <StatusBadge status={song.status} />
+                    {/* What is already prepared decides whether a song can go on
+                        stage tonight, so it belongs in the list, not one click in. */}
+                    {song.lyricsStatus === 'ready' && <Chip>letra</Chip>}
+                    {song.stemsStatus === 'ready' && <Chip>pistas</Chip>}
                   </div>
                   <p className="truncate text-xs text-slate-500">
-                    {song.artist || 'Unknown artist'}
+                    {song.artist || 'Sem artista'}
                     {song.keyName && ` · ${song.keyName}`}
                     {song.bpm ? ` · ${Math.round(song.bpm)} BPM` : ''}
                     {song.duration ? ` · ${formatTime(song.duration)}` : ''}
@@ -192,7 +207,7 @@ export function LibraryPage() {
                     <p className="truncate text-xs text-rose-500">{song.error}</p>
                   )}
                 </div>
-                <span className="text-xs text-slate-400">open →</span>
+                <span className="shrink-0 text-xs text-slate-400">abrir →</span>
               </Link>
             </li>
           ))}

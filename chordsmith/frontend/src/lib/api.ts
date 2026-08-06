@@ -1,4 +1,4 @@
-// Thin client for the Chordsmith API.
+// Thin client for the Metatron API.
 
 export interface BeatEvent {
   index: number

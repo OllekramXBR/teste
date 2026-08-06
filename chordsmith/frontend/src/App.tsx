@@ -18,7 +18,7 @@ export default function App() {
               className="flex items-center gap-2.5 text-[15px] font-semibold tracking-tight"
             >
               <Wordmark />
-              Chordsmith
+              Metatron
             </Link>
             <a
               href="/docs"
