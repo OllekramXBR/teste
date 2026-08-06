@@ -46,8 +46,17 @@ export function KaraokeView({ lyrics, chords, currentTime, performance = false, 
     const container = containerRef.current
     const active = activeRef.current
     if (!container || !active) return
-    const target = active.offsetTop - container.clientHeight * 0.38
-    container.scrollTo({ top: Math.max(0, target), behavior: 'smooth' })
+
+    // Measured from the two boxes rather than from offsetTop. offsetTop is
+    // relative to the nearest *positioned* ancestor, which is not necessarily
+    // this container — when it was not, the number came out relative to the
+    // whole page and the scroll overshot far enough to put the active line off
+    // the top of the box. The further down the page the view sat, the worse it
+    // got, which is why it only happened sometimes.
+    const delta = active.getBoundingClientRect().top - container.getBoundingClientRect().top
+    const target = container.scrollTop + delta - container.clientHeight * 0.38
+    const highest = container.scrollHeight - container.clientHeight
+    container.scrollTo({ top: Math.min(Math.max(0, target), highest), behavior: 'smooth' })
   }, [activeLine])
 
   if (!lines.length) {
@@ -61,10 +70,13 @@ export function KaraokeView({ lyrics, chords, currentTime, performance = false, 
   return (
     <div
       ref={containerRef}
+      // `relative` so any future offset maths is measured against this box, and
+      // the tall bottom padding so the last lines can still be pulled up to
+      // reading position instead of being stuck at the bottom of the scroll.
       className={
         performance
-          ? 'h-full overflow-y-auto scroll-smooth bg-slate-950 px-6 py-[35vh] text-slate-400'
-          : 'max-h-[28rem] overflow-y-auto scroll-smooth px-2 py-6'
+          ? 'relative h-full overflow-y-auto scroll-smooth bg-slate-950 px-6 pb-[45vh] pt-[35vh] text-slate-400'
+          : 'relative max-h-[28rem] overflow-y-auto scroll-smooth px-2 pb-[16rem] pt-6'
       }
     >
       {lines.map((line, index) => {
