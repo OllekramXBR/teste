@@ -601,13 +601,14 @@ export function SongPage() {
               transposed harmony.
             </p>
           )}
-          <div className="flex items-center gap-1 rounded-lg bg-slate-200/70 p-1 dark:bg-slate-800">
+          <div className="flex items-center gap-3">
+            <div className="flex flex-1 items-center gap-1 overflow-x-auto rounded-lg bg-slate-200/70 p-1 dark:bg-slate-800">
             {(['chords', 'estudo', 'tab', 'letra', 'cifra', 'partitura', 'both'] as View[]).map((option) => (
               <button
                 key={option}
                 type="button"
                 onClick={() => setView(option)}
-                className={`flex-1 rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
+                className={`shrink-0 rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
                   view === option
                     ? 'bg-panel text-slate-900 shadow-sm dark:text-white'
                     : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-200'
@@ -616,15 +617,16 @@ export function SongPage() {
                 {VIEW_LABELS[option]}
               </button>
             ))}
+            </div>
             <button
               type="button"
               onClick={() => handleSettings({ simplify: !settings.simplify })}
               aria-pressed={settings.simplify}
               title="Reduz sextas, sétimas e suspensos ao acorde que a mão realmente faz"
-              className={`ml-1 rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
+              className={`shrink-0 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors ${
                 settings.simplify
-                  ? 'bg-accent text-white'
-                  : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-200'
+                  ? 'border-accent bg-accent text-white'
+                  : 'border-slate-300 text-slate-500 dark:border-slate-700'
               }`}
             >
               Simplificar
@@ -822,7 +824,7 @@ export function SongPage() {
             renderedKeys={renderedKeys}
           />
 
-          <div className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800/70">
+          <div className="rounded-xl border border-slate-200 bg-panel p-4 dark:border-slate-800">
             <div className="mb-2 flex items-baseline justify-between">
               <h3 className="text-sm font-semibold">Now playing</h3>
               {parsedChord && (
@@ -882,7 +884,7 @@ export function SongPage() {
             )}
           </div>
 
-          <div className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800/70">
+          <div className="rounded-xl border border-slate-200 bg-panel p-4 dark:border-slate-800">
             <h3 className="mb-2 text-sm font-semibold">Chords in this song</h3>
             <div className="flex flex-wrap gap-1.5">
               {analysis.uniqueChords.map((label) => {
