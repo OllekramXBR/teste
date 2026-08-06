@@ -66,8 +66,9 @@ class TestWithAccounts:
         assert titles("user-1") == set()
 
     def test_songs_from_before_accounts_stay_visible_to_everyone(self, db):
-        # The migration leaves owner_id NULL on everything that already existed.
-        # Those must not vanish the moment a login is enabled.
+        # Songs are different from setlists: the library is the house's, so an
+        # unclaimed song stays visible until somebody makes it private. What
+        # must not happen is it vanishing the moment a login is enabled.
         add("antiga", owner=None)
         assert titles("user-1") == {"antiga"}
         assert titles("user-2") == {"antiga"}
@@ -99,9 +100,30 @@ class TestSetlists:
         assert [item["name"] for item in storage.list_setlists("user-1")] == ["meu show"]
         assert storage.list_setlists("user-2") == []
 
-    def test_sets_from_before_accounts_stay_visible(self, db):
+    def test_a_set_with_no_owner_is_not_everybody_s(self, db):
+        # It used to be, on the same "belongs to the house" reasoning that is
+        # right for the music library — and one person's running order turned
+        # up in another person's account. A set is personal; an unclaimed one
+        # is nobody's until it is adopted.
         storage.create_setlist("antigo", owner_id=None)
+        assert storage.list_setlists("user-1") == []
+        assert storage.list_setlists("user-2") == []
+
+    def test_the_first_account_adopts_what_predates_accounts(self, db):
+        storage.create_setlist("antigo", owner_id=None)
+        song = add("antiga", owner=None)
+        songs, sets = storage.adopt_orphans("user-1")
+
+        assert (songs, sets) == (1, 1)
         assert [item["name"] for item in storage.list_setlists("user-1")] == ["antigo"]
+        assert storage.list_setlists("user-2") == []
+        assert storage.get_song(song)["ownerId"] == "user-1"
+
+    def test_adoption_leaves_things_that_already_have_an_owner_alone(self, db):
+        storage.create_setlist("da adriana", owner_id="user-2")
+        storage.adopt_orphans("user-1")
+        assert [item["name"] for item in storage.list_setlists("user-2")] == ["da adriana"]
+        assert storage.list_setlists("user-1") == []
 
     def test_without_accounts_every_set_is_listed(self, db):
         storage.create_setlist("um", owner_id="user-1")

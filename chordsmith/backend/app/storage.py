@@ -411,14 +411,18 @@ def get_setlist(setlist_id: str) -> dict[str, Any] | None:
 
 
 def list_setlists(viewer_id: str | None = None) -> list[dict[str, Any]]:
-    """Setlists this viewer may see.
+    """Setlists this viewer may see: their own, and nobody else's.
 
-    Unlike songs, a set is not shared by default. A running order is a personal
-    thing — two people playing the same songs on different nights want their own
-    — so with accounts enforced you see your own and the ones that predate
-    accounts, and nobody else's.
+    A running order is personal — two people playing the same songs on different
+    nights each want their own — so unlike songs there is no sharing here at all.
+
+    Sets that predate accounts are *not* included by being ownerless. They used
+    to be, on the same "it belongs to the house" reasoning that is right for the
+    music library, and the result was one person's set list showing up in
+    another person's account. Those sets are adopted by the first account
+    instead, which is whose they actually are.
     """
-    where = "" if viewer_id is None else " WHERE l.owner_id = ? OR l.owner_id IS NULL"
+    where = "" if viewer_id is None else " WHERE l.owner_id = ?"
     params = [] if viewer_id is None else [viewer_id]
     with connect() as connection:
         rows = connection.execute(
@@ -487,6 +491,32 @@ def set_setlist_songs(setlist_id: str, song_ids: list[str]) -> bool:
             "UPDATE setlists SET updated_at = ? WHERE id = ?", (_now(), setlist_id)
         )
     return True
+
+
+def adopt_orphans(user_id: str) -> tuple[int, int]:
+    """Hand everything made before accounts existed to ``user_id``.
+
+    Whoever set the server up is who made them, and until they have an owner the
+    rules cannot tell one person's things from another's. Returns how many songs
+    and setlists were claimed.
+    """
+    with _write_lock, connect() as connection:
+        songs = connection.execute(
+            "UPDATE songs SET owner_id = ? WHERE owner_id IS NULL", (user_id,)
+        ).rowcount
+        setlists = connection.execute(
+            "UPDATE setlists SET owner_id = ? WHERE owner_id IS NULL", (user_id,)
+        ).rowcount
+    return songs, setlists
+
+
+def first_user_id() -> str | None:
+    """The earliest account, which is the one that set this server up."""
+    with connect() as connection:
+        row = connection.execute(
+            "SELECT id FROM users ORDER BY created_at LIMIT 1"
+        ).fetchone()
+    return row["id"] if row else None
 
 
 def stale_processing_ids() -> Iterable[str]:

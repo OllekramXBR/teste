@@ -39,6 +39,17 @@ async def lifespan(app: FastAPI):
     ensure_directories()
     storage.init_db()
     auth.init()
+
+    # Anything made before accounts existed belongs to whoever set the server
+    # up, which is the first account. Left ownerless it has no owner for the
+    # rules to compare against — and the last time that was papered over by
+    # showing ownerless things to everyone, one person's set list appeared in
+    # another person's account.
+    owner = storage.first_user_id()
+    if owner:
+        songs, setlists = storage.adopt_orphans(owner)
+        if songs or setlists:
+            logger.info("claimed %d songs and %d setlists for the first account", songs, setlists)
     requeued = jobs.requeue_incomplete()
     if requeued:
         logger.info("requeued %d interrupted analyses", requeued)
