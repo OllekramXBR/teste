@@ -172,6 +172,10 @@ def import_from_library(payload: ImportRequest, request: Request) -> dict:
         size_bytes=destination.stat().st_size,
         owner_id=auth.current_user_id(request),
     )
+    # The album folder is only known here, at import: after this the song is a
+    # copy in the data directory with no link back to where it came from.
+    covers.from_folder(song_id, source.parent)
+
     jobs.enqueue(song_id, destination.name)
     return song
 
