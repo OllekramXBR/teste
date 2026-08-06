@@ -21,12 +21,13 @@ decoder, which was built for that.
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import numpy as np
 
 from . import melody as melody_module
 from . import stems as stem_module
+from . import tab as tab_module
 from .beats import DEFAULT_SR
 
 logger = logging.getLogger(__name__)
@@ -49,7 +50,11 @@ class Role:
 ROLES: tuple[Role, ...] = (
     Role(stem="bass", name="Baixo", lowest="C1", highest="C4", program=33, suppress_bass=False),
     Role(stem="lead", name="Voz principal", lowest="C2", highest="C6", program=52, suppress_bass=True),
-    Role(stem="other", name="Melodia", lowest="C3", highest="E6", program=26, suppress_bass=True),
+    # "other" is what Demucs has left after voice, drums and bass: on most
+    # recordings that is the guitars and keys. Transcribing it is the whole
+    # reason the tablature can now be about the guitar instead of about
+    # whichever voice happened to be highest in the mix.
+    Role(stem="other", name="Guitarra e harmonia", lowest="C3", highest="E6", program=26, suppress_bass=True),
 )
 
 
@@ -58,6 +63,10 @@ class TrackNotes:
     name: str
     program: int
     notes: list[melody_module.Note]
+    #: Stem this came from, so the interface can say what it is looking at.
+    stem: str = ""
+    #: Fretboard positions, parallel to ``notes``; empty for parts nobody frets.
+    positions: list[tuple[int, int] | None] = field(default_factory=list)
 
 
 def transcribe_role(audio: np.ndarray, sr: int, role: Role) -> list[melody_module.Note]:
@@ -106,6 +115,25 @@ def transcribe_song(song_id: str, sr: int = DEFAULT_SR) -> list[TrackNotes]:
         if not notes:
             logger.info("no notes found in the %s stem of %s", role.stem, song_id)
             continue
-        tracks.append(TrackNotes(name=role.name, program=role.program, notes=notes))
+
+        # Fretboard positions for the parts somebody actually frets. The bass
+        # and the melody instrument get them; a sung line does not, because a
+        # voice has no strings and a tablature of one would be a fiction.
+        positions: list[tuple[int, int] | None] = []
+        if role.stem in ("other", "bass"):
+            placed = tab_module.assign_positions([note.midi for note in notes])
+            positions = [
+                (position.string, position.fret) if position else None for position in placed
+            ]
+
+        tracks.append(
+            TrackNotes(
+                name=role.name,
+                program=role.program,
+                notes=notes,
+                stem=role.stem,
+                positions=positions,
+            )
+        )
         logger.info("transcribed %d notes from the %s stem of %s", len(notes), role.stem, song_id)
     return tracks

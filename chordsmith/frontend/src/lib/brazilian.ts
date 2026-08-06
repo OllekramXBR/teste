@@ -24,6 +24,36 @@ export const BR_QUALITY: Record<string, string> = {
   dim7: '°7',
 }
 
+// What each quality becomes when the chart is simplified, mirroring
+// `SIMPLE_QUALITY` in cifra.py. A chroma decoder hears a passing melody note as
+// an added sixth or a suspended fourth; each call is defensible frame by frame
+// while being wrong about the song, and a verse with a dozen symbols is one the
+// reader stops trusting. Diminished and augmented survive: a player really does
+// finger those differently.
+export const SIMPLE_QUALITY: Record<string, string> = {
+  '': '',
+  m: 'm',
+  '7': '',
+  m7: 'm',
+  maj7: '',
+  sus4: '',
+  sus2: '',
+  '6': '',
+  m6: 'm',
+  dim: 'dim',
+  aug: 'aug',
+  m7b5: 'm',
+  dim7: 'dim',
+}
+
+/** Reduce a chord label to the triad a hand actually makes. */
+export function simplify(label: string, useFlats = false): string {
+  const parsed = parseLabel(label)
+  if (!parsed) return label
+  const names = useFlats ? FLAT_NAMES : SHARP_NAMES
+  return `${names[parsed.root]}${SIMPLE_QUALITY[parsed.quality] ?? parsed.quality}`
+}
+
 /** Rewrite one chord label in Brazilian notation; unknown labels pass through. */
 export function br(label: string, useFlats = false): string {
   const parsed = parseLabel(label)

@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import io
 import json
 import mimetypes
 import re
 import shutil
 import subprocess
+import zipfile
 from pathlib import Path
 
 from fastapi import APIRouter, File, Form, HTTPException, Query, Request, UploadFile
@@ -381,6 +383,36 @@ def stream_variant(song_id: str, key: str, name: str) -> FileResponse:
         path,
         media_type=f"audio/{STEM_FORMAT}",
         headers={"Cache-Control": "private, max-age=86400"},
+    )
+
+
+@router.get("/{song_id}/stems.zip")
+def download_stems(song_id: str) -> Response:
+    """Every stem in one zip, for opening the song in a DAW.
+
+    Stored, not deflated: these are already MP3, and compressing compressed
+    audio spends CPU to save a fraction of a percent. Built in memory because
+    five stems is a few tens of megabytes and a temporary file would only add a
+    thing to clean up.
+    """
+    song = storage.get_song(song_id, include_analysis=False)
+    if not song:
+        raise HTTPException(status_code=404, detail="Song not found")
+
+    found = stems.available_stems(song_id)
+    if not found:
+        raise HTTPException(status_code=409, detail="Separe as pistas primeiro")
+
+    safe = re.sub(r"[^\w\- ]+", "", song["title"]).strip() or "pistas"
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w", zipfile.ZIP_STORED) as archive:
+        for stem in found:
+            archive.write(stem.path, arcname=f"{safe}/{stem.name}.{STEM_FORMAT}")
+
+    return Response(
+        content=buffer.getvalue(),
+        media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="{safe} (pistas).zip"'},
     )
 
 

@@ -60,6 +60,15 @@ export function ProductionCard({ song, stems, busy, onTranscribe, onSeparate }: 
         onClick={onSeparate}
       />
 
+      {stems.length > 0 && (
+        <a
+          href={`/api/songs/${song.id}/stems.zip`}
+          className="mt-3 flex w-full items-center justify-center rounded-lg border border-slate-300 px-4 py-2 text-xs font-medium transition hover:border-accent hover:text-accent dark:border-slate-700"
+        >
+          Baixar as pistas (.zip)
+        </a>
+      )}
+
       <Link
         to={`/song/${song.id}/perform`}
         aria-disabled={!canPerform}

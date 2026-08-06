@@ -96,6 +96,17 @@ STEM_FORMAT = os.environ.get("CHORDSMITH_STEM_FORMAT", "mp3")
 # this says so. Default "open" because this app has always run without a login,
 # behind a private network, and switching that on by surprise would lock its
 # owner out of their own library.
+# Once a song is analysed, keep going without being asked: transcribe the
+# lyric, separate the stems, then transcribe each stem. Every step is minutes
+# long and every one of them is wanted eventually, so the only thing waiting
+# for a click buys is that the work happens while somebody is watching instead
+# of while they are not.
+#
+# Safe because the heavy queue is one worker wide: the chain fills it and the
+# quick chord analysis of the next upload still goes to the other pool.
+AUTO_LYRICS = os.environ.get("CHORDSMITH_AUTO_LYRICS", "1") not in ("0", "false", "no")
+AUTO_STEMS = os.environ.get("CHORDSMITH_AUTO_STEMS", "1") not in ("0", "false", "no")
+
 AUTH_MODE = os.environ.get("CHORDSMITH_AUTH", "open").strip().lower()
 SESSION_DAYS = int(os.environ.get("CHORDSMITH_SESSION_DAYS", "30"))
 

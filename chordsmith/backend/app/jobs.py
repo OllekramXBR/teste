@@ -14,7 +14,7 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from . import storage
-from .config import ANALYSIS_WORKERS, AUDIO_DIR
+from .config import ANALYSIS_WORKERS, AUDIO_DIR, AUTO_LYRICS, AUTO_STEMS
 
 logger = logging.getLogger(__name__)
 
@@ -72,6 +72,7 @@ def _run_analysis(song_id: str, path: Path) -> None:
         result = analyze_file(path)
         storage.save_analysis(song_id, result.to_dict())
         logger.info("analysed %s in %.2fs", song_id, result.analysis_seconds)
+        _continue_after_analysis(song_id, path)
     except Exception as exc:  # noqa: BLE001 - surfaced to the client verbatim
         logger.exception("analysis failed for %s", song_id)
         storage.set_status(song_id, "failed", error=str(exc))
@@ -97,6 +98,27 @@ def _run_lyrics(song_id: str, path: Path, model_name: str | None) -> None:
         storage.set_lyrics_status(song_id, "failed", error=str(exc))
 
 
+def _continue_after_analysis(song_id: str, path: Path) -> None:
+    """Keep going without being asked: lyric, then stems, then per-stem notes.
+
+    Every step is minutes long and every one is wanted eventually, so waiting
+    for a click only buys that the work happens while somebody is watching
+    instead of while they are not. Anything already done is skipped, so this
+    stays safe to reach on a re-analysis.
+    """
+    from .analysis import stems as stem_module
+
+    song = storage.get_song(song_id, include_analysis=False)
+    if not song:
+        return
+
+    if AUTO_LYRICS and song["lyricsStatus"] in ("none", "failed"):
+        enqueue_lyrics(song_id, path.name)
+    if AUTO_STEMS and not stem_module.available_stems(song_id):
+        if song["stemsStatus"] not in ("pending", "separating"):
+            enqueue_stems(song_id, path.name)
+
+
 def enqueue(song_id: str, filename: str) -> None:
     get_executor().submit(_run_analysis, song_id, AUDIO_DIR / filename)
 
@@ -115,6 +137,9 @@ def _run_stems(song_id: str, path: Path, quality: str | None = None) -> None:
             len(written),
             time.perf_counter() - started,
         )
+        # The tablature and the notation both read this, so it follows straight
+        # on rather than waiting for someone to open the view that needs it.
+        enqueue_multitrack(song_id)
     except Exception as exc:  # noqa: BLE001 - surfaced to the client verbatim
         logger.exception("separation failed for %s", song_id)
         storage.set_stems_status(song_id, "failed", error=str(exc))
@@ -143,14 +168,19 @@ def _run_multitrack(song_id: str) -> None:
             {
                 "name": track.name,
                 "program": track.program,
+                "stem": track.stem,
                 "notes": [
                     {
                         "midi": note.midi,
                         "start": round(note.start, 4),
                         "end": round(note.end, 4),
                         "velocity": round(note.velocity, 3),
+                        "string": position[0] if position else None,
+                        "fret": position[1] if position else None,
                     }
-                    for note in track.notes
+                    for note, position in zip(
+                        track.notes, track.positions or [None] * len(track.notes)
+                    )
                 ],
             }
             for track in tracks

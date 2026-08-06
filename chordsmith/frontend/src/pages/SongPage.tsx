@@ -46,6 +46,7 @@ const SYNTH_VOICES: Record<string, InstrumentVoice> = {
   bass: 'guitar',
 }
 const POLL_INTERVAL_MS = 1500
+const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']
 
 const DEFAULT_SETTINGS: ToolbarSettings = {
   transpose: 0,
@@ -56,6 +57,7 @@ const DEFAULT_SETTINGS: ToolbarSettings = {
   clickVolume: 0,
   instrument: 'guitar',
   autoScroll: true,
+  simplify: true,
 }
 
 function loadSettings(): ToolbarSettings {
@@ -176,6 +178,57 @@ export function SongPage() {
   useEffect(() => () => engine.dispose(), [engine])
 
   const bars = useMemo(() => (analysis ? groupIntoBars(analysis.beats) : []), [analysis])
+
+  /**
+   * The tablature, taken from the separated guitar stem when one exists.
+   *
+   * The old source was the whole mix, and a pitch tracker pointed at a mix
+   * follows the highest melodic voice — on a sung recording that is the singer,
+   * not the guitar. The tab was therefore often a transcription of the vocal
+   * line printed on six strings, which is exactly as useful as it sounds.
+   */
+  const guitarLead = useMemo(() => {
+    if (tracks.status !== 'ready' || !analysis) return null
+    const guitar = tracks.tracks.find((track) => track.stem === 'other')
+    if (!guitar?.notes.length) return null
+
+    const times = analysis.beats.map((beat) => beat.time)
+    const beatAt = (time: number) => {
+      let low = 0
+      let high = times.length - 1
+      let found = 0
+      while (low <= high) {
+        const middle = (low + high) >> 1
+        if (times[middle] <= time) {
+          found = middle
+          low = middle + 1
+        } else high = middle - 1
+      }
+      return found
+    }
+
+    return {
+      ...analysis.lead,
+      notes: guitar.notes.map((note) => {
+        const beat = beatAt(note.start)
+        return {
+          start: note.start,
+          end: note.end,
+          midi: note.midi,
+          name: NOTE_NAMES[((note.midi % 12) + 12) % 12] + (Math.floor(note.midi / 12) - 1),
+          string: note.string ?? null,
+          fret: note.fret ?? null,
+          beat,
+          bar: analysis.beats[beat]?.bar ?? 1,
+          confidence: 1,
+          velocity: note.velocity,
+        }
+      }),
+      // Solo detection was computed over the mix and describes a different
+      // signal, so it is dropped rather than shown against these notes.
+      sections: [],
+    }
+  }, [tracks, analysis])
 
   const loopRegion = useMemo(() => {
     if (!loopBars || !bars.length) return null
@@ -561,6 +614,19 @@ export function SongPage() {
                 {VIEW_LABELS[option]}
               </button>
             ))}
+            <button
+              type="button"
+              onClick={() => handleSettings({ simplify: !settings.simplify })}
+              aria-pressed={settings.simplify}
+              title="Reduz sextas, sétimas e suspensos ao acorde que a mão realmente faz"
+              className={`ml-1 rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
+                settings.simplify
+                  ? 'bg-accent text-white'
+                  : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-200'
+              }`}
+            >
+              Simplificar
+            </button>
           </div>
 
           {view === 'letra' && song.lyrics && editingLyrics && (
@@ -686,6 +752,7 @@ export function SongPage() {
               transpose={settings.transpose}
               capo={settings.capo}
               useFlats={analysis.useFlats}
+              simplify={settings.simplify}
               loopBars={loopBars}
               onSeek={handleSeek}
               onBarSelect={handleBarSelect}
@@ -695,9 +762,21 @@ export function SongPage() {
 
           {(view === 'tab' || view === 'both') && (
             <>
-              <LeadSummary lead={analysis.lead} onSeek={handleSeek} />
+              <p
+                className={[
+                  'rounded-lg px-3 py-2 text-xs',
+                  guitarLead
+                    ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300'
+                    : 'bg-amber-50 text-amber-900 dark:bg-amber-950/40 dark:text-amber-200',
+                ].join(' ')}
+              >
+                {guitarLead
+                  ? 'Transcrita da pista de guitarra separada — sem a voz no caminho.'
+                  : 'Transcrita da mistura inteira, então ela segue a voz melódica mais aguda — que numa música cantada costuma ser o vocal, não o violão. Separe as pistas para transcrever a guitarra de verdade.'}
+              </p>
+              <LeadSummary lead={guitarLead ?? analysis.lead} onSeek={handleSeek} />
               <TabStaff
-                lead={analysis.lead}
+                lead={guitarLead ?? analysis.lead}
                 bars={bars}
                 currentTime={player.currentTime}
                 onSeek={handleSeek}

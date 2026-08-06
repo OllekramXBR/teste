@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef } from 'react'
 import type { BeatEvent } from '../lib/api'
+import { simplify as simplifyLabel } from '../lib/brazilian'
 import { capoShape, transposeLabel } from '../lib/theory'
 
 export interface Bar {
@@ -16,6 +17,8 @@ interface ChordGridProps {
   transpose: number
   capo: number
   useFlats: boolean
+  /** Collapse decoder extensions to the triad a hand actually makes. */
+  simplify?: boolean
   loopBars: { start: number; end: number } | null
   onSeek: (time: number) => void
   onBarSelect: (barNumber: number, extend: boolean) => void
@@ -47,9 +50,11 @@ export function displayLabel(
   transpose: number,
   capo: number,
   useFlats: boolean,
+  simplify = false,
 ): string {
   if (!label || label === 'N') return ''
-  return capoShape(transposeLabel(label, transpose, useFlats), capo, useFlats)
+  const reduced = simplify ? simplifyLabel(label, useFlats) : label
+  return capoShape(transposeLabel(reduced, transpose, useFlats), capo, useFlats)
 }
 
 export function ChordGrid({
@@ -59,6 +64,7 @@ export function ChordGrid({
   transpose,
   capo,
   useFlats,
+  simplify = false,
   loopBars,
   onSeek,
   onBarSelect,
@@ -124,7 +130,7 @@ export function ChordGrid({
               </button>
               <div className="flex gap-1">
                 {bar.beats.map((beat) => {
-                  const label = displayLabel(beat.label, transpose, capo, useFlats)
+                  const label = displayLabel(beat.label, transpose, capo, useFlats, simplify)
                   const previous = beats[beat.index - 1]
                   const isRepeat =
                     previous !== undefined && previous.label === beat.label && previous.bar === beat.bar

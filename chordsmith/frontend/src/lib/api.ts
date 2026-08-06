@@ -393,7 +393,20 @@ export function variantStemUrl(id: string, key: string, stem: StemName): string 
 export interface TranscribedTrack {
   name: string
   program: number
-  notes: { midi: number; start: number; end: number; velocity: number }[]
+  /** Which separated stem this was transcribed from. */
+  stem?: string
+  notes: {
+    midi: number
+    start: number
+    end: number
+    velocity: number
+    string?: number | null
+    fret?: number | null
+  }[]
+}
+
+export function stemsZipUrl(id: string): string {
+  return `/api/songs/${id}/stems.zip`
 }
 
 export function getTracks(id: string): Promise<{

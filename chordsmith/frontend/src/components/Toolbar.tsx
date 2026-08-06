@@ -11,6 +11,8 @@ export interface ToolbarSettings {
   clickVolume: number
   instrument: Instrument['id'] | 'piano'
   autoScroll: boolean
+  /** Collapse decoder extensions to the triad a hand actually makes. */
+  simplify: boolean
 }
 
 interface ToolbarProps {
