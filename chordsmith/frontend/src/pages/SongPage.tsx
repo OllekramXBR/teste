@@ -8,6 +8,8 @@ import { mod12, parseLabel, QUALITY_LABELS, romanNumeral } from '../lib/theory'
 import { usePlayer } from '../hooks/usePlayer'
 import { ChordGrid, displayLabel, groupIntoBars } from '../components/ChordGrid'
 import { ChordSheet } from '../components/ChordSheet'
+import { KaraokeView } from '../components/KaraokeView'
+import { ProductionCard } from '../components/ProductionCard'
 import { ChordToneLegend, FretDiagram } from '../components/FretDiagram'
 import { PianoDiagram } from '../components/PianoDiagram'
 import { LeadSummary, TabStaff } from '../components/TabStaff'
@@ -15,7 +17,15 @@ import { Toolbar, type ToolbarSettings } from '../components/Toolbar'
 import { Transport } from '../components/Transport'
 import { Tuner } from '../components/Tuner'
 
-type View = 'chords' | 'tab' | 'both'
+type View = 'chords' | 'tab' | 'letra' | 'cifra' | 'both'
+
+const VIEW_LABELS: Record<View, string> = {
+  chords: 'Grade',
+  tab: 'Tablatura',
+  letra: 'Letra',
+  cifra: 'Cifra',
+  both: 'Tudo',
+}
 
 const SETTINGS_KEY = 'chordsmith.settings.v1'
 const POLL_INTERVAL_MS = 1500
@@ -70,6 +80,9 @@ export function SongPage() {
   const [loopBars, setLoopBars] = useState<{ start: number; end: number } | null>(null)
   const [shapeVariant, setShapeVariant] = useState(0)
   const [view, setView] = useState<View>('chords')
+  const [stems, setStems] = useState<api.Stem[]>([])
+  const [busy, setBusy] = useState<string | null>(null)
+  const [cifra, setCifra] = useState('')
 
   const engineRef = useRef<AudioEngine | null>(null)
   if (engineRef.current === null) engineRef.current = new AudioEngine()
@@ -95,9 +108,13 @@ export function SongPage() {
         if (cancelled) return
         setSong(fetched)
         setLoadError(null)
-        if (fetched.status === 'pending' || fetched.status === 'analyzing') {
-          timer = window.setTimeout(poll, POLL_INTERVAL_MS)
-        }
+        // Transcription and separation are minutes long, so the same poll that
+        // waits for the analysis keeps watching them; without it a job that
+        // finishes while the tab sits open never shows up.
+        const running = [fetched.status, fetched.lyricsStatus, fetched.stemsStatus].some((status) =>
+          ['pending', 'analyzing', 'transcribing', 'separating'].includes(status),
+        )
+        if (running) timer = window.setTimeout(poll, POLL_INTERVAL_MS)
       } catch (error) {
         if (cancelled) return
         setLoadError(error instanceof Error ? error.message : 'Could not load this song')
@@ -242,6 +259,51 @@ export function SongPage() {
     navigate('/')
   }, [song, navigate])
 
+  // Stems are files on disk rather than a column in the song row, so they are
+  // asked for separately and refreshed whenever the job status changes.
+  useEffect(() => {
+    let cancelled = false
+    api
+      .getStems(songId)
+      .then((response) => !cancelled && setStems(response.stems))
+      .catch(() => !cancelled && setStems([]))
+    return () => {
+      cancelled = true
+    }
+  }, [songId, song?.stemsStatus])
+
+  useEffect(() => {
+    if (view !== 'cifra' || !song || song.status !== 'ready') return
+    let cancelled = false
+    api
+      .getCifra(song.id, { transpose: settings.transpose, capo: settings.capo })
+      .then((text) => !cancelled && setCifra(text))
+      .catch(() => !cancelled && setCifra('Não consegui montar a cifra.'))
+    return () => {
+      cancelled = true
+    }
+  }, [view, song, settings.transpose, settings.capo])
+
+  const handleTranscribe = useCallback(async () => {
+    if (!song) return
+    setBusy('lyrics')
+    try {
+      setSong(await api.transcribeLyrics(song.id))
+    } finally {
+      setBusy(null)
+    }
+  }, [song])
+
+  const handleSeparate = useCallback(async () => {
+    if (!song) return
+    setBusy('stems')
+    try {
+      setSong(await api.separateStems(song.id))
+    } finally {
+      setBusy(null)
+    }
+  }, [song])
+
   const handleReanalyze = useCallback(async () => {
     if (!song) return
     const updated = await api.reanalyze(song.id)
@@ -381,22 +443,68 @@ export function SongPage() {
               transposed harmony.
             </p>
           )}
-          <div className="flex items-center gap-1 rounded-lg bg-slate-200 p-1 dark:bg-slate-700">
-            {(['chords', 'tab', 'both'] as View[]).map((option) => (
+          <div className="flex items-center gap-1 rounded-lg bg-slate-200/70 p-1 dark:bg-slate-800">
+            {(['chords', 'tab', 'letra', 'cifra', 'both'] as View[]).map((option) => (
               <button
                 key={option}
                 type="button"
                 onClick={() => setView(option)}
-                className={`flex-1 rounded px-3 py-1.5 text-xs font-semibold capitalize transition-colors ${
+                className={`flex-1 rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
                   view === option
-                    ? 'bg-white text-slate-900 shadow dark:bg-slate-900 dark:text-white'
+                    ? 'bg-panel text-slate-900 shadow-sm dark:text-white'
                     : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-200'
                 }`}
               >
-                {option === 'tab' ? `Tab (${analysis.lead.notes.length} notes)` : option}
+                {VIEW_LABELS[option]}
               </button>
             ))}
           </div>
+
+          {view === 'letra' &&
+            (song.lyrics ? (
+              <div className="rounded-xl border border-slate-200 bg-panel dark:border-slate-800">
+                <KaraokeView
+                  lyrics={song.lyrics}
+                  chords={analysis.chords
+                    .filter((chord) => chord.root !== null)
+                    .map((chord) => ({
+                      label: displayLabel(
+                        chord.label,
+                        settings.transpose,
+                        settings.capo,
+                        analysis.useFlats,
+                      ),
+                      start: chord.start,
+                    }))}
+                  currentTime={player.currentTime}
+                  onSeek={handleSeek}
+                />
+              </div>
+            ) : (
+              <p className="rounded-xl border border-dashed border-slate-300 p-8 text-center text-sm text-slate-500 dark:border-slate-700">
+                Ainda não transcrevi a letra desta música. O botão está no painel Produção.
+              </p>
+            ))}
+
+          {view === 'cifra' && (
+            <div className="rounded-xl border border-slate-200 bg-panel p-5 dark:border-slate-800">
+              <div className="mb-3 flex justify-end">
+                <a
+                  href={api.cifraUrl(song.id, {
+                    transpose: settings.transpose,
+                    capo: settings.capo,
+                    download: true,
+                  })}
+                  className="rounded-full border border-slate-300 px-3 py-1 text-xs font-medium transition hover:border-accent hover:text-accent dark:border-slate-700"
+                >
+                  Baixar .txt
+                </a>
+              </div>
+              <pre className="overflow-x-auto whitespace-pre font-mono text-[13px] leading-6">
+                {cifra || 'Montando…'}
+              </pre>
+            </div>
+          )}
 
           {(view === 'chords' || view === 'both') && (
             <ChordGrid
@@ -428,6 +536,14 @@ export function SongPage() {
         </div>
 
         <aside className="space-y-4">
+          <ProductionCard
+            song={song}
+            stems={stems}
+            busy={busy}
+            onTranscribe={handleTranscribe}
+            onSeparate={handleSeparate}
+          />
+
           <div className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800/70">
             <div className="mb-2 flex items-baseline justify-between">
               <h3 className="text-sm font-semibold">Now playing</h3>
