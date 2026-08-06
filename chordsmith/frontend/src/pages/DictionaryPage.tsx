@@ -46,7 +46,7 @@ export function DictionaryPage() {
           <option value="">todas as qualidades</option>
           {qualities.map((option) => (
             <option key={option} value={option}>
-              {QUALITY_LABELS[option] ?? option || 'maior'}
+              {QUALITY_LABELS[option] ?? (option || "maior")}
             </option>
           ))}
         </select>
@@ -56,7 +56,7 @@ export function DictionaryPage() {
         {shown.map((option) => (
           <section key={option}>
             <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
-              {QUALITY_LABELS[option] ?? option || 'maior'}
+              {QUALITY_LABELS[option] ?? (option || "maior")}
             </h2>
             <div className="flex flex-wrap gap-1.5">
               {ALL_KEYS.map((root) => {
