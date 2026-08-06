@@ -1,4 +1,5 @@
 import { Link, Route, Routes, useLocation } from 'react-router-dom'
+import { DictionaryPage } from './pages/DictionaryPage'
 import { LibraryPage } from './pages/LibraryPage'
 import { PerformancePage } from './pages/PerformancePage'
 import { SetlistPage, SetlistsPage } from './pages/SetlistsPage'
@@ -28,6 +29,12 @@ export default function App() {
               >
                 Setlists
               </Link>
+              <Link
+                to="/dicionario"
+                className="text-slate-500 transition-colors hover:text-slate-900 dark:hover:text-slate-200"
+              >
+                Acordes
+              </Link>
               <a
                 href="/docs"
                 className="text-slate-500 transition-colors hover:text-slate-900 dark:hover:text-slate-200"
@@ -46,6 +53,7 @@ export default function App() {
           <Route path="/" element={<LibraryPage />} />
           <Route path="/song/:songId" element={<SongPage />} />
           <Route path="/song/:songId/perform" element={<PerformancePage />} />
+          <Route path="/dicionario" element={<DictionaryPage />} />
           <Route path="/setlists" element={<SetlistsPage />} />
           <Route path="/setlists/:setlistId" element={<SetlistPage />} />
           <Route
