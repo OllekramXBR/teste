@@ -611,7 +611,6 @@ export function SongPage() {
                         track={track}
                         bpm={analysis.bpm}
                         beatsPerBar={analysis.beatsPerBar}
-                        useFlats={analysis.useFlats}
                         currentTime={player.currentTime}
                         onSeek={handleSeek}
                       />

@@ -19,7 +19,6 @@ interface Props {
   track: StaffTrack
   bpm: number
   beatsPerBar: number
-  useFlats?: boolean
   currentTime?: number
   /** How many bars to draw per line. */
   barsPerLine?: number
@@ -64,7 +63,6 @@ export function StaffNotation({
   track,
   bpm,
   beatsPerBar,
-  useFlats = false,
   currentTime = 0,
   barsPerLine = 4,
   onSeek,
@@ -121,7 +119,7 @@ export function StaffNotation({
                 {layout.clef === 'bass' ? '𝄢' : '𝄞'}
               </text>
 
-              {line.bars.map((bar, barIndex) => (
+              {line.bars.map((_bar, barIndex) => (
                 <line
                   key={`bar-${barIndex}`}
                   x1={LEFT + (barIndex + 1) * BAR_WIDTH}
