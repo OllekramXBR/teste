@@ -3,6 +3,7 @@ import { useMemo, useState } from 'react'
 import { ChordPopover } from '../components/ChordPopover'
 import { br } from '../lib/brazilian'
 import { ALL_KEYS, formatChord, noteName, QUALITIES, QUALITY_LABELS } from '../lib/theory'
+import { Page, PageHeader } from '../components/Page'
 
 /**
  * Every chord the app knows, on any instrument it can finger.
@@ -21,14 +22,11 @@ export function DictionaryPage() {
   const shown = quality ? [quality] : qualities
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6 px-4 py-8">
-      <header>
-        <h1 className="text-[26px] font-semibold tracking-tight">Dicionário de acordes</h1>
-        <p className="mt-1 text-sm text-slate-500">
-          Toque em qualquer acorde para ver a digitação no seu instrumento. Notação brasileira:
-          7M para a sétima maior, ° para diminuto, + para aumentado.
-        </p>
-      </header>
+    <Page>
+      <PageHeader
+        title="Dicionário de acordes"
+        description="Toque em qualquer acorde para ver a digitação no seu instrumento. Notação brasileira: 7M para a sétima maior, ° para diminuto, + para aumentado."
+      />
 
       <div className="flex flex-wrap items-center gap-2">
         <button
@@ -86,7 +84,7 @@ export function DictionaryPage() {
       {selected && (
         <ChordPopover label={selected} useFlats={useFlats} onClose={() => setSelected(null)} />
       )}
-    </div>
+    </Page>
   )
 }
 

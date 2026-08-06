@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 
 import * as api from '../lib/api'
 import type { AuthUser } from '../lib/api'
+import { Page, PageHeader } from '../components/Page'
 
 /**
  * The account: display name, password, and who else is on this server.
@@ -57,13 +58,11 @@ export function ProfilePage({ user, onChanged }: { user: AuthUser | null; onChan
   }
 
   return (
-    <div className="mx-auto max-w-lg space-y-8 px-4 py-8">
-      <header>
-        <h1 className="text-[26px] font-semibold tracking-tight">Perfil</h1>
-        <p className="mt-1 text-sm text-slate-500">
-          Entrou como <span className="font-medium">{user.username}</span>.
-        </p>
-      </header>
+    <Page width="narrow">
+      <PageHeader
+        title="Perfil"
+        description={<>Entrou como <span className="font-medium">{user.username}</span>.</>}
+      />
 
       {message && (
         <p className={message.tone === 'ok' ? 'text-sm text-emerald-600' : 'text-sm text-rose-500'}>
@@ -140,6 +139,6 @@ export function ProfilePage({ user, onChanged }: { user: AuthUser | null; onChan
           ser tornada privada na página dela.
         </p>
       </section>
-    </div>
+    </Page>
   )
 }

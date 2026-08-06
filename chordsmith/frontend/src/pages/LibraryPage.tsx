@@ -4,6 +4,7 @@ import * as api from '../lib/api'
 import type { Song } from '../lib/api'
 import { formatTime } from '../components/Transport'
 import { LibraryBrowser } from '../components/LibraryBrowser'
+import { Page, PageHeader } from '../components/Page'
 
 const POLL_INTERVAL_MS = 2000
 
@@ -154,15 +155,12 @@ export function LibraryPage() {
   }, [songs, refresh, search])
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6 px-4 py-8">
-      <header className="text-center">
-        <h1 className="text-[28px] font-semibold tracking-tight">Sua música, aberta</h1>
-        <p className="mx-auto mt-2 max-w-lg text-sm leading-relaxed text-slate-500">
-          Suba um arquivo e o Metatron acha a batida, o tom e os acordes. Depois transcreve a
-          letra e separa a voz principal da banda, para você cantar por cima da sua própria
-          gravação.
-        </p>
-      </header>
+    <Page>
+      <PageHeader
+        centered
+        title="Sua música, aberta"
+        description="Suba um arquivo e o Metatron acha a batida, o tom e os acordes. Depois transcreve a letra e separa a voz principal da banda, para você cantar por cima da sua própria gravação."
+      />
 
       <Uploader onUploaded={(song) => setSongs((previous) => [song, ...(previous ?? [])])} />
 
@@ -219,6 +217,6 @@ export function LibraryPage() {
           ))}
         </ul>
       )}
-    </div>
+    </Page>
   )
 }

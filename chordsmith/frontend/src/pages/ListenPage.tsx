@@ -6,6 +6,7 @@ import { useChordListener } from '../hooks/useChordListener'
 import { br } from '../lib/brazilian'
 import { INSTRUMENTS, type Instrument } from '../lib/fretboard'
 import { formatChord, noteName, QUALITY_LABELS } from '../lib/theory'
+import { Page, PageHeader } from '../components/Page'
 
 type Mode = 'detect' | 'practice'
 
@@ -64,14 +65,11 @@ export function ListenPage() {
   )
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6 px-4 py-8">
-      <header>
-        <h1 className="text-[26px] font-semibold tracking-tight">Ouvir</h1>
-        <p className="mt-1 text-sm text-slate-500">
-          Toque no seu instrumento e o Metatron diz qual acorde é. Nada sai daqui — o áudio é
-          analisado no navegador e não chega a ser enviado a lugar nenhum.
-        </p>
-      </header>
+    <Page width="narrow">
+      <PageHeader
+        title="Ouvir"
+        description="Toque no seu instrumento e o Metatron diz qual acorde é. Nada sai daqui — o áudio é analisado no navegador e não chega a ser enviado a lugar nenhum."
+      />
 
       <div className="flex flex-wrap items-center gap-2">
         <div className="flex items-center gap-1 rounded-lg bg-slate-200/70 p-1 dark:bg-slate-800">
@@ -196,6 +194,6 @@ export function ListenPage() {
       {popover && (
         <ChordPopover label={popover} useFlats={false} onClose={() => setPopover(null)} />
       )}
-    </div>
+    </Page>
   )
 }

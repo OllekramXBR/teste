@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 
 import * as api from '../lib/api'
+import { Page, PageHeader } from '../components/Page'
 import type { Setlist, SetlistSummary, Song } from '../lib/api'
 
 /**
@@ -39,13 +40,11 @@ export function SetlistsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6 px-4 py-8">
-      <header>
-        <h1 className="text-[26px] font-semibold tracking-tight">Setlists</h1>
-        <p className="mt-1 text-sm text-slate-500">
-          A ordem do show. No modo palco, a próxima música já vem carregada.
-        </p>
-      </header>
+    <Page>
+      <PageHeader
+        title="Setlists"
+        description="A ordem do show. No modo palco, a próxima música já vem carregada."
+      />
 
       <div className="flex gap-2">
         <input
@@ -90,7 +89,7 @@ export function SetlistsPage() {
           ))}
         </ul>
       )}
-    </div>
+    </Page>
   )
 }
 
@@ -136,21 +135,25 @@ export function SetlistPage() {
   const first = setlist.songs[0]
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6 px-4 py-8">
+    <Page>
       <div>
         <Link to="/setlists" className="text-xs text-slate-500 hover:text-accent">
           ← Setlists
         </Link>
-        <div className="mt-2 flex flex-wrap items-end justify-between gap-3">
-          <h1 className="text-[26px] font-semibold tracking-tight">{setlist.name}</h1>
-          {first && (
-            <Link
-              to={`/song/${first.id}/perform?setlist=${setlist.id}`}
-              className="rounded-lg bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white dark:bg-white dark:text-slate-900"
-            >
-              Começar o show
-            </Link>
-          )}
+        <div className="mt-2">
+          <PageHeader
+            title={setlist.name}
+            actions={
+              first && (
+                <Link
+                  to={`/song/${first.id}/perform?setlist=${setlist.id}`}
+                  className="rounded-lg bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white dark:bg-white dark:text-slate-900"
+                >
+                  Começar o show
+                </Link>
+              )
+            }
+          />
         </div>
       </div>
 
@@ -218,7 +221,7 @@ export function SetlistPage() {
           </ul>
         )}
       </section>
-    </div>
+    </Page>
   )
 }
 
