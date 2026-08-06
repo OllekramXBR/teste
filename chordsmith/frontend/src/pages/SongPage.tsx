@@ -884,8 +884,14 @@ export function SongPage() {
             )}
           </div>
 
-          <div className="rounded-xl border border-slate-200 bg-panel p-4 dark:border-slate-800">
-            <h3 className="mb-2 text-sm font-semibold">Chords in this song</h3>
+          <details className="group rounded-xl border border-slate-200 bg-panel p-4 dark:border-slate-800">
+            <summary className="cursor-pointer list-none text-sm font-semibold marker:content-none">
+              Acordes desta música
+              <span className="float-right text-xs font-normal text-slate-400 group-open:hidden">
+                {analysis.uniqueChords.length}
+              </span>
+            </summary>
+            <div className="mt-3">
             <div className="flex flex-wrap gap-1.5">
               {analysis.uniqueChords.map((label) => {
                 const shown = displayLabel(label, settings.transpose, settings.capo, analysis.useFlats)
@@ -914,13 +920,21 @@ export function SongPage() {
                 )
               })}
             </div>
-            <p className="mt-3 text-[11px] text-slate-400">
-              Key confidence {Math.round(analysis.key.confidence * 100)}% · analysed in{' '}
-              {analysis.analysisSeconds}s
-            </p>
-          </div>
+              <p className="mt-3 text-[11px] text-slate-400">
+                Confiança do tom {Math.round(analysis.key.confidence * 100)}% · analisada em{' '}
+                {analysis.analysisSeconds}s
+              </p>
+            </div>
+          </details>
 
-          <Tuner />
+          <details className="rounded-xl border border-slate-200 bg-panel p-4 dark:border-slate-800">
+            <summary className="cursor-pointer list-none text-sm font-semibold marker:content-none">
+              Afinador
+            </summary>
+            <div className="mt-3">
+              <Tuner />
+            </div>
+          </details>
         </aside>
       </div>
 
