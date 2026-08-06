@@ -17,6 +17,14 @@ NATIVE_EXTENSIONS = {".mp3", ".wav", ".flac", ".ogg", ".oga", ".aiff", ".aif"}
 
 MAX_UPLOAD_BYTES = int(os.environ.get("CHORDSMITH_MAX_UPLOAD_MB", "60")) * 1024 * 1024
 
+# A folder of existing music on the server, mounted read-only, browsable from
+# the app. Unset means the feature is simply off — nothing is exposed by
+# default, and what is exposed is whatever a human chose to mount at /library.
+# The size limit above does not apply here: it exists to bound what a browser
+# may push over the network, and these bytes never cross it.
+_library = os.environ.get("CHORDSMITH_LIBRARY_ROOT", "/library")
+LIBRARY_ROOT = Path(_library) if _library else None
+
 # Analysis is CPU-bound; keep a small pool so a burst of uploads cannot starve
 # the request handlers.
 ANALYSIS_WORKERS = int(os.environ.get("CHORDSMITH_ANALYSIS_WORKERS", "2"))

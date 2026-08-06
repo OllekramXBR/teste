@@ -34,6 +34,12 @@ PGID="${PGID:-100}"
 # always on 5173, so the proxy target never has to change with these.
 API_PORT="${API_PORT:-8000}"
 WEB_PORT="${WEB_PORT:-5173}"
+# A folder of existing music to browse and import from, mounted read-only.
+# Empty means the feature is off, which is the default: what the app can read
+# off this machine should be something a person chose, not something a default
+# decided. Read-only because importing copies, and nothing here ever writes
+# back to a share full of originals.
+LIBRARY_DIR="${LIBRARY_DIR:-}"
 
 stop() {
     docker rm -f "$WEB" "$API" >/dev/null 2>&1 || true
@@ -105,12 +111,24 @@ fi
 
 stop
 
+library_mount=""
+if [ -n "$LIBRARY_DIR" ]; then
+    if [ -d "$LIBRARY_DIR" ]; then
+        library_mount="-v $LIBRARY_DIR:/library:ro"
+        echo "Library: $LIBRARY_DIR (read-only)"
+    else
+        echo "LIBRARY_DIR is set to '$LIBRARY_DIR', which is not a folder; skipping." >&2
+    fi
+fi
+
 echo "Starting $API on $BIND_IP:$API_PORT ..."
+# shellcheck disable=SC2086 - library_mount is either empty or two words
 docker run -d --name "$API" \
     --network "$NETWORK" --network-alias api \
     -p "$BIND_IP:$API_PORT:8000" \
     -v "$SOURCE_DIR/backend:/app/backend" \
     -v "$DATA_DIR:/data" \
+    $library_mount \
     -e PUID="$PUID" -e PGID="$PGID" \
     -e CHORDSMITH_DATA_DIR=/data \
     -e WATCHFILES_FORCE_POLLING=true \

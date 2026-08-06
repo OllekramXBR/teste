@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import mimetypes
 import re
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -11,7 +12,7 @@ from fastapi import APIRouter, File, Form, HTTPException, Query, Request, Upload
 from fastapi.responses import FileResponse, Response, StreamingResponse
 from pydantic import BaseModel, Field
 
-from .. import jobs, storage, transcode
+from .. import jobs, library, storage, transcode
 # `cifra` only pulls in the theory primitives, not librosa, so importing it at
 # module level does not put the numba import back on the API's startup path.
 from ..analysis import cifra, stems
@@ -110,6 +111,56 @@ async def upload_song(
         size_bytes=size,
     )
     jobs.enqueue(song_id, stored_name)
+    return song
+
+
+class ImportRequest(BaseModel):
+    path: str = Field(max_length=1024)
+    title: str = Field("", max_length=200)
+    artist: str = Field("", max_length=200)
+
+
+@router.post("/import", status_code=201)
+def import_from_library(request: ImportRequest) -> dict:
+    """Import a file that is already on the server.
+
+    Copied rather than referenced. A song whose audio can disappear because
+    somebody tidied a share is worse than a duplicated file: the analysis, the
+    lyric and the stems would all outlive the thing they describe.
+    """
+    try:
+        source = library.audio_file(request.path)
+    except library.LibraryError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+
+    song_id = storage.new_id()
+    extension = source.suffix.lower()
+    destination = AUDIO_DIR / f"{song_id}{extension}"
+    destination.parent.mkdir(parents=True, exist_ok=True)
+
+    try:
+        shutil.copy2(source, destination)
+    except OSError as exc:
+        destination.unlink(missing_ok=True)
+        raise HTTPException(status_code=500, detail=f"Could not copy the file: {exc}") from exc
+
+    if extension not in NATIVE_EXTENSIONS:
+        try:
+            destination = transcode.to_flac(destination)
+        except (transcode.TranscodeError, subprocess.TimeoutExpired) as exc:
+            destination.unlink(missing_ok=True)
+            raise HTTPException(status_code=415, detail=str(exc)) from exc
+
+    song = storage.create_song(
+        song_id=song_id,
+        title=request.title.strip() or _title_from_filename(source.name),
+        artist=request.artist.strip(),
+        filename=destination.name,
+        original_name=source.name,
+        content_type=mimetypes.guess_type(source.name)[0] or "audio/mpeg",
+        size_bytes=destination.stat().st_size,
+    )
+    jobs.enqueue(song_id, destination.name)
     return song
 
 

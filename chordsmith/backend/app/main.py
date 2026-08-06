@@ -13,6 +13,7 @@ from fastapi.staticfiles import StaticFiles
 
 from . import jobs, storage
 from .config import CORS_ORIGINS, MAX_UPLOAD_BYTES, NATIVE_EXTENSIONS, ensure_directories
+from .routes import library as library_routes
 from .routes import songs as songs_routes
 from .routes import theory as theory_routes
 
@@ -52,6 +53,7 @@ app.add_middleware(
     expose_headers=["Content-Range", "Accept-Ranges", "Content-Length"],
 )
 
+app.include_router(library_routes.router)
 app.include_router(songs_routes.router)
 app.include_router(theory_routes.router)
 
