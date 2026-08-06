@@ -92,6 +92,13 @@ def stem_models(quality: str | None = None) -> tuple[str, str]:
 # what the stage view does before it will let anyone press play.
 STEM_FORMAT = os.environ.get("CHORDSMITH_STEM_FORMAT", "mp3")
 
+# Accounts exist as soon as someone creates one; they are only *enforced* when
+# this says so. Default "open" because this app has always run without a login,
+# behind a private network, and switching that on by surprise would lock its
+# owner out of their own library.
+AUTH_MODE = os.environ.get("CHORDSMITH_AUTH", "open").strip().lower()
+SESSION_DAYS = int(os.environ.get("CHORDSMITH_SESSION_DAYS", "30"))
+
 CORS_ORIGINS = os.environ.get(
     "CHORDSMITH_CORS_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173"
 ).split(",")

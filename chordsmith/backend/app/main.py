@@ -8,11 +8,14 @@ from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from . import jobs, storage
 from .config import CORS_ORIGINS, MAX_UPLOAD_BYTES, NATIVE_EXTENSIONS, ensure_directories
+from . import auth
+from .routes import auth as auth_routes
 from .routes import library as library_routes
 from .routes import setlists as setlist_routes
 from .routes import songs as songs_routes
@@ -30,6 +33,7 @@ FRONTEND_DIST = Path(__file__).resolve().parent.parent.parent / "frontend" / "di
 async def lifespan(app: FastAPI):
     ensure_directories()
     storage.init_db()
+    auth.init()
     requeued = jobs.requeue_incomplete()
     if requeued:
         logger.info("requeued %d interrupted analyses", requeued)
@@ -54,6 +58,27 @@ app.add_middleware(
     expose_headers=["Content-Range", "Accept-Ranges", "Content-Length"],
 )
 
+@app.middleware("http")
+async def require_session(request, call_next):
+    """Refuse API calls without a session — but only when asked to.
+
+    The check is a middleware rather than a per-route dependency so that a route
+    added later cannot forget it. Health and the auth endpoints stay open, since
+    a monitor has to reach one and a sign-in form has to reach the other.
+    """
+    path = request.url.path
+    if (
+        auth.enabled()
+        and path.startswith("/api/")
+        and not path.startswith("/api/auth/")
+        and path != "/api/health"
+        and auth.user_for_token(request.cookies.get(auth.SESSION_COOKIE)) is None
+    ):
+        return JSONResponse({"detail": "Entre para continuar"}, status_code=401)
+    return await call_next(request)
+
+
+app.include_router(auth_routes.router)
 app.include_router(library_routes.router)
 app.include_router(setlist_routes.router)
 app.include_router(songs_routes.router)
