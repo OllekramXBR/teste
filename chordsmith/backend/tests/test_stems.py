@@ -112,3 +112,25 @@ class TestMixdown:
         write_stem(store, "abc", "bass", seconds=0.3)
         mixed = stems.load_stem_mono("abc", ["drums", "bass"], sr=22050)
         assert mixed is not None
+
+
+class TestPartialSplit:
+    """What happens when the karaoke stage cannot find one of the two halves.
+
+    The separator skips writing a stem it judges near-silent, so a missing
+    output is an answer rather than a fault — an instrumental has no lead vocal
+    to find. Failing the whole separation over that would discard four good
+    stems to punish a song for its arrangement.
+    """
+
+    def test_a_missing_half_is_an_answer_not_an_error(self):
+        # Only the "instrumental" half came back: the model heard no lead.
+        split = ["/work/v_(Instrumental)_kara.mp3"]
+        assert stems._pick(split, "lead") is None
+        assert stems._pick(split, "vocals") is None
+        assert stems._pick(split, "instrumental") is not None
+
+    def test_both_halves_are_recognised_when_both_exist(self):
+        split = ["/work/v_(Vocals)_kara.mp3", "/work/v_(Instrumental)_kara.mp3"]
+        assert stems._pick(split, "vocals") is not None
+        assert stems._pick(split, "instrumental") is not None

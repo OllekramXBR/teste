@@ -171,13 +171,31 @@ def separate(path: str | Path, song_id: str, quality: str | None = None) -> list
     # output is what was left of the vocal stem — the backing voices.
     lead = _pick(split, "lead") or _pick(split, "vocals")
     backing = _pick(split, "backing") or _pick(split, "instrumental")
-    if lead is None or backing is None:
-        raise RuntimeError(
-            f"{karaoke_model} did not split lead from backing "
-            f"(got: {[Path(p).name for p in split]})"
-        )
 
-    produced: dict[str, Path] = {"lead": lead, "backing": backing}
+    produced: dict[str, Path] = {}
+    if lead is not None and backing is not None:
+        produced["lead"] = lead
+        produced["backing"] = backing
+    else:
+        # The separator skips writing a stem it judges near-silent, so a missing
+        # output is an answer rather than a fault: on an instrumental there is
+        # no lead vocal to find, and on a track sung by one person alone there
+        # are no backing voices. Failing the whole separation over that would
+        # throw away four perfectly good stems to punish a song for its
+        # arrangement. The vocal stem is kept whole as the lead instead, which
+        # is what "mute the voice" should do when there is only one voice.
+        logger.info(
+            "%s produced only %s for %s; keeping the vocal stem whole as the lead",
+            karaoke_model,
+            [Path(p).name for p in split] or "nothing",
+            song_id,
+        )
+        #
+        # Only the whole stem, never it *and* one of the halves: whatever the
+        # model did write is made of the same audio, so keeping both would put
+        # those samples in the mix twice and the five stems would no longer sum
+        # back to the recording.
+        produced["lead"] = vocals
     for name, keyword in BASE_OUTPUTS.items():
         found = _pick(base, keyword)
         if found is not None:
