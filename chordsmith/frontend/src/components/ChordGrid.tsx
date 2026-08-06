@@ -99,7 +99,7 @@ export function ChordGrid({
   return (
     <div
       ref={containerRef}
-      className="max-h-[58vh] overflow-y-auto rounded-xl bg-slate-50 p-3"
+      className="max-h-[58vh] overflow-y-auto rounded-xl bg-canvas p-3"
     >
       <div
         className="grid gap-2"
@@ -114,17 +114,15 @@ export function ChordGrid({
               ref={isActive ? activeBarRef : undefined}
               className={[
                 'group relative rounded-lg border p-1 transition-colors',
-                isActive
-                  ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-950/40'
-                  : 'border-line bg-panel',
+                isActive ? 'border-accent bg-accent-soft' : 'border-line bg-panel',
                 inLoop ? 'ring-2 ring-amber-400/70' : '',
               ].join(' ')}
             >
               <button
                 type="button"
                 onClick={(event) => onBarSelect(bar.number, event.shiftKey)}
-                title="Click to set the loop start, shift-click to set the loop end"
-                className="absolute -top-1.5 left-1 rounded bg-slate-200 px-1 text-[9px] font-semibold text-ink-soft hover:bg-amber-300 hover:text-ink "
+                title="Clique para marcar o início do loop, shift-clique para o fim"
+                className="absolute -top-1.5 left-1 rounded bg-canvas px-1 text-[9px] font-semibold text-ink-soft hover:bg-amber-300 hover:text-slate-900"
               >
                 {bar.number}
               </button>
@@ -140,14 +138,14 @@ export function ChordGrid({
                       key={beat.index}
                       type="button"
                       onClick={() => onSeek(beat.time)}
-                      title={`Bar ${beat.bar}, beat ${beat.beatInBar} — ${
-                        label || 'no chord'
-                      } (${Math.round(beat.confidence * 100)}% confident)`}
+                      title={`Compasso ${beat.bar}, tempo ${beat.beatInBar} — ${
+                        label || 'sem acorde'
+                      } (${Math.round(beat.confidence * 100)}% de confiança)`}
                       className={[
                         'flex h-12 flex-1 flex-col items-center justify-center rounded text-sm font-semibold transition-all',
                         isCurrent
-                          ? 'scale-105 bg-indigo-600 text-white shadow-lg'
-                          : 'bg-slate-100 text-slate-700 hover:bg-slate-200 /60 dark:hover:bg-slate-600',
+                          ? 'scale-105 bg-accent text-canvas shadow-lg'
+                          : 'bg-canvas text-ink hover:bg-accent-soft',
                         isRepeat && !isCurrent ? 'opacity-45' : '',
                       ].join(' ')}
                     >

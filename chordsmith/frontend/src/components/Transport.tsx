@@ -72,7 +72,7 @@ export function Transport({
           if (event.key === 'ArrowRight') onSeek(currentTime + 5)
           if (event.key === 'ArrowLeft') onSeek(currentTime - 5)
         }}
-        className="relative h-8 flex-1 cursor-pointer overflow-hidden rounded-lg bg-slate-200 "
+        className="relative h-8 flex-1 cursor-pointer overflow-hidden rounded-lg bg-canvas"
       >
         {loopRegion && duration > 0 && (
           <div

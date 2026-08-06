@@ -72,7 +72,7 @@ export function ListenPage() {
       />
 
       <div className="flex flex-wrap items-center gap-2">
-        <div className="flex items-center gap-1 rounded-lg bg-slate-200/70 p-1 ">
+        <div className="flex items-center gap-1 rounded-lg bg-canvas/70 p-1 ">
           {(['detect', 'practice'] as Mode[]).map((option) => (
             <button
               key={option}
@@ -142,7 +142,7 @@ export function ListenPage() {
         <div className="text-center">
           <p
             className={`text-5xl font-bold tracking-tight ${
-              matches ? 'text-emerald-500' : label ? 'text-accent' : 'text-slate-300 dark:text-slate-700'
+              matches ? 'text-emerald-500' : label ? 'text-accent' : 'text-slate-300 dark:text-ink'
             }`}
           >
             {label ? br(label) : listening ? '…' : '—'}

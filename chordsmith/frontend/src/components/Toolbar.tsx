@@ -60,7 +60,7 @@ function Stepper({
         aria-label="Decrease"
         disabled={value <= min}
         onClick={() => onChange(value - 1)}
-        className="h-7 w-7 rounded bg-slate-200 text-sm font-bold text-slate-700 disabled:opacity-40 hover:bg-slate-300 "
+        className="h-7 w-7 rounded bg-canvas text-sm font-bold text-ink disabled:opacity-40 hover:bg-accent-soft"
       >
         −
       </button>
@@ -70,7 +70,7 @@ function Stepper({
         aria-label="Increase"
         disabled={value >= max}
         onClick={() => onChange(value + 1)}
-        className="h-7 w-7 rounded bg-slate-200 text-sm font-bold text-slate-700 disabled:opacity-40 hover:bg-slate-300 "
+        className="h-7 w-7 rounded bg-canvas text-sm font-bold text-ink disabled:opacity-40 hover:bg-accent-soft"
       >
         +
       </button>

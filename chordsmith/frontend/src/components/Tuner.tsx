@@ -140,7 +140,7 @@ export function Tuner() {
           <div className="text-center">
             <div
               className={`text-4xl font-bold tabular-nums ${
-                inTune ? 'text-emerald-500' : 'text-slate-700'
+                inTune ? 'text-emerald-500' : 'text-ink'
               }`}
             >
               {reading ? noteName(reading.midi % 12) : '—'}
@@ -155,7 +155,7 @@ export function Tuner() {
             </div>
           </div>
 
-          <div className="relative h-3 rounded-full bg-slate-200 ">
+          <div className="relative h-3 rounded-full bg-canvas">
             <div className="absolute left-1/2 top-0 h-3 w-0.5 -translate-x-1/2 bg-slate-400" />
             {reading && (
               <div

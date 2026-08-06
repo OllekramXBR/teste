@@ -584,21 +584,21 @@ export function SongPage() {
           <div className="flex flex-wrap gap-2">
             <a
               href={api.midiUrl(song.id, settings.transpose)}
-              className="rounded border border-line px-3 py-1.5 text-xs font-semibold hover:bg-slate-100 dark:hover:bg-slate-700"
+              className="rounded border border-line px-3 py-1.5 text-xs font-semibold hover:bg-canvas dark:hover:bg-slate-700"
             >
               Download MIDI
             </a>
             <button
               type="button"
               onClick={() => window.print()}
-              className="rounded border border-line px-3 py-1.5 text-xs font-semibold hover:bg-slate-100 dark:hover:bg-slate-700"
+              className="rounded border border-line px-3 py-1.5 text-xs font-semibold hover:bg-canvas dark:hover:bg-slate-700"
             >
               Chord sheet (PDF)
             </button>
             <button
               type="button"
               onClick={handleReanalyze}
-              className="rounded border border-line px-3 py-1.5 text-xs font-semibold hover:bg-slate-100 dark:hover:bg-slate-700"
+              className="rounded border border-line px-3 py-1.5 text-xs font-semibold hover:bg-canvas dark:hover:bg-slate-700"
             >
               Re-analyse
             </button>
@@ -659,7 +659,7 @@ export function SongPage() {
             </p>
           )}
           <div className="flex items-center gap-3">
-            <div className="flex flex-1 items-center gap-1 overflow-x-auto rounded-lg bg-slate-200/70 p-1 ">
+            <div className="flex flex-1 items-center gap-1 overflow-x-auto rounded-lg bg-canvas/70 p-1 ">
             {(['chords', 'estudo', 'tab', 'letra', 'cifra', 'partitura', 'both'] as View[]).map((option) => (
               <button
                 key={option}
@@ -668,7 +668,7 @@ export function SongPage() {
                 className={`shrink-0 rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
                   view === option
                     ? 'bg-panel text-ink shadow-sm dark:text-white'
-                    : 'text-ink-soft hover:text-slate-700'
+                    : 'text-ink-soft hover:text-ink'
                 }`}
               >
                 {VIEW_LABELS[option]}
@@ -981,7 +981,7 @@ export function SongPage() {
                     key={label}
                     onClick={() => setPopoverChord(shown)}
                     title={numeral ? `${numeral} no tom` : 'fora do tom'}
-                    className="rounded bg-slate-100 px-2 py-1 text-xs font-semibold transition hover:bg-accent-soft "
+                    className="rounded bg-canvas px-2 py-1 text-xs font-semibold transition hover:bg-accent-soft "
                   >
                     {shown}
                     {numeral && <span className="ml-1 text-[9px] text-ink-faint">{numeral}</span>}

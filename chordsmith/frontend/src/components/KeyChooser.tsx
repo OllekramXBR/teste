@@ -87,43 +87,49 @@ export function KeyChooser({
             <li key={row.semitones}>
               <div
                 className={[
-                  'flex items-center gap-2 rounded-lg px-2 py-1.5 transition',
+                  'flex items-start gap-2 rounded-lg px-2 py-1.5 transition',
                   active ? 'bg-accent-soft' : '',
                 ].join(' ')}
               >
                 <button
                   type="button"
                   onClick={() => onTranspose(row.semitones)}
-                  className="flex min-w-0 flex-1 items-center gap-2 text-left"
+                  className="min-w-0 flex-1 text-left"
                 >
-                  <span className="w-8 shrink-0 text-xs tabular-nums text-ink-faint">
-                    {row.semitones > 0 ? `+${row.semitones}` : row.semitones}
+                  <span className="flex items-baseline gap-2">
+                    <span className="w-7 shrink-0 text-xs tabular-nums text-ink-faint">
+                      {row.semitones > 0 ? `+${row.semitones}` : row.semitones}
+                    </span>
+                    <span className="truncate text-sm font-medium">{row.key}</span>
+                    <span
+                      className={[
+                        'ml-auto shrink-0 rounded-full px-1.5 text-[10px] font-semibold tabular-nums',
+                        row.semitones === easiest.semitones
+                          ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300'
+                          : 'text-ink-faint',
+                      ].join(' ')}
+                      title="Acordes que saem em posição aberta"
+                    >
+                      {row.open}/{row.total}
+                    </span>
                   </span>
-                  <span className="w-24 shrink-0 text-sm font-medium">{row.key}</span>
-                  <span className="truncate text-xs text-ink-soft">{row.labels.join('  ')}</span>
+                  {/* Second line: twenty chord labels never fitted beside a key
+                      name in a 260px column, and squeezing them there is what
+                      made the badge sit on top of the text. */}
+                  <span className="mt-0.5 block truncate pl-9 font-mono text-[11px] text-ink-soft">
+                    {row.labels.join(' ')}
+                  </span>
                 </button>
-
-                <span
-                  className={[
-                    'shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold tabular-nums',
-                    row.semitones === easiest.semitones
-                      ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300'
-                      : 'text-ink-faint',
-                  ].join(' ')}
-                  title="Acordes que saem em posição aberta"
-                >
-                  {row.open}/{row.total} abertos
-                </span>
 
                 {onRenderAudio && row.semitones !== 0 && (
                   <button
                     type="button"
                     onClick={() => onRenderAudio(row.semitones)}
                     disabled={rendered}
-                    className="shrink-0 rounded-full border border-line px-2.5 py-0.5 text-[10px] font-medium disabled:opacity-40 "
+                    className="shrink-0 self-start rounded-full border border-line px-2 py-0.5 text-[10px] font-medium disabled:opacity-40"
                     title="Renderizar o áudio neste tom"
                   >
-                    {rendered ? 'áudio pronto' : 'áudio'}
+                    {rendered ? '✓' : 'áudio'}
                   </button>
                 )}
               </div>

@@ -15,7 +15,7 @@ function StatusBadge({ status }: { status: Song['status'] }) {
     ready: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300',
     failed: 'bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300',
     analyzing: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300',
-    pending: 'bg-slate-100 text-ink-soft  ',
+    pending: 'bg-canvas text-ink-soft',
   }
   const labels: Record<Song['status'], string> = {
     ready: 'pronta',
@@ -43,7 +43,7 @@ function Cover({ song }: { song: Song }) {
   const [failed, setFailed] = useState(false)
   if (failed) {
     return (
-      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md bg-slate-200 text-sm font-semibold text-ink-faint ">
+      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md bg-canvas text-sm font-semibold text-ink-faint ">
         {song.title.trim().charAt(0).toUpperCase() || '♪'}
       </div>
     )
@@ -234,7 +234,7 @@ export function LibraryPage() {
           placeholder="Buscar na biblioteca"
           className="w-full rounded-lg border border-line bg-panel px-3.5 py-2.5 text-sm transition-colors placeholder:text-ink-faint focus:border-accent focus:outline-none "
         />
-        <div className="flex shrink-0 items-center gap-1 rounded-lg bg-slate-200/70 p-1 ">
+        <div className="flex shrink-0 items-center gap-1 rounded-lg bg-canvas/70 p-1 ">
           {(['list', 'grid'] as const).map((option) => (
             <button
               key={option}

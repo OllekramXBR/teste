@@ -79,7 +79,7 @@ export function ProductionCard({ song, stems, busy, onTranscribe, onSeparate }: 
           'mt-4 flex w-full items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold transition',
           canPerform
             ? 'bg-ink text-canvas hover:opacity-90'
-            : 'cursor-not-allowed bg-slate-200 text-ink-faint  dark:text-ink-soft',
+            : 'cursor-not-allowed bg-canvas text-ink-faint',
         ].join(' ')}
       >
         Modo palco

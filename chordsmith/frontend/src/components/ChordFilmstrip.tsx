@@ -74,9 +74,16 @@ export function ChordFilmstrip({
     const container = containerRef.current
     const active = activeRef.current
     if (!container || !active) return
-    const delta = active.getBoundingClientRect().left - container.getBoundingClientRect().left
+
+    // Centred, not left of centre. On a tablet propped up two metres away the
+    // eye goes to the middle of the strip and stays there, so the chord being
+    // played has to be what is already under it — and what comes next is then
+    // visible on the right without anybody hunting for the current one first.
+    const containerBox = container.getBoundingClientRect()
+    const activeBox = active.getBoundingClientRect()
+    const delta = activeBox.left - containerBox.left
     container.scrollTo({
-      left: container.scrollLeft + delta - container.clientWidth * 0.28,
+      left: container.scrollLeft + delta - containerBox.width / 2 + activeBox.width / 2,
       behavior: 'smooth',
     })
   }, [activeIndex])
@@ -92,7 +99,10 @@ export function ChordFilmstrip({
   return (
     <div
       ref={containerRef}
-      className="flex gap-3 overflow-x-auto rounded-xl border border-line bg-panel p-4 "
+      // The padding on both ends is what lets the first and last chord reach
+      // the middle at all: without it the strip runs out of scroll and they sit
+      // stranded against an edge.
+      className="flex items-center gap-4 overflow-x-auto rounded-xl border border-line bg-panel px-[45%] py-5"
     >
       {cards.map((card, index) => {
         const parsed = parseLabel(card.label)
@@ -104,14 +114,18 @@ export function ChordFilmstrip({
             type="button"
             onClick={() => onSeek?.(card.start)}
             className={[
-              'flex shrink-0 flex-col items-center gap-1.5 rounded-lg px-3 py-2 transition',
-              active ? 'bg-accent-soft' : 'opacity-55 hover:opacity-100',
+              'flex shrink-0 flex-col items-center gap-2 rounded-xl px-4 py-3 transition-all duration-300',
+              // The played chord is bigger, not just tinted. From a stand,
+              // colour alone is a weak signal and size is an unmissable one.
+              active
+                ? 'scale-100 bg-accent-soft opacity-100'
+                : 'scale-[0.78] opacity-40 hover:opacity-75',
             ].join(' ')}
           >
             <span
               className={[
-                'text-lg font-bold tracking-tight',
-                active ? 'text-accent' : '',
+                'font-bold tracking-tight',
+                active ? 'text-3xl text-accent md:text-4xl' : 'text-xl',
               ].join(' ')}
             >
               {br(card.label, useFlats)}
@@ -122,7 +136,7 @@ export function ChordFilmstrip({
                   root={parsed.root}
                   notes={[parsed.root]}
                   useFlats={useFlats}
-                  width={120}
+                  width={active ? 210 : 145}
                 />
               ) : (
                 <FretDiagram
@@ -131,7 +145,7 @@ export function ChordFilmstrip({
                   instrument={INSTRUMENTS[instrument] ?? INSTRUMENTS.guitar}
                   useFlats={useFlats}
                   variant={0}
-                  width={92}
+                  width={active ? 168 : 116}
                 />
               ))}
             <span className="text-[10px] tabular-nums text-ink-faint">

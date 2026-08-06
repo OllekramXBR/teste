@@ -117,7 +117,7 @@ export function ChordPopover({ label, useFlats, onClose }: Props) {
                 'rounded-full border px-3 py-1 text-xs font-medium transition',
                 instrument === option
                   ? 'border-ink bg-ink text-canvas'
-                  : 'border-line text-ink-soft  ',
+                  : 'border-line text-ink-soft',
               ].join(' ')}
             >
               {LABELS[option]}
