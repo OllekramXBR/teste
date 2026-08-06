@@ -296,6 +296,51 @@ export function importFromLibrary(path: string, artist = ''): Promise<Song> {
   })
 }
 
+export interface AuthUser {
+  id: string
+  username: string
+  displayName: string
+}
+
+export interface AuthState {
+  user: AuthUser | null
+  /** True when the server refuses API calls without a session. */
+  required: boolean
+  hasUsers: boolean
+}
+
+export function getAuthState(): Promise<AuthState> {
+  return request('/api/auth/me')
+}
+
+export function login(username: string, password: string): Promise<{ user: AuthUser }> {
+  return request('/api/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, password }),
+  })
+}
+
+export function register(username: string, password: string): Promise<{ user: AuthUser }> {
+  return request('/api/auth/register', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, password }),
+  })
+}
+
+export function logout(): Promise<void> {
+  return request('/api/auth/logout', { method: 'POST' })
+}
+
+export function setSharing(id: string, shared: boolean): Promise<Song> {
+  return request(`/api/songs/${id}/sharing`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ shared }),
+  })
+}
+
 export interface Variant {
   key: string
   stems: StemName[]

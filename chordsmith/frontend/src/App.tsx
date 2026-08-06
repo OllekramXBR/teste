@@ -1,4 +1,8 @@
+import { useCallback, useEffect, useState } from 'react'
 import { Link, Route, Routes, useLocation } from 'react-router-dom'
+
+import * as api from './lib/api'
+import { SignInPage } from './pages/SignInPage'
 import { DictionaryPage } from './pages/DictionaryPage'
 import { LibraryPage } from './pages/LibraryPage'
 import { PerformancePage } from './pages/PerformancePage'
@@ -9,6 +13,27 @@ export default function App() {
   // The stage view owns the whole screen: a navigation bar above a lyric being
   // read from two metres away is one more thing to hit by accident.
   const bare = useLocation().pathname.endsWith('/perform')
+  const [auth, setAuth] = useState<api.AuthState | null>(null)
+
+  const refreshAuth = useCallback(() => {
+    void api
+      .getAuthState()
+      .then(setAuth)
+      .catch(() => setAuth(null))
+  }, [])
+
+  useEffect(refreshAuth, [refreshAuth])
+
+  // Only when the server actually enforces accounts. Until then the sign-in
+  // page exists but nothing sends anyone there, which is what keeps this from
+  // locking anybody out of a library that never had a login.
+  if (auth?.required && !auth.user) {
+    return (
+      <div className="min-h-screen bg-canvas text-slate-900 antialiased dark:text-slate-100">
+        <SignInPage onSignedIn={refreshAuth} />
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-canvas text-slate-900 antialiased dark:text-slate-100">
@@ -43,6 +68,16 @@ export default function App() {
               >
                 API
               </a>
+              {auth?.user && (
+                <button
+                  type="button"
+                  onClick={() => void api.logout().then(refreshAuth)}
+                  className="rounded-full border border-slate-200 px-2.5 py-0.5 text-slate-500 transition-colors hover:text-slate-900 dark:border-slate-800 dark:hover:text-slate-200"
+                  title="Sair"
+                >
+                  {auth.user.displayName || auth.user.username}
+                </button>
+              )}
             </div>
           </div>
         </nav>
