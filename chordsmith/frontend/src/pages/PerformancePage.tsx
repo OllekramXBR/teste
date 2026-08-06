@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useParams, useSearchParams } from 'react-router-dom'
 
 import * as api from '../lib/api'
-import type { Song, Stem } from '../lib/api'
+import type { Setlist, Song, Stem } from '../lib/api'
 import { displayLabel } from '../components/ChordGrid'
 import { KaraokeView } from '../components/KaraokeView'
 import { StemMixer } from '../components/StemMixer'
@@ -25,6 +25,9 @@ import { useStemPlayer } from '../hooks/useStemPlayer'
  */
 export function PerformancePage() {
   const { songId = '' } = useParams()
+  const [params] = useSearchParams()
+  const setlistId = params.get('setlist')
+  const [setlist, setSetlist] = useState<Setlist | null>(null)
   const [song, setSong] = useState<Song | null>(null)
   const [stems, setStems] = useState<Stem[]>([])
   const [error, setError] = useState<string | null>(null)
@@ -55,6 +58,39 @@ export function PerformancePage() {
       cancelled = true
     }
   }, [songId])
+
+  useEffect(() => {
+    if (!setlistId) return
+    let cancelled = false
+    api
+      .getSetlist(setlistId)
+      .then((fetched) => !cancelled && setSetlist(fetched))
+      .catch(() => !cancelled && setSetlist(null))
+    return () => {
+      cancelled = true
+    }
+  }, [setlistId])
+
+  const position = setlist?.songs.findIndex((entry) => entry.id === songId) ?? -1
+  const nextSong = position >= 0 ? setlist?.songs[position + 1] : undefined
+
+  // Pull the next song's stems into the browser cache while this one plays.
+  // Five files is enough of a wait to be noticeable between songs, and the gap
+  // between two songs in a set is the one moment nobody wants to fill.
+  useEffect(() => {
+    if (!nextSong) return
+    let cancelled = false
+    void api
+      .getStems(nextSong.id)
+      .then((response) => {
+        if (cancelled) return
+        for (const stem of response.stems) void fetch(stem.url).catch(() => undefined)
+      })
+      .catch(() => undefined)
+    return () => {
+      cancelled = true
+    }
+  }, [nextSong])
 
   // A phone that sleeps in the middle of the second verse is worse than no
   // screen at all. The lock is released automatically when the page goes away.
@@ -134,6 +170,7 @@ export function PerformancePage() {
         <div className="min-w-0">
           <p className="truncate font-semibold text-white">{song.title}</p>
           <p className="truncate text-xs text-slate-500">
+            {setlist && position >= 0 ? `${position + 1}/${setlist.songs.length} · ` : ''}
             {song.artist || 'Sem artista'}
             {song.analysis ? ` · ${song.analysis.key.name} · ${Math.round(song.analysis.bpm)} BPM` : ''}
           </p>
@@ -143,8 +180,17 @@ export function PerformancePage() {
           <StageButton onClick={() => setShowMixer((previous) => !previous)} active={showMixer}>
             Mixer
           </StageButton>
+          {nextSong && (
+            <Link
+              to={`/song/${nextSong.id}/perform?setlist=${setlistId}`}
+              className="flex h-11 items-center rounded-full border border-slate-600 px-5 text-sm font-medium text-white"
+              title={nextSong.title}
+            >
+              Próxima →
+            </Link>
+          )}
           <Link
-            to={`/song/${song.id}`}
+            to={setlistId ? `/setlists/${setlistId}` : `/song/${song.id}`}
             className="flex h-11 items-center rounded-full border border-slate-700 px-5 text-sm font-medium text-slate-300"
           >
             Sair

@@ -316,6 +316,47 @@ export function deleteStems(id: string): Promise<void> {
   return request(`/api/songs/${id}/stems`, { method: 'DELETE' })
 }
 
+export interface SetlistSummary {
+  id: string
+  name: string
+  notes: string
+  songCount: number
+  createdAt: string
+  updatedAt: string
+}
+
+export interface Setlist extends Omit<SetlistSummary, 'songCount'> {
+  songs: Song[]
+}
+
+export function listSetlists(): Promise<{ setlists: SetlistSummary[] }> {
+  return request('/api/setlists')
+}
+
+export function getSetlist(id: string): Promise<Setlist> {
+  return request(`/api/setlists/${id}`)
+}
+
+export function createSetlist(name: string): Promise<Setlist> {
+  return request('/api/setlists', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name }),
+  })
+}
+
+export function setSetlistSongs(id: string, songs: string[]): Promise<Setlist> {
+  return request(`/api/setlists/${id}/songs`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ songs }),
+  })
+}
+
+export function deleteSetlist(id: string): Promise<void> {
+  return request(`/api/setlists/${id}`, { method: 'DELETE' })
+}
+
 export interface Health {
   status: string
   songs: number

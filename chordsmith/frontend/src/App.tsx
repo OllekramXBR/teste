@@ -1,6 +1,7 @@
 import { Link, Route, Routes, useLocation } from 'react-router-dom'
 import { LibraryPage } from './pages/LibraryPage'
 import { PerformancePage } from './pages/PerformancePage'
+import { SetlistPage, SetlistsPage } from './pages/SetlistsPage'
 import { SongPage } from './pages/SongPage'
 
 export default function App() {
@@ -20,14 +21,22 @@ export default function App() {
               <Wordmark />
               Metatron
             </Link>
-            <a
-              href="/docs"
-              className="text-xs text-slate-500 transition-colors hover:text-slate-900 dark:hover:text-slate-200"
-              target="_blank"
-              rel="noreferrer"
-            >
-              API
-            </a>
+            <div className="flex items-center gap-4 text-xs">
+              <Link
+                to="/setlists"
+                className="text-slate-500 transition-colors hover:text-slate-900 dark:hover:text-slate-200"
+              >
+                Setlists
+              </Link>
+              <a
+                href="/docs"
+                className="text-slate-500 transition-colors hover:text-slate-900 dark:hover:text-slate-200"
+                target="_blank"
+                rel="noreferrer"
+              >
+                API
+              </a>
+            </div>
           </div>
         </nav>
       )}
@@ -37,6 +46,8 @@ export default function App() {
           <Route path="/" element={<LibraryPage />} />
           <Route path="/song/:songId" element={<SongPage />} />
           <Route path="/song/:songId/perform" element={<PerformancePage />} />
+          <Route path="/setlists" element={<SetlistsPage />} />
+          <Route path="/setlists/:setlistId" element={<SetlistPage />} />
           <Route
             path="*"
             element={
