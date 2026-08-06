@@ -60,6 +60,7 @@ const DEFAULT_SETTINGS: ToolbarSettings = {
   instrument: 'guitar',
   autoScroll: true,
   simplify: true,
+  countIn: 0,
 }
 
 function loadSettings(): ToolbarSettings {
@@ -106,6 +107,7 @@ export function SongPage() {
   const [cifra, setCifra] = useState('')
   const [editingLyrics, setEditingLyrics] = useState(false)
   const [popoverChord, setPopoverChord] = useState<string | null>(null)
+  const [countdown, setCountdown] = useState(0)
   const [tracks, setTracks] = useState<{
     status: 'none' | 'pending' | 'ready'
     tracks: api.TranscribedTrack[]
@@ -305,12 +307,12 @@ export function SongPage() {
       if (target && ['INPUT', 'SELECT', 'TEXTAREA'].includes(target.tagName)) return
       if (event.code === 'Space') {
         event.preventDefault()
-        player.toggle()
+        handleToggle()
       }
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [player])
+  }, [handleToggle])
 
   const activeBeatIndex = findActiveBeat(analysis, player.currentTime)
   const activeBeat = activeBeatIndex >= 0 ? analysis?.beats[activeBeatIndex] : undefined
@@ -327,6 +329,49 @@ export function SongPage() {
         : { start: barNumber, end: previous.end }
     })
   }, [])
+
+  /**
+   * Play, after counting the band in.
+   *
+   * The clicks are scheduled on the audio clock and the recording is started
+   * against the same clock, rather than by a timer that fires whenever the
+   * browser gets round to it. A count-in that lands a beat late is worse than
+   * none: it teaches the wrong tempo for the length of one bar and then hands
+   * over to a recording that disagrees.
+   */
+  const handleToggle = useCallback(() => {
+    if (player.playing || countdown > 0) {
+      player.pause()
+      setCountdown(0)
+      return
+    }
+    const bars = settings.countIn
+    if (!bars || !analysis || !analysis.bpm) {
+      void player.play()
+      return
+    }
+
+    const secondsPerBeat = 60 / analysis.bpm
+    const beats = bars * analysis.beatsPerBar
+
+    void engine.resume().then(() => {
+      const start = engine.currentTime + 0.12
+      for (let beat = 0; beat < beats; beat += 1) {
+        engine.playClick(start + beat * secondsPerBeat, beat % analysis.beatsPerBar === 0)
+      }
+      setCountdown(beats)
+      for (let beat = 1; beat <= beats; beat += 1) {
+        window.setTimeout(
+          () => setCountdown(beats - beat),
+          (start - engine.currentTime + beat * secondsPerBeat) * 1000,
+        )
+      }
+      window.setTimeout(
+        () => void player.play(),
+        (start - engine.currentTime + beats * secondsPerBeat) * 1000,
+      )
+    })
+  }, [player, countdown, settings.countIn, analysis, engine])
 
   const handleSeek = useCallback(
     (time: number) => {
@@ -570,6 +615,14 @@ export function SongPage() {
         </p>
       )}
 
+      {countdown > 0 && (
+        <div className="pointer-events-none fixed inset-0 z-40 flex items-center justify-center">
+          <span className="rounded-3xl bg-slate-950/80 px-12 py-8 text-8xl font-bold tabular-nums text-white">
+            {countdown}
+          </span>
+        </div>
+      )}
+
       <div className="print:hidden">
         <Transport
           playing={player.playing}
@@ -577,7 +630,7 @@ export function SongPage() {
           duration={player.duration || analysis.duration}
           beats={analysis.beats}
           loopRegion={loopRegion}
-          onToggle={player.toggle}
+          onToggle={handleToggle}
           onSeek={handleSeek}
         />
       </div>
@@ -630,6 +683,18 @@ export function SongPage() {
               }`}
             >
               Simplificar
+            </button>
+            <button
+              type="button"
+              onClick={() => handleSettings({ countIn: (settings.countIn + 1) % 3 })}
+              title="Compassos de metrônomo antes de a música começar"
+              className={`shrink-0 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors ${
+                settings.countIn
+                  ? 'border-accent bg-accent text-white'
+                  : 'border-slate-300 text-slate-500 dark:border-slate-700'
+              }`}
+            >
+              {settings.countIn ? `Contagem ${settings.countIn}` : 'Contagem'}
             </button>
           </div>
 

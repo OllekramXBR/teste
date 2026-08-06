@@ -13,6 +13,8 @@ export interface ToolbarSettings {
   autoScroll: boolean
   /** Collapse decoder extensions to the triad a hand actually makes. */
   simplify: boolean
+  /** Bars of metronome before playback starts; 0 is off. */
+  countIn: number
 }
 
 interface ToolbarProps {
