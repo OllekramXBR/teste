@@ -70,7 +70,7 @@ export function LyricEditor({ lyrics, currentTime, saving, onSave, onCancel, onS
         </div>
       </div>
 
-      <ul className="max-h-[30rem] divide-y divide-line overflow-y-auto ">
+      <ul className="max-h-[30rem] divide-y divide-[var(--color-line)] overflow-y-auto ">
         {lines.map((line, index) => {
           const playing = currentTime >= line.start && currentTime < line.end
           return (

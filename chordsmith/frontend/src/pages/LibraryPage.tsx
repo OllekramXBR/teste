@@ -285,7 +285,7 @@ export function LibraryPage() {
           ))}
         </ul>
       ) : (
-        <ul className="divide-y divide-line overflow-hidden rounded-xl border border-line ">
+        <ul className="divide-y divide-[var(--color-line)] overflow-hidden rounded-xl border border-line ">
           {songs.map((song) => (
             <li key={song.id}>
               <Link

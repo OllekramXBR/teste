@@ -73,7 +73,7 @@ export function SetlistsPage() {
           Nenhuma setlist ainda. Crie uma acima.
         </p>
       ) : (
-        <ul className="divide-y divide-line overflow-hidden rounded-xl border border-line ">
+        <ul className="divide-y divide-[var(--color-line)] overflow-hidden rounded-xl border border-line ">
           {setlists.map((setlist) => (
             <li key={setlist.id}>
               <Link
@@ -162,7 +162,7 @@ export function SetlistPage() {
           Setlist vazia. Adicione músicas abaixo.
         </p>
       ) : (
-        <ol className="divide-y divide-line overflow-hidden rounded-xl border border-line ">
+        <ol className="divide-y divide-[var(--color-line)] overflow-hidden rounded-xl border border-line ">
           {setlist.songs.map((song, index) => (
             <li key={song.id} className="flex items-center gap-3 bg-panel p-3">
               <span className="w-6 shrink-0 text-center text-sm tabular-nums text-ink-faint">
@@ -205,7 +205,7 @@ export function SetlistPage() {
         {!available.length ? (
           <p className="text-xs text-ink-soft">Todas as músicas analisadas já estão na setlist.</p>
         ) : (
-          <ul className="divide-y divide-line overflow-hidden rounded-xl border border-line ">
+          <ul className="divide-y divide-[var(--color-line)] overflow-hidden rounded-xl border border-line ">
             {available.map((song) => (
               <li key={song.id} className="flex items-center gap-3 bg-panel p-3">
                 <span className="min-w-0 flex-1 truncate text-sm">{song.title}</span>

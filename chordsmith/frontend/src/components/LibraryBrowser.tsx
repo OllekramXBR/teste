@@ -116,7 +116,7 @@ export function LibraryBrowser({ onImported }: Props) {
         </p>
       )}
 
-      <ul className="max-h-96 divide-y divide-line overflow-y-auto ">
+      <ul className="max-h-96 divide-y divide-[var(--color-line)] overflow-y-auto ">
         {tracks.map((track) => (
           <li key={track.path} className="flex items-center gap-3 px-4 py-2.5">
             <div className="min-w-0 flex-1">

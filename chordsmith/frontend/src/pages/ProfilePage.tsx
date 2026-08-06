@@ -123,7 +123,7 @@ export function ProfilePage({ user, onChanged }: { user: AuthUser | null; onChan
 
       <section>
         <h2 className="mb-2 text-sm font-semibold tracking-tight">Quem mais usa este servidor</h2>
-        <ul className="divide-y divide-line overflow-hidden rounded-xl border border-line ">
+        <ul className="divide-y divide-[var(--color-line)] overflow-hidden rounded-xl border border-line ">
           {people.map((person) => (
             <li key={person.id} className="flex items-center justify-between bg-panel px-4 py-2.5">
               <span className="text-sm">{person.displayName || person.username}</span>
