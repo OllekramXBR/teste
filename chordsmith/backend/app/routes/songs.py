@@ -26,6 +26,7 @@ from ..config import (
     STEM_FORMAT,
 )
 from ..midi import build_midi, build_multitrack
+from ..pdf import build_pdf
 
 router = APIRouter(prefix="/api/songs", tags=["songs"])
 
@@ -407,7 +408,7 @@ def download_cifra(
     transpose: int = Query(0, ge=-11, le=11),
     capo: int = Query(0, ge=0, le=11),
     simplify: bool = Query(True, description="Collapse decoder extensions to playable triads"),
-    format: str = Query("columns", pattern="^(columns|chordpro)$"),
+    format: str = Query("columns", pattern="^(columns|chordpro|pdf)$"),
     download: bool = Query(False),
 ) -> Response:
     """The chart in Brazilian cifra format: chords above the words, plain text."""
@@ -428,9 +429,19 @@ def download_cifra(
         capo=capo,
         simplify=simplify,
     )
+    safe_title = re.sub(r"[^\w\- ]+", "", song["title"]).strip() or "cifra"
+
+    if format == "pdf":
+        # Always an attachment: a PDF that opens inline in a browser tab is one
+        # more thing to find again at a venue.
+        return Response(
+            content=build_pdf(text, title=song["title"]),
+            media_type="application/pdf",
+            headers={"Content-Disposition": f'attachment; filename="{safe_title}.pdf"'},
+        )
+
     headers = {}
     if download:
-        safe_title = re.sub(r"[^\w\- ]+", "", song["title"]).strip() or "cifra"
         suffix = "cho" if format == "chordpro" else "txt"
         headers["Content-Disposition"] = f'attachment; filename="{safe_title}.{suffix}"'
     return Response(content=text, media_type="text/plain; charset=utf-8", headers=headers)
