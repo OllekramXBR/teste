@@ -75,9 +75,12 @@ export function KaraokeView({ lyrics, chords, currentTime, performance = false, 
             ref={active ? activeRef : null}
             onClick={onSeek ? () => onSeek(line.start) : undefined}
             className={[
-              'mb-5 cursor-pointer leading-tight transition-colors duration-300',
-              performance ? 'text-3xl md:text-5xl' : 'text-lg',
-              active ? '' : performance ? 'opacity-40' : 'opacity-60',
+              'mb-6 leading-tight transition-colors duration-300',
+              onSeek ? 'cursor-pointer' : '',
+              // Sized to be read from a mic stand on a tablet in landscape,
+              // not from a laptop at arm's length.
+              performance ? 'text-[2rem] md:text-[2.75rem] lg:text-[3.25rem]' : 'text-lg',
+              active ? '' : performance ? 'opacity-35' : 'opacity-60',
             ].join(' ')}
           >
             <ChordRow line={line} performance={performance} />

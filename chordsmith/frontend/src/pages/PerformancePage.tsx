@@ -9,13 +9,19 @@ import { StemMixer } from '../components/StemMixer'
 import { useStemPlayer } from '../hooks/useStemPlayer'
 
 /**
- * The stage view.
+ * The stage view, designed for a tablet held by someone whose hands are on a
+ * guitar.
  *
- * Everything here is subordinate to one question: what does someone need on a
- * music stand, two metres away, while singing? So the lyric is the page, the
- * chrome hides itself, the screen is kept awake, and nothing is loaded from the
- * network after playback starts — the stems are already decoded in memory
- * before the transport will let you press play.
+ * That premise decides nearly everything here. Every control is a touch target
+ * rather than a click target, and none of them depends on hover, which does not
+ * exist on the device this runs on. The transport sits at the bottom corners
+ * where a thumb reaches without letting go of the neck. Text cannot be selected
+ * and double-tap cannot zoom, because both are what actually happens when a
+ * guitarist brushes the screen mid-song. And there is a lock, because the most
+ * likely input during a performance is an accidental one.
+ *
+ * Nothing is loaded from the network after playback starts: the stems are
+ * decoded into memory before the transport will let anyone press play.
  */
 export function PerformancePage() {
   const { songId = '' } = useParams()
@@ -24,6 +30,7 @@ export function PerformancePage() {
   const [error, setError] = useState<string | null>(null)
   const [showMixer, setShowMixer] = useState(false)
   const [transpose, setTranspose] = useState(0)
+  const [locked, setLocked] = useState(false)
 
   const player = useStemPlayer(stems)
 
@@ -122,8 +129,8 @@ export function PerformancePage() {
   const progress = player.duration ? player.currentTime / player.duration : 0
 
   return (
-    <div className="fixed inset-0 flex flex-col bg-slate-950 text-slate-200">
-      <header className="flex items-center justify-between gap-4 px-6 py-3 text-sm">
+    <div className="fixed inset-0 flex touch-manipulation select-none flex-col bg-slate-950 text-slate-200">
+      <header className="flex items-center justify-between gap-4 px-5 py-2.5 text-sm">
         <div className="min-w-0">
           <p className="truncate font-semibold text-white">{song.title}</p>
           <p className="truncate text-xs text-slate-500">
@@ -131,18 +138,14 @@ export function PerformancePage() {
             {song.analysis ? ` · ${song.analysis.key.name} · ${Math.round(song.analysis.bpm)} BPM` : ''}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className={locked ? 'pointer-events-none opacity-30' : 'flex items-center gap-2'}>
           <Stepper value={transpose} onChange={setTranspose} />
-          <button
-            type="button"
-            onClick={() => setShowMixer((previous) => !previous)}
-            className="rounded-full border border-slate-700 px-4 py-1.5 text-xs font-medium text-slate-300 transition hover:border-slate-500 hover:text-white"
-          >
+          <StageButton onClick={() => setShowMixer((previous) => !previous)} active={showMixer}>
             Mixer
-          </button>
+          </StageButton>
           <Link
             to={`/song/${song.id}`}
-            className="rounded-full border border-slate-700 px-4 py-1.5 text-xs font-medium text-slate-300 transition hover:border-slate-500 hover:text-white"
+            className="flex h-11 items-center rounded-full border border-slate-700 px-5 text-sm font-medium text-slate-300"
           >
             Sair
           </Link>
@@ -169,7 +172,7 @@ export function PerformancePage() {
             chords={chords}
             currentTime={player.currentTime}
             performance
-            onSeek={player.seek}
+            onSeek={locked ? undefined : player.seek}
           />
         ) : (
           <div className="flex h-full items-center justify-center px-8 text-center text-slate-500">
@@ -178,33 +181,19 @@ export function PerformancePage() {
         )}
       </main>
 
-      <footer className="border-t border-slate-800 px-6 py-4">
+      {/* The transport lives at the bottom edge, where a thumb reaches without
+          letting go of the neck of the guitar. Everything in it is at least 56px
+          across, which is the smallest thing a finger hits reliably while the
+          other hand is busy. */}
+      <footer className="border-t border-slate-800 px-5 pb-5 pt-3">
         {!player.ready && (
-          <p className="mb-2 text-center text-xs text-slate-500">
+          <p className="mb-2 text-center text-sm text-slate-500">
             {player.error
               ? player.error
               : `Carregando as pistas… ${Math.round(player.loaded * 100)}%`}
           </p>
         )}
-        <div className="flex items-center gap-4">
-          <button
-            type="button"
-            onClick={player.toggle}
-            disabled={!player.ready}
-            className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-white text-slate-950 transition hover:bg-slate-200 disabled:opacity-30"
-            aria-label={player.playing ? 'Pausar' : 'Tocar'}
-          >
-            {player.playing ? (
-              <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true">
-                <rect x="4" y="3" width="4" height="14" rx="1" fill="currentColor" />
-                <rect x="12" y="3" width="4" height="14" rx="1" fill="currentColor" />
-              </svg>
-            ) : (
-              <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true">
-                <path d="M5 3.5 16 10 5 16.5Z" fill="currentColor" />
-              </svg>
-            )}
-          </button>
+        <div className="mb-3 flex items-center gap-3">
           <span className="w-12 shrink-0 text-xs tabular-nums text-slate-500">
             {formatTime(player.currentTime)}
           </span>
@@ -214,37 +203,140 @@ export function PerformancePage() {
             max={1}
             step={0.001}
             value={progress}
+            disabled={locked}
             onChange={(event) => player.seek(Number(event.target.value) * player.duration)}
-            className="h-1 w-full accent-sky-400"
+            className="w-full text-sky-400 disabled:opacity-40"
             aria-label="Posição"
           />
           <span className="w-12 shrink-0 text-right text-xs tabular-nums text-slate-500">
             {formatTime(player.duration)}
           </span>
         </div>
+
+        <div className="flex items-center justify-between gap-3">
+          <button
+            type="button"
+            onClick={() => setLocked((previous) => !previous)}
+            className={[
+              'flex h-14 w-14 shrink-0 items-center justify-center rounded-full border text-xs font-semibold',
+              locked
+                ? 'border-amber-400 bg-amber-400 text-slate-950'
+                : 'border-slate-700 text-slate-400',
+            ].join(' ')}
+            aria-pressed={locked}
+            aria-label={locked ? 'Destravar a tela' : 'Travar a tela'}
+          >
+            {locked ? 'TRAV' : 'LIVRE'}
+          </button>
+
+          <div className="flex items-center gap-3">
+            <SeekButton
+              label="Voltar 10 segundos"
+              disabled={locked}
+              onClick={() => player.seek(player.currentTime - 10)}
+            >
+              −10
+            </SeekButton>
+            <button
+              type="button"
+              onClick={player.toggle}
+              disabled={!player.ready || locked}
+              className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full bg-white text-slate-950 active:bg-slate-300 disabled:opacity-30"
+              aria-label={player.playing ? 'Pausar' : 'Tocar'}
+            >
+              {player.playing ? (
+                <svg width="28" height="28" viewBox="0 0 20 20" aria-hidden="true">
+                  <rect x="4" y="3" width="4" height="14" rx="1" fill="currentColor" />
+                  <rect x="12" y="3" width="4" height="14" rx="1" fill="currentColor" />
+                </svg>
+              ) : (
+                <svg width="28" height="28" viewBox="0 0 20 20" aria-hidden="true">
+                  <path d="M5 3.5 16 10 5 16.5Z" fill="currentColor" />
+                </svg>
+              )}
+            </button>
+            <SeekButton
+              label="Avançar 10 segundos"
+              disabled={locked}
+              onClick={() => player.seek(player.currentTime + 10)}
+            >
+              +10
+            </SeekButton>
+          </div>
+
+          <div className="w-14 shrink-0" />
+        </div>
       </footer>
     </div>
   )
 }
 
+function StageButton({
+  children,
+  onClick,
+  active,
+}: {
+  children: React.ReactNode
+  onClick: () => void
+  active?: boolean
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={[
+        'h-11 rounded-full border px-5 text-sm font-medium',
+        active ? 'border-white bg-white text-slate-950' : 'border-slate-700 text-slate-300',
+      ].join(' ')}
+    >
+      {children}
+    </button>
+  )
+}
+
+function SeekButton({
+  children,
+  label,
+  disabled,
+  onClick,
+}: {
+  children: React.ReactNode
+  label: string
+  disabled: boolean
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={label}
+      className="h-14 w-14 shrink-0 rounded-full border border-slate-700 text-sm font-semibold text-slate-300 active:bg-slate-800 disabled:opacity-30"
+    >
+      {children}
+    </button>
+  )
+}
+
 function Stepper({ value, onChange }: { value: number; onChange: (value: number) => void }) {
   return (
-    <div className="flex items-center gap-1 rounded-full border border-slate-700 px-2 py-1">
+    <div className="flex items-center rounded-full border border-slate-700">
       <button
         type="button"
         onClick={() => onChange(Math.max(-11, value - 1))}
-        className="px-1.5 text-slate-400 hover:text-white"
+        className="h-11 w-11 rounded-l-full text-lg text-slate-300 active:bg-slate-800"
         aria-label="Baixar meio tom"
       >
         −
       </button>
-      <span className="w-10 text-center text-xs tabular-nums text-slate-300">
+      <span className="w-10 text-center text-sm tabular-nums text-slate-300">
         {value > 0 ? `+${value}` : value}
       </span>
       <button
         type="button"
         onClick={() => onChange(Math.min(11, value + 1))}
-        className="px-1.5 text-slate-400 hover:text-white"
+        className="h-11 w-11 rounded-r-full text-lg text-slate-300 active:bg-slate-800"
         aria-label="Subir meio tom"
       >
         +
