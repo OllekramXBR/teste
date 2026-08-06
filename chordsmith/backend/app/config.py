@@ -49,6 +49,12 @@ ASR_BEAM_SIZE = int(os.environ.get("CHORDSMITH_ASR_BEAM", "5"))
 # 0 lets CTranslate2 pick, which is the core count.
 ASR_THREADS = int(os.environ.get("CHORDSMITH_ASR_THREADS", "0"))
 
+# Tracks pulled from mp3.pm land here — the permanent copy someone can browse
+# by hand — while the analysis still runs against its own copy in audio/. In
+# the container this is /data/music, inside the same volume that holds the
+# database, so it survives a rebuild.
+MUSIC_DIR = Path(os.environ.get("CHORDSMITH_MUSIC_DIR", DATA_DIR / "music"))
+
 # Source separation. Stems are large — four Ogg files per song, roughly the
 # size of the original each — so they live beside the audio rather than in the
 # database, and can be deleted without losing the analysis.
@@ -119,6 +125,7 @@ CORS_ORIGINS = os.environ.get(
 
 def ensure_directories() -> None:
     AUDIO_DIR.mkdir(parents=True, exist_ok=True)
+    MUSIC_DIR.mkdir(parents=True, exist_ok=True)
     STEMS_DIR.mkdir(parents=True, exist_ok=True)
     COVERS_DIR.mkdir(parents=True, exist_ok=True)
     DATABASE_PATH.parent.mkdir(parents=True, exist_ok=True)

@@ -138,7 +138,9 @@ covers every chord in every key.
 Worth being straight about:
 
 - **No YouTube.** Chordify has a licensing arrangement; extracting audio from
-  YouTube would breach their terms. This works on files you already have.
+  YouTube would breach their terms. This works on files you already have — or,
+  when the library search comes up empty, on a track you choose to pull from
+  mp3.pm, which is then imported like any upload.
 - **No source separation.** Lead transcription follows the loudest melodic
   voice. On a clean guitar or vocal line it is accurate; in a dense mix it will
   follow whichever voice dominates, and tracks that are all rhythm parts come
@@ -177,12 +179,15 @@ Interactive docs at `/docs`.
 | `GET` | `/api/songs/{id}/midi?transpose=` | Chord chart as a MIDI file |
 | `GET` | `/api/theory/vocabulary` | Every chord the analyser can emit |
 | `GET` | `/api/theory/transpose` | Transpose labels, optionally re-shaped for a capo |
+| `GET` | `/api/mp3pm/search` | Search mp3.pm for a track the server library does not have |
+| `POST` | `/api/mp3pm/import` | Download a searched track into `/data/music`, then analyse it |
 
 ## Configuration
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
 | `CHORDSMITH_DATA_DIR` | `backend/data` | Audio files and the SQLite database |
+| `CHORDSMITH_MUSIC_DIR` | `<data>/music` | Where tracks downloaded from mp3.pm land |
 | `CHORDSMITH_MAX_UPLOAD_MB` | `60` | Upload size limit |
 | `CHORDSMITH_ANALYSIS_WORKERS` | `2` | Concurrent analyses |
 | `CHORDSMITH_CORS_ORIGINS` | `localhost:5173` | Extra allowed origins |

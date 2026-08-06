@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import * as api from '../lib/api'
-import type { LibraryTrack, Song } from '../lib/api'
+import type { LibraryTrack, Mp3pmTrack, Song } from '../lib/api'
+import { formatTime } from './Transport'
 
 interface Props {
   onImported: (song: Song) => void
@@ -29,6 +30,14 @@ export function LibraryBrowser({ onImported }: Props) {
   const [busy, setBusy] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const requestRef = useRef(0)
+
+  // mp3.pm fallback, offered exactly when the server library comes back empty.
+  const [webResults, setWebResults] = useState<Mp3pmTrack[]>([])
+  const [webSearching, setWebSearching] = useState(false)
+  const [webSearched, setWebSearched] = useState(false)
+  const [webBusy, setWebBusy] = useState<string | null>(null)
+  const [webImported, setWebImported] = useState<Set<string>>(new Set())
+  const [webError, setWebError] = useState<string | null>(null)
 
   const run = useCallback(async (term: string) => {
     const ticket = ++requestRef.current
@@ -72,6 +81,13 @@ export function LibraryBrowser({ onImported }: Props) {
     return () => window.clearTimeout(timer)
   }, [query, run])
 
+  // A new query invalidates whatever the previous one found on mp3.pm.
+  useEffect(() => {
+    setWebResults([])
+    setWebSearched(false)
+    setWebError(null)
+  }, [query])
+
   const bring = async (track: LibraryTrack) => {
     setBusy(track.path)
     try {
@@ -82,6 +98,34 @@ export function LibraryBrowser({ onImported }: Props) {
       setError(failure instanceof Error ? failure.message : 'Falhou ao importar')
     } finally {
       setBusy(null)
+    }
+  }
+
+  const searchWeb = async () => {
+    if (!query.trim()) return
+    setWebSearching(true)
+    setWebError(null)
+    try {
+      const { results } = await api.searchMp3pm(query)
+      setWebResults(results)
+    } catch (failure) {
+      setWebError(failure instanceof Error ? failure.message : 'A busca no mp3.pm falhou')
+    } finally {
+      setWebSearching(false)
+      setWebSearched(true)
+    }
+  }
+
+  const bringWeb = async (track: Mp3pmTrack) => {
+    setWebBusy(track.soundId)
+    try {
+      onImported(await api.importMp3pm(query, track.soundId, track.title, track.artist))
+      setWebImported((previous) => new Set(previous).add(track.soundId))
+      setWebError(null)
+    } catch (failure) {
+      setWebError(failure instanceof Error ? failure.message : 'Falhou ao baixar do mp3.pm')
+    } finally {
+      setWebBusy(null)
     }
   }
 
@@ -107,7 +151,29 @@ export function LibraryBrowser({ onImported }: Props) {
       {error && <p className="px-4 pt-3 text-xs text-rose-500">{error}</p>}
 
       {query.trim() && !searching && !tracks.length && !error && (
-        <p className="px-4 py-6 text-center text-xs text-ink-faint">Nada com esse nome.</p>
+        <div className="px-4 py-6 text-center">
+          <p className="text-xs text-ink-faint">Nada com esse nome no servidor.</p>
+          <button
+            type="button"
+            onClick={() => void searchWeb()}
+            disabled={webSearching}
+            className="mt-3 rounded-full border border-accent px-4 py-1.5 text-xs font-medium text-accent transition hover:bg-accent-soft disabled:opacity-40 "
+          >
+            {webSearching
+              ? 'Procurando no mp3.pm…'
+              : webSearched
+                ? 'Refazer busca no mp3.pm'
+                : 'Buscar no mp3.pm e baixar'}
+          </button>
+        </div>
+      )}
+
+      {webError && <p className="px-4 pt-3 text-xs text-rose-500">{webError}</p>}
+
+      {webSearched && !webSearching && !webError && webResults.length === 0 && (
+        <p className="px-4 pb-4 text-center text-xs text-ink-faint">
+          O mp3.pm também não achou nada para essa busca.
+        </p>
       )}
 
       {!query.trim() && (
@@ -139,6 +205,39 @@ export function LibraryBrowser({ onImported }: Props) {
           </li>
         ))}
       </ul>
+
+      {webResults.length > 0 && (
+        <>
+          <div className="border-t border-line px-4 py-2 text-[11px] text-ink-faint">
+            mp3.pm — baixar e analisar como no servidor
+          </div>
+          <ul className="max-h-96 divide-y divide-[var(--color-line)] overflow-y-auto ">
+            {webResults.map((track) => (
+              <li key={track.soundId} className="flex items-center gap-3 px-4 py-2.5">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm">{track.title}</p>
+                  <p className="truncate text-xs text-ink-soft">
+                    {track.artist || '—'}
+                    {track.duration > 0 ? ` · ${formatTime(track.duration)}` : ''}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => void bringWeb(track)}
+                  disabled={webBusy === track.soundId || webImported.has(track.soundId)}
+                  className="shrink-0 rounded-full border border-accent px-3 py-1 text-xs font-medium text-accent transition hover:bg-accent-soft disabled:opacity-40 "
+                >
+                  {webImported.has(track.soundId)
+                    ? 'na fila'
+                    : webBusy === track.soundId
+                      ? '…'
+                      : 'baixar'}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
     </section>
   )
 }

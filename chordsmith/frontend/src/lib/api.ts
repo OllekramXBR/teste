@@ -314,6 +314,33 @@ export function importFromLibrary(path: string, artist = ''): Promise<Song> {
   })
 }
 
+/** One result from the mp3.pm fallback search. */
+export interface Mp3pmTrack {
+  soundId: string
+  title: string
+  artist: string
+  /** Seconds. */
+  duration: number
+  downloadUrl: string
+}
+
+export function searchMp3pm(query: string): Promise<{ results: Mp3pmTrack[] }> {
+  return request(`/api/mp3pm/search?q=${encodeURIComponent(query)}`)
+}
+
+export function importMp3pm(
+  query: string,
+  soundId: string,
+  title: string,
+  artist: string,
+): Promise<Song> {
+  return request('/api/mp3pm/import', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ query, soundId, title, artist }),
+  })
+}
+
 export interface AuthUser {
   id: string
   username: string
