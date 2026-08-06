@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import * as api from '../lib/api'
 import type { Analysis, Song } from '../lib/api'
-import { AudioEngine, voiceChord } from '../lib/audioEngine'
+import { AudioEngine, voiceChord, type InstrumentVoice } from '../lib/audioEngine'
 import { INSTRUMENTS } from '../lib/fretboard'
 import { mod12, parseLabel, QUALITY_LABELS, romanNumeral } from '../lib/theory'
 import { usePlayer } from '../hooks/usePlayer'
@@ -30,6 +30,18 @@ const VIEW_LABELS: Record<View, string> = {
 }
 
 const SETTINGS_KEY = 'chordsmith.settings.v1'
+
+/** Which of the synth's three voices stands in for each fretboard instrument. */
+const SYNTH_VOICES: Record<string, InstrumentVoice> = {
+  guitar: 'guitar',
+  piano: 'piano',
+  ukulele: 'ukulele',
+  cavaquinho: 'ukulele',
+  mandolin: 'ukulele',
+  banjo: 'ukulele',
+  viola: 'guitar',
+  bass: 'guitar',
+}
 const POLL_INTERVAL_MS = 1500
 
 const DEFAULT_SETTINGS: ToolbarSettings = {
@@ -193,7 +205,11 @@ export function SongPage() {
       const upcoming = current.beats.filter(
         (beat) => beat.time >= songTime - 0.05 && beat.time <= horizon,
       )
-      const voice = active.instrument === 'piano' ? 'piano' : active.instrument
+      // The synth has three voices; the fretboard now knows eight instruments.
+      // Anything plucked that is not the ukulele is played with the guitar
+      // voice — a synthesised cavaquinho would be a lie either way, and the
+      // point of this track is to hear the harmony, not the timbre.
+      const voice = SYNTH_VOICES[active.instrument] ?? 'guitar'
 
       return {
         chords: upcoming
