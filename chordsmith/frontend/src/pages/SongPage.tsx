@@ -127,6 +127,8 @@ export function SongPage() {
   settingsRef.current = settings
   const analysisRef = useRef(analysis)
   analysisRef.current = analysis
+  // Space bar reaches the current handler without the listener depending on it.
+  const toggleRef = useRef<() => void>(() => {})
 
   useEffect(() => {
     let cancelled = false
@@ -307,12 +309,12 @@ export function SongPage() {
       if (target && ['INPUT', 'SELECT', 'TEXTAREA'].includes(target.tagName)) return
       if (event.code === 'Space') {
         event.preventDefault()
-        handleToggle()
+        toggleRef.current()
       }
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [handleToggle])
+  }, [])
 
   const activeBeatIndex = findActiveBeat(analysis, player.currentTime)
   const activeBeat = activeBeatIndex >= 0 ? analysis?.beats[activeBeatIndex] : undefined
@@ -372,6 +374,8 @@ export function SongPage() {
       )
     })
   }, [player, countdown, settings.countIn, analysis, engine])
+
+  toggleRef.current = handleToggle
 
   const handleSeek = useCallback(
     (time: number) => {
