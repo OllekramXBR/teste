@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Link, Route, Routes, useLocation } from 'react-router-dom'
 
 import * as api from './lib/api'
+import { ProfilePage } from './pages/ProfilePage'
 import { SignInPage } from './pages/SignInPage'
 import { DictionaryPage } from './pages/DictionaryPage'
 import { LibraryPage } from './pages/LibraryPage'
@@ -69,6 +70,14 @@ export default function App() {
                 API
               </a>
               {auth?.user && (
+                <Link
+                  to="/perfil"
+                  className="text-slate-500 transition-colors hover:text-slate-900 dark:hover:text-slate-200"
+                >
+                  Perfil
+                </Link>
+              )}
+              {auth?.user && (
                 <button
                   type="button"
                   onClick={() => void api.logout().then(refreshAuth)}
@@ -89,6 +98,10 @@ export default function App() {
           <Route path="/song/:songId" element={<SongPage />} />
           <Route path="/song/:songId/perform" element={<PerformancePage />} />
           <Route path="/dicionario" element={<DictionaryPage />} />
+          <Route
+            path="/perfil"
+            element={<ProfilePage user={auth?.user ?? null} onChanged={refreshAuth} />}
+          />
           <Route path="/setlists" element={<SetlistsPage />} />
           <Route path="/setlists/:setlistId" element={<SetlistPage />} />
           <Route

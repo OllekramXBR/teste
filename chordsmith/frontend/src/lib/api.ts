@@ -329,6 +329,26 @@ export function register(username: string, password: string): Promise<{ user: Au
   })
 }
 
+export function listUsers(): Promise<{ users: AuthUser[] }> {
+  return request('/api/auth/users')
+}
+
+export function updateProfile(displayName: string): Promise<{ user: AuthUser }> {
+  return request('/api/auth/me', {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ displayName }),
+  })
+}
+
+export function changePassword(current: string, replacement: string): Promise<void> {
+  return request('/api/auth/password', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ current, replacement }),
+  })
+}
+
 export function logout(): Promise<void> {
   return request('/api/auth/logout', { method: 'POST' })
 }
