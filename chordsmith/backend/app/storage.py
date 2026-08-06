@@ -157,6 +157,29 @@ def set_status(song_id: str, status: str, error: str | None = None) -> None:
         )
 
 
+def chord_summary(analysis: dict[str, Any]) -> str:
+    """The song's chords as a reader would want them listed.
+
+    Simplified, because the raw vocabulary of a real recording runs to twenty
+    labels of which most are a passing melody note the decoder heard as a
+    suspended fourth. A list is a glance, and a glance at twenty symbols tells
+    you nothing.
+    """
+    from .analysis import cifra, theory
+
+    seen: list[str] = []
+    for label in analysis.get("uniqueChords") or []:
+        chord = theory.parse_label(label)
+        if chord is None or chord.root is None:
+            continue
+        reduced = theory.Chord(chord.root, cifra.simplify_quality(chord.quality)).label(
+            bool(analysis.get("useFlats"))
+        )
+        if reduced not in seen:
+            seen.append(reduced)
+    return " ".join(seen[:10])
+
+
 def save_analysis(song_id: str, analysis: dict[str, Any]) -> None:
     with _write_lock, connect() as connection:
         connection.execute(
@@ -171,7 +194,7 @@ def save_analysis(song_id: str, analysis: dict[str, Any]) -> None:
                 analysis.get("duration"),
                 analysis.get("bpm"),
                 (analysis.get("key") or {}).get("name"),
-                " ".join((analysis.get("uniqueChords") or [])[:12]),
+                chord_summary(analysis),
                 _now(),
                 song_id,
             ),
