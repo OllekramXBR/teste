@@ -18,6 +18,7 @@ SOURCE_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 NETWORK=chordsmith-dev
 API=chordsmith-dev-api
 WEB=chordsmith-dev-web
+IMAGE=chordsmith-dev-api:latest
 MODULES_VOLUME=chordsmith-web-modules
 
 if [ -f "$SOURCE_DIR/.env" ]; then
@@ -45,6 +46,13 @@ stop() {
 # Checking first lets us say which port and point at the override.
 port_taken() {
     command -v netstat >/dev/null 2>&1 || return 1
+    # A port held by the containers this script is about to replace is not a
+    # conflict: they are checked before the build so a real clash is caught
+    # early, and by the time the new ones start these are gone.
+    if docker ps --format '{{.Names}} {{.Ports}}' 2>/dev/null |
+        grep -E "^($API|$WEB) " | grep -q ":$1->"; then
+        return 1
+    fi
     netstat -tln 2>/dev/null | awk '{print $4}' | sed 's/.*://' | grep -qx "$1"
 }
 
@@ -67,13 +75,35 @@ fi
 mkdir -p "$DATA_DIR"
 docker network create "$NETWORK" >/dev/null 2>&1 || true
 docker volume create "$MODULES_VOLUME" >/dev/null 2>&1 || true
-stop
 
 check_port API "$API_PORT" API_PORT
 check_port UI "$WEB_PORT" WEB_PORT
 
+# The build runs while the old containers are still serving. Stopping first —
+# which this script used to do — takes the site down for the whole build, and a
+# build that has to fetch a machine-learning stack is not measured in seconds.
+# A failed build now leaves the previous version running instead of nothing.
 echo "Building the API image (frontend build skipped — Vite serves the UI)..."
-docker build -t chordsmith-dev-api:latest --target backend "$SOURCE_DIR"
+docker build -t "$IMAGE" --target backend "$SOURCE_DIR"
+
+# The suite runs against the image that is about to serve, in a throwaway
+# container, before anything is swapped. An image whose tests fail never
+# reaches the port — which is exactly how a segfaulting analysis pipeline got
+# into service once.
+if [ "${SKIP_TESTS:-0}" != "1" ]; then
+    echo "Running the backend suite against the new image..."
+    if ! docker run --rm --entrypoint sh "$IMAGE" \
+        -c "cd /app/backend && python -m pytest -q" >/tmp/chordsmith-tests.log 2>&1; then
+        tail -25 /tmp/chordsmith-tests.log >&2
+        echo >&2
+        echo "The new image fails its own tests, so it was not deployed." >&2
+        echo "What is running now is untouched. Full log: /tmp/chordsmith-tests.log" >&2
+        echo "Override with SKIP_TESTS=1 if you know why." >&2
+        exit 1
+    fi
+fi
+
+stop
 
 echo "Starting $API on $BIND_IP:$API_PORT ..."
 docker run -d --name "$API" \
@@ -86,7 +116,7 @@ docker run -d --name "$API" \
     -e WATCHFILES_FORCE_POLLING=true \
     -e PYTHONDONTWRITEBYTECODE=1 \
     --restart unless-stopped \
-    chordsmith-dev-api:latest \
+    "$IMAGE" \
     uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --app-dir /app/backend >/dev/null
 
 echo "Starting $WEB on $BIND_IP:$WEB_PORT ..."
