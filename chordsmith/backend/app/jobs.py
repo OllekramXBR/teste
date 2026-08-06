@@ -168,6 +168,29 @@ def _run_multitrack(song_id: str) -> None:
         logger.exception("multitrack transcription failed for %s", song_id)
 
 
+def _run_variant(song_id: str, semitones: int, rate: float) -> None:
+    from .analysis.variants import render
+
+    try:
+        started = time.perf_counter()
+        written = render(song_id, semitones, rate)
+        logger.info(
+            "rendered %d stems of %s at %+d semitones %.2fx in %.1fs",
+            len(written),
+            song_id,
+            semitones,
+            rate,
+            time.perf_counter() - started,
+        )
+    except Exception:  # noqa: BLE001 - reported by the variant simply not appearing
+        logger.exception("variant render failed for %s", song_id)
+
+
+def enqueue_variant(song_id: str, semitones: int, rate: float) -> None:
+    """Queue a transposed or time-stretched render of every stem."""
+    get_heavy_executor().submit(_run_variant, song_id, semitones, rate)
+
+
 def enqueue_multitrack(song_id: str) -> None:
     """Queue per-stem transcription.
 

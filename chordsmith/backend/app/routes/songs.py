@@ -16,7 +16,7 @@ from pydantic import BaseModel, Field
 from .. import jobs, library, storage, transcode
 # `cifra` only pulls in the theory primitives, not librosa, so importing it at
 # module level does not put the numba import back on the API's startup path.
-from ..analysis import cifra, stems
+from ..analysis import cifra, stems, variants
 from ..analysis import lyrics as lyrics_module
 from ..config import (
     ALLOWED_EXTENSIONS,
@@ -319,6 +319,48 @@ def remove_stems(song_id: str) -> Response:
     stems.delete_stems(song_id)
     storage.set_stems_status(song_id, "none")
     return Response(status_code=204)
+
+
+@router.post("/{song_id}/variants", status_code=202)
+def render_variant(
+    song_id: str,
+    semitones: int = Query(0, ge=-7, le=7),
+    rate: float = Query(1.0, ge=0.5, le=1.5),
+) -> dict:
+    """Queue a transposed and/or slowed render of every stem."""
+    if not stems.available_stems(song_id):
+        raise HTTPException(status_code=409, detail="Separe as pistas primeiro")
+    if semitones == 0 and abs(rate - 1.0) < 1e-6:
+        raise HTTPException(status_code=400, detail="Essa é a gravação original")
+
+    key = variants.variant_key(semitones, rate)
+    if variants.variant_dir(song_id, semitones, rate).is_dir():
+        return {"key": key, "status": "ready"}
+
+    jobs.enqueue_variant(song_id, semitones, rate)
+    return {"key": key, "status": "rendering"}
+
+
+@router.get("/{song_id}/variants")
+def list_variants(song_id: str) -> dict:
+    if not storage.get_song(song_id, include_analysis=False):
+        raise HTTPException(status_code=404, detail="Song not found")
+    return {"variants": variants.available(song_id)}
+
+
+@router.get("/{song_id}/variants/{key}/{name}")
+def stream_variant(song_id: str, key: str, name: str) -> FileResponse:
+    """Serve one stem of one rendered variant."""
+    if name not in stems.STEM_NAMES or "/" in key or ".." in key:
+        raise HTTPException(status_code=404, detail="Não existe")
+    path = stems.STEMS_DIR / song_id / "variants" / key / f"{name}.{STEM_FORMAT}"
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="Essa versão ainda não foi renderizada")
+    return FileResponse(
+        path,
+        media_type=f"audio/{STEM_FORMAT}",
+        headers={"Cache-Control": "private, max-age=86400"},
+    )
 
 
 @router.get("/{song_id}/stems/{name}")
