@@ -130,8 +130,14 @@ def pick_folder_image(folder: Path) -> Path | None:
 
 
 def from_folder(song_id: str, folder: Path) -> Path | None:
-    """Copy an album folder's cover in as this song's, scaled down."""
-    source = pick_folder_image(folder)
+    """Copy an album folder's cover in as this song's, scaled down.
+
+    Falls back to the artist folder above it. Plenty of libraries keep one
+    picture per artist rather than one per album, and an artist photo on the
+    right song beats a grey square — while looking further up than that would
+    start putting a genre's picture on everything inside it.
+    """
+    source = pick_folder_image(folder) or pick_folder_image(folder.parent)
     if source is None or not ffmpeg_available():
         return None
 
