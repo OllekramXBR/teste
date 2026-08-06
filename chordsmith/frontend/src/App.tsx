@@ -76,6 +76,14 @@ export default function App() {
               >
                 API
               </a>
+              {auth && !auth.user && (
+                <Link
+                  to="/entrar"
+                  className="text-slate-500 transition-colors hover:text-slate-900 dark:hover:text-slate-200"
+                >
+                  {auth.hasUsers ? 'Entrar' : 'Criar conta'}
+                </Link>
+              )}
               {auth?.user && (
                 <Link
                   to="/perfil"
@@ -106,6 +114,7 @@ export default function App() {
           <Route path="/song/:songId/perform" element={<PerformancePage />} />
           <Route path="/dicionario" element={<DictionaryPage />} />
           <Route path="/ouvir" element={<ListenPage />} />
+          <Route path="/entrar" element={<SignInPage onSignedIn={refreshAuth} />} />
           <Route
             path="/perfil"
             element={<ProfilePage user={auth?.user ?? null} onChanged={refreshAuth} />}
