@@ -130,6 +130,54 @@ def enqueue_stems(song_id: str, filename: str, quality: str | None = None) -> No
     get_heavy_executor().submit(_run_stems, song_id, AUDIO_DIR / filename, quality)
 
 
+def _run_multitrack(song_id: str) -> None:
+    import json
+
+    from .analysis.multitrack import transcribe_song
+    from .config import STEMS_DIR
+
+    try:
+        started = time.perf_counter()
+        tracks = transcribe_song(song_id)
+        payload = [
+            {
+                "name": track.name,
+                "program": track.program,
+                "notes": [
+                    {
+                        "midi": note.midi,
+                        "start": round(note.start, 4),
+                        "end": round(note.end, 4),
+                        "velocity": round(note.velocity, 3),
+                    }
+                    for note in track.notes
+                ],
+            }
+            for track in tracks
+        ]
+        destination = STEMS_DIR / song_id / "tracks.json"
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_text(json.dumps(payload), encoding="utf-8")
+        logger.info(
+            "transcribed %d tracks for %s in %.1fs",
+            len(payload),
+            song_id,
+            time.perf_counter() - started,
+        )
+    except Exception:  # noqa: BLE001 - reported through the missing cache file
+        logger.exception("multitrack transcription failed for %s", song_id)
+
+
+def enqueue_multitrack(song_id: str) -> None:
+    """Queue per-stem transcription.
+
+    On the heavy queue with separation, because it is the same kind of work:
+    minutes of signal processing that must not sit in front of a chord analysis
+    someone is waiting on.
+    """
+    get_heavy_executor().submit(_run_multitrack, song_id)
+
+
 def enqueue_all_stems() -> list[str]:
     """Queue separation for every analysed song that has none yet.
 

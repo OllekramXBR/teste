@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import mimetypes
 import re
 import shutil
@@ -24,7 +25,7 @@ from ..config import (
     NATIVE_EXTENSIONS,
     STEM_FORMAT,
 )
-from ..midi import build_midi
+from ..midi import build_midi, build_multitrack
 
 router = APIRouter(prefix="/api/songs", tags=["songs"])
 
@@ -442,13 +443,47 @@ def stream_audio(song_id: str, request: Request):
 
 
 @router.get("/{song_id}/midi")
-def download_midi(song_id: str, transpose: int = Query(0, ge=-11, le=11)) -> Response:
+def download_midi(
+    song_id: str,
+    transpose: int = Query(0, ge=-11, le=11),
+    tracks: str = Query("chords", pattern="^(chords|multi)$"),
+) -> Response:
     song = storage.get_song(song_id)
     if not song:
         raise HTTPException(status_code=404, detail="Song not found")
     analysis = song.get("analysis")
     if not analysis:
         raise HTTPException(status_code=409, detail="This song has not been analysed yet")
+
+    if tracks == "multi":
+        if not stems.available_stems(song_id):
+            raise HTTPException(
+                status_code=409,
+                detail="Separate this song into stems first — a multitrack export needs them.",
+            )
+        cached = stems.STEMS_DIR / song_id / "tracks.json"
+        if not cached.exists():
+            # Transcribing three stems is minutes of work, so it is queued and
+            # the caller comes back rather than holding a request open.
+            jobs.enqueue_multitrack(song_id)
+            raise HTTPException(
+                status_code=202,
+                detail="Transcribing each stem. Try again in a few minutes.",
+            )
+        data = build_multitrack(
+            chords=analysis.get("chords", []),
+            tracks=json.loads(cached.read_text(encoding="utf-8")),
+            bpm=analysis.get("bpm") or 120,
+            beats_per_bar=analysis.get("beatsPerBar", 4),
+            transpose=transpose,
+            title=song["title"],
+        )
+        safe = re.sub(r"[^\w\- ]+", "", song["title"]).strip() or "chart"
+        return Response(
+            content=data,
+            media_type="audio/midi",
+            headers={"Content-Disposition": f'attachment; filename="{safe} (multipista).mid"'},
+        )
 
     data = build_midi(
         chords=analysis.get("chords", []),
