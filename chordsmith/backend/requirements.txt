@@ -13,14 +13,11 @@ scipy>=1.13
 # first use into the data volume.
 faster-whisper>=1.1
 
-# Source separation. Wraps the Demucs and UVR model families behind one
-# interface, which is what lets the two-pass split — mix into parts, then lead
-# vocal out of the vocal part — use one dependency instead of two. Weights are
-# not in the image; they download on first use into the data volume.
-#
-# One of its dependencies (diffq) ships no wheel, so the image needs a compiler
-# at build time. See the Dockerfile.
-audio-separator[cpu]>=0.30
+# Source separation is deliberately NOT here. It lives in its own virtualenv at
+# /opt/separator and is run as a subprocess — see the Dockerfile and
+# app/analysis/stems.py. Installed alongside these packages it brings torch and
+# scikit-learn into the same interpreter as numba and librosa, and the analysis
+# pipeline then segfaults on import of the very extension modules it needs.
 
 # Development / tests
 pytest>=8.0

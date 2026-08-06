@@ -21,12 +21,16 @@ fail halfway through a chorus.
 
 from __future__ import annotations
 
+import json
 import logging
 import shutil
+import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
 from ..config import (
+    SEPARATION_TIMEOUT,
+    SEPARATOR_BIN,
     STEM_FORMAT,
     STEM_MODEL_BASE,
     STEM_MODEL_KARAOKE,
@@ -67,18 +71,53 @@ class StemFile:
         }
 
 
-def _separator(output_dir: Path):
-    """A configured audio-separator instance writing into ``output_dir``."""
-    from audio_separator.separator import Separator
+def _run_separator(source: Path, model: str, output_dir: Path, names: dict[str, str]) -> list[str]:
+    """Run one separation pass in the separator's own interpreter.
 
+    A subprocess rather than an import, and the reason is not style. The
+    separation stack pulls in torch and scikit-learn, and in the same
+    interpreter as numba and librosa they fight over the OpenMP runtime until
+    the analysis pipeline segfaults. Out here none of it is ever loaded into the
+    API process, a crash in the model cannot take the server down, and the
+    memory goes back to the machine when the process exits.
+
+    ``names`` maps the model's own stem names to the file names we want, so the
+    caller does not have to guess which output is which.
+    """
     STEM_MODEL_DIR.mkdir(parents=True, exist_ok=True)
     output_dir.mkdir(parents=True, exist_ok=True)
-    return Separator(
-        model_file_dir=str(STEM_MODEL_DIR),
-        output_dir=str(output_dir),
-        output_format=STEM_FORMAT,
-        log_level=logging.WARNING,
+
+    command = [
+        str(SEPARATOR_BIN),
+        str(source),
+        "-m",
+        model,
+        "--output_dir",
+        str(output_dir),
+        "--output_format",
+        STEM_FORMAT.upper(),
+        "--model_file_dir",
+        str(STEM_MODEL_DIR),
+        "--custom_output_names",
+        json.dumps(names),
+    ]
+
+    before = {path.name for path in output_dir.iterdir()} if output_dir.exists() else set()
+    result = subprocess.run(
+        command, capture_output=True, text=True, timeout=SEPARATION_TIMEOUT
     )
+    if result.returncode != 0:
+        detail = (result.stderr or result.stdout or "").strip().splitlines()
+        raise RuntimeError(
+            f"{model} failed: {detail[-1] if detail else 'no output from the separator'}"
+        )
+
+    written = [
+        str(path) for path in sorted(output_dir.iterdir()) if path.name not in before
+    ]
+    if not written:
+        raise RuntimeError(f"{model} wrote no files")
+    return written
 
 
 def _pick(outputs: list[str], keyword: str) -> Path | None:
@@ -108,12 +147,13 @@ def separate(path: str | Path, song_id: str) -> list[StemFile]:
     work = destination / "work"
     work.mkdir(parents=True, exist_ok=True)
 
-    separator = _separator(work)
-
     logger.info("separating %s: stage 1 (%s)", song_id, STEM_MODEL_BASE)
-    separator.load_model(model_filename=STEM_MODEL_BASE)
-    base = [str(output) for output in separator.separate(str(source))]
-    base = [str(work / Path(name).name) if not Path(name).is_absolute() else name for name in base]
+    base = _run_separator(
+        source,
+        STEM_MODEL_BASE,
+        work,
+        {"Vocals": "mixed-vocals", "Drums": "drums", "Bass": "bass", "Other": "other"},
+    )
 
     vocals = _pick(base, "vocals")
     if vocals is None:
@@ -122,14 +162,14 @@ def separate(path: str | Path, song_id: str) -> list[StemFile]:
         )
 
     logger.info("separating %s: stage 2 (%s)", song_id, STEM_MODEL_KARAOKE)
-    separator.load_model(model_filename=STEM_MODEL_KARAOKE)
-    split = [str(output) for output in separator.separate(str(vocals))]
-    split = [str(work / Path(name).name) if not Path(name).is_absolute() else name for name in split]
+    split = _run_separator(
+        vocals, STEM_MODEL_KARAOKE, work, {"Vocals": "lead", "Instrumental": "backing"}
+    )
 
     # On a karaoke model the "vocals" output is the lead and the "instrumental"
     # output is what was left of the vocal stem — the backing voices.
-    lead = _pick(split, "vocals")
-    backing = _pick(split, "instrumental")
+    lead = _pick(split, "lead") or _pick(split, "vocals")
+    backing = _pick(split, "backing") or _pick(split, "instrumental")
     if lead is None or backing is None:
         raise RuntimeError(
             f"{STEM_MODEL_KARAOKE} did not split lead from backing "

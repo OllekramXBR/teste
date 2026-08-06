@@ -47,6 +47,17 @@ ASR_THREADS = int(os.environ.get("CHORDSMITH_ASR_THREADS", "0"))
 STEMS_DIR = DATA_DIR / "stems"
 STEM_MODEL_DIR = Path(os.environ.get("CHORDSMITH_STEM_MODEL_DIR", DATA_DIR / "models" / "stems"))
 
+# The separator runs in its own virtualenv, as a subprocess. It cannot be
+# imported here: its dependencies fight numba over the OpenMP runtime and take
+# the analysis pipeline down with them. See the Dockerfile.
+SEPARATOR_BIN = Path(
+    os.environ.get("CHORDSMITH_SEPARATOR_BIN", "/opt/separator/bin/audio-separator")
+)
+# Two model passes over a whole recording on a CPU. Generous, because the
+# alternative to waiting is a killed job three minutes from the end; bounded,
+# because a wedged model must not hold a worker thread forever.
+SEPARATION_TIMEOUT = int(os.environ.get("CHORDSMITH_SEPARATION_TIMEOUT", "5400"))
+
 # Stage one splits the mix four ways. htdemucs is the balance point: htdemucs_ft
 # scores about a decibel better on vocals and takes four times as long, and
 # htdemucs_6s trades a little vocal quality for separate guitar and piano stems
