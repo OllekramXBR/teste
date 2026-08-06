@@ -344,6 +344,7 @@ def download_cifra(
     transpose: int = Query(0, ge=-11, le=11),
     capo: int = Query(0, ge=0, le=11),
     simplify: bool = Query(True, description="Collapse decoder extensions to playable triads"),
+    format: str = Query("columns", pattern="^(columns|chordpro)$"),
     download: bool = Query(False),
 ) -> Response:
     """The chart in Brazilian cifra format: chords above the words, plain text."""
@@ -354,7 +355,8 @@ def download_cifra(
     if not analysis:
         raise HTTPException(status_code=409, detail="This song has not been analysed yet")
 
-    text = cifra.render(
+    build = cifra.render_chordpro if format == "chordpro" else cifra.render
+    text = build(
         analysis,
         song.get("lyrics"),
         title=song["title"],
@@ -366,7 +368,8 @@ def download_cifra(
     headers = {}
     if download:
         safe_title = re.sub(r"[^\w\- ]+", "", song["title"]).strip() or "cifra"
-        headers["Content-Disposition"] = f'attachment; filename="{safe_title}.txt"'
+        suffix = "cho" if format == "chordpro" else "txt"
+        headers["Content-Disposition"] = f'attachment; filename="{safe_title}.{suffix}"'
     return Response(content=text, media_type="text/plain; charset=utf-8", headers=headers)
 
 

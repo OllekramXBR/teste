@@ -412,6 +412,75 @@ def _grid(analysis: dict, hits: list[ChordHit], bars_per_line: int = 4) -> list[
     return lines
 
 
+def render_chordpro(
+    analysis: dict,
+    lyrics: dict | None = None,
+    *,
+    title: str = "",
+    artist: str = "",
+    transpose: int = 0,
+    capo: int = 0,
+    simplify: bool = True,
+) -> str:
+    """The same chart in ChordPro, with the chord inline before the syllable.
+
+    Worth carrying alongside the columnar form for one reason: it does not
+    depend on a monospaced font, or on any font at all. A cifra whose chords sit
+    on their own line is only correct while the character widths hold; paste it
+    into a message, a document or a phone with a different font and the chords
+    drift off the words they belong to. ChordPro survives all of that, and every
+    other chord application reads it.
+    """
+    use_flats = bool(analysis.get("useFlats"))
+    key = analysis.get("key") or {}
+    tonic = key.get("tonic")
+
+    out: list[str] = []
+    if title:
+        out.append(f"{{title: {title}}}")
+    if artist:
+        out.append(f"{{artist: {artist}}}")
+    if tonic is not None:
+        sounding = theory.note_name(int(tonic) + transpose, use_flats)
+        out.append(f"{{key: {sounding}}}")
+    if capo:
+        out.append(f"{{capo: {capo}}}")
+    out.append("")
+
+    hits = _chord_hits(analysis, transpose, capo, simplify=simplify)
+    words = _words(lyrics)
+
+    if not words:
+        out.append("{comment: Instrumental}")
+        out.extend(_grid(analysis, hits))
+        return "\n".join(out).rstrip() + "\n"
+
+    lines = _assign_chords(_break_into_lines(words), hits, lead_in=0.0)
+    _tag_solos(lines, analysis)
+
+    for line in lines:
+        if line.tag:
+            out.append("")
+            out.append(f"{{comment: {line.tag}}}")
+        if not line.words:
+            out.append(" ".join(f"[{hit.label}]" for hit in line.chords))
+            continue
+
+        pieces: list[str] = []
+        for index, word in enumerate(line.words):
+            for hit in line.chords:
+                target = next(
+                    (position for position, item in enumerate(line.words) if item.end > hit.start),
+                    len(line.words) - 1,
+                )
+                if target == index:
+                    pieces.append(f"[{hit.label}]")
+            pieces.append(word.text + " ")
+        out.append("".join(pieces).rstrip())
+
+    return "\n".join(out).rstrip() + "\n"
+
+
 def render(
     analysis: dict,
     lyrics: dict | None = None,

@@ -244,6 +244,38 @@ class TestHeader:
         assert "B°" in summary
 
 
+class TestChordPro:
+    def test_the_header_carries_title_key_and_capo(self, analysis):
+        text = cifra.render_chordpro(analysis, title="Uma", artist="Outro", capo=2)
+        assert "{title: Uma}" in text
+        assert "{artist: Outro}" in text
+        assert "{key: G}" in text
+        assert "{capo: 2}" in text
+
+    def test_chords_sit_inline_before_the_word_they_land_on(self, analysis):
+        analysis["chords"] = [chord("G", 0.0, 0.5), chord("D", 0.5, 1.0)]
+        lyrics = {"words": [word("um", 0.0, 0.4), word("dois", 0.5, 0.9)]}
+        line = [
+            row for row in cifra.render_chordpro(analysis, lyrics).splitlines() if "[G]" in row
+        ][0]
+        assert line.startswith("[G]um")
+        assert "[D]dois" in line
+
+    def test_notation_is_brazilian_here_too(self, analysis):
+        analysis["chords"] = [chord("Gmaj7", 0.0, 4.0)]
+        lyrics = {"words": [word("nota", 0.0, 0.5)]}
+        assert "[G7M]" in cifra.render_chordpro(analysis, lyrics, simplify=False)
+
+    def test_sections_become_comments(self, analysis):
+        lyrics = {"words": [word("tarde", 6.5, 7.0)]}
+        assert "{comment: Intro}" in cifra.render_chordpro(analysis, lyrics)
+
+    def test_without_lyrics_it_still_produces_the_grid(self, analysis):
+        text = cifra.render_chordpro(analysis)
+        assert "{comment: Instrumental}" in text
+        assert any(row.startswith("|") for row in text.splitlines())
+
+
 class TestWithoutLyrics:
     def test_falls_back_to_a_bar_grid(self, analysis):
         text = cifra.render(analysis)
