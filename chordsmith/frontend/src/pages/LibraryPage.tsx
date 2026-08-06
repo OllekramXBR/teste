@@ -31,6 +31,33 @@ function StatusBadge({ status }: { status: Song['status'] }) {
   )
 }
 
+/**
+ * The album art, or the song's initial when it has none.
+ *
+ * A cover that fails to load must not leave a broken-image icon in a list — a
+ * beets library embeds art in most files but not all, and half a list of broken
+ * pictures looks like the app is broken rather than the tags.
+ */
+function Cover({ song }: { song: Song }) {
+  const [failed, setFailed] = useState(false)
+  if (failed) {
+    return (
+      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md bg-slate-200 text-sm font-semibold text-slate-400 dark:bg-slate-800">
+        {song.title.trim().charAt(0).toUpperCase() || '♪'}
+      </div>
+    )
+  }
+  return (
+    <img
+      src={`/api/songs/${song.id}/cover`}
+      alt=""
+      loading="lazy"
+      onError={() => setFailed(true)}
+      className="h-11 w-11 shrink-0 rounded-md object-cover"
+    />
+  )
+}
+
 function Chip({ children }: { children: React.ReactNode }) {
   return (
     <span className="shrink-0 rounded-full border border-slate-200 px-1.5 py-0.5 text-[10px] text-slate-500 dark:border-slate-700">
@@ -192,6 +219,7 @@ export function LibraryPage() {
                 to={`/song/${song.id}`}
                 className="flex items-center gap-4 bg-panel p-4 transition-colors hover:bg-accent-soft"
               >
+                <Cover song={song} />
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     <span className="truncate font-medium tracking-tight">{song.title}</span>

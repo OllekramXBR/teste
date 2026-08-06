@@ -15,7 +15,7 @@ from fastapi import APIRouter, File, Form, HTTPException, Query, Request, Upload
 from fastapi.responses import FileResponse, Response, StreamingResponse
 from pydantic import BaseModel, Field
 
-from .. import auth, jobs, library, storage, transcode
+from .. import auth, covers, jobs, library, storage, transcode
 # `cifra` only pulls in the theory primitives, not librosa, so importing it at
 # module level does not put the numba import back on the API's startup path.
 from ..analysis import cifra, stems, variants
@@ -191,6 +191,7 @@ def delete_song(song_id: str) -> Response:
         raise HTTPException(status_code=404, detail="Song not found")
     (AUDIO_DIR / filename).unlink(missing_ok=True)
     stems.delete_stems(song_id)
+    covers.forget(song_id)
     return Response(status_code=204)
 
 
@@ -477,6 +478,23 @@ def download_cifra(
         suffix = "cho" if format == "chordpro" else "txt"
         headers["Content-Disposition"] = f'attachment; filename="{safe_title}.{suffix}"'
     return Response(content=text, media_type="text/plain; charset=utf-8", headers=headers)
+
+
+@router.get("/{song_id}/cover")
+def song_cover(song_id: str) -> FileResponse:
+    """The album art embedded in the imported file, if it carried any."""
+    stored = storage.get_song_file(song_id)
+    if stored is None:
+        raise HTTPException(status_code=404, detail="Song not found")
+
+    art = covers.extract(song_id, AUDIO_DIR / stored[0])
+    if art is None:
+        raise HTTPException(status_code=404, detail="Sem capa")
+    return FileResponse(
+        art,
+        media_type="image/jpeg",
+        headers={"Cache-Control": "private, max-age=604800"},
+    )
 
 
 @router.get("/{song_id}/audio")

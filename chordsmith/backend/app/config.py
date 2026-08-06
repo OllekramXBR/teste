@@ -53,6 +53,8 @@ ASR_THREADS = int(os.environ.get("CHORDSMITH_ASR_THREADS", "0"))
 # size of the original each — so they live beside the audio rather than in the
 # database, and can be deleted without losing the analysis.
 STEMS_DIR = DATA_DIR / "stems"
+# Album art pulled out of the imported files, cached beside them.
+COVERS_DIR = DATA_DIR / "covers"
 STEM_MODEL_DIR = Path(os.environ.get("CHORDSMITH_STEM_MODEL_DIR", DATA_DIR / "models" / "stems"))
 
 # The separator runs in its own virtualenv, as a subprocess. It cannot be
@@ -92,10 +94,6 @@ def stem_models(quality: str | None = None) -> tuple[str, str]:
 # what the stage view does before it will let anyone press play.
 STEM_FORMAT = os.environ.get("CHORDSMITH_STEM_FORMAT", "mp3")
 
-# Accounts exist as soon as someone creates one; they are only *enforced* when
-# this says so. Default "open" because this app has always run without a login,
-# behind a private network, and switching that on by surprise would lock its
-# owner out of their own library.
 # Once a song is analysed, keep going without being asked: transcribe the
 # lyric, separate the stems, then transcribe each stem. Every step is minutes
 # long and every one of them is wanted eventually, so the only thing waiting
@@ -107,6 +105,10 @@ STEM_FORMAT = os.environ.get("CHORDSMITH_STEM_FORMAT", "mp3")
 AUTO_LYRICS = os.environ.get("CHORDSMITH_AUTO_LYRICS", "1") not in ("0", "false", "no")
 AUTO_STEMS = os.environ.get("CHORDSMITH_AUTO_STEMS", "1") not in ("0", "false", "no")
 
+# Accounts exist as soon as someone creates one; they are only *enforced* when
+# this says so. Default "open" because this app has always run without a login,
+# behind a private network, and switching that on by surprise would lock its
+# owner out of their own library.
 AUTH_MODE = os.environ.get("CHORDSMITH_AUTH", "open").strip().lower()
 SESSION_DAYS = int(os.environ.get("CHORDSMITH_SESSION_DAYS", "30"))
 
@@ -118,4 +120,5 @@ CORS_ORIGINS = os.environ.get(
 def ensure_directories() -> None:
     AUDIO_DIR.mkdir(parents=True, exist_ok=True)
     STEMS_DIR.mkdir(parents=True, exist_ok=True)
+    COVERS_DIR.mkdir(parents=True, exist_ok=True)
     DATABASE_PATH.parent.mkdir(parents=True, exist_ok=True)
