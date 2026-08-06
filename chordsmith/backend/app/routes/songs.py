@@ -282,14 +282,17 @@ def separate_everything() -> dict:
 
 
 @router.post("/{song_id}/stems", status_code=202)
-def separate_stems(song_id: str) -> dict:
+def separate_stems(
+    song_id: str,
+    quality: str = Query("", description="'fast' or 'best'; empty uses the configured default"),
+) -> dict:
     """Queue the two-pass separation for this song."""
     stored = storage.get_song_file(song_id)
     if stored is None:
         raise HTTPException(status_code=404, detail="Song not found")
     if not (AUDIO_DIR / stored[0]).exists():
         raise HTTPException(status_code=410, detail="The audio file is no longer available")
-    jobs.enqueue_stems(song_id, stored[0])
+    jobs.enqueue_stems(song_id, stored[0], quality.strip() or None)
     return storage.get_song(song_id, include_analysis=False)  # type: ignore[return-value]
 
 

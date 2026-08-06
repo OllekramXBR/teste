@@ -32,10 +32,9 @@ from ..config import (
     SEPARATION_TIMEOUT,
     SEPARATOR_BIN,
     STEM_FORMAT,
-    STEM_MODEL_BASE,
-    STEM_MODEL_KARAOKE,
     STEM_MODEL_DIR,
     STEMS_DIR,
+    stem_models,
 )
 
 logger = logging.getLogger(__name__)
@@ -133,7 +132,7 @@ def _pick(outputs: list[str], keyword: str) -> Path | None:
     return None
 
 
-def separate(path: str | Path, song_id: str) -> list[StemFile]:
+def separate(path: str | Path, song_id: str, quality: str | None = None) -> list[StemFile]:
     """Separate one recording into the five stems, returning what was written.
 
     Raises ``RuntimeError`` when a stage produces nothing recognisable, rather
@@ -147,10 +146,12 @@ def separate(path: str | Path, song_id: str) -> list[StemFile]:
     work = destination / "work"
     work.mkdir(parents=True, exist_ok=True)
 
-    logger.info("separating %s: stage 1 (%s)", song_id, STEM_MODEL_BASE)
+    mix_model, karaoke_model = stem_models(quality)
+
+    logger.info("separating %s: stage 1 (%s)", song_id, mix_model)
     base = _run_separator(
         source,
-        STEM_MODEL_BASE,
+        mix_model,
         work,
         {"Vocals": "mixed-vocals", "Drums": "drums", "Bass": "bass", "Other": "other"},
     )
@@ -158,12 +159,12 @@ def separate(path: str | Path, song_id: str) -> list[StemFile]:
     vocals = _pick(base, "vocals")
     if vocals is None:
         raise RuntimeError(
-            f"{STEM_MODEL_BASE} produced no vocal stem (got: {[Path(p).name for p in base]})"
+            f"{mix_model} produced no vocal stem (got: {[Path(p).name for p in base]})"
         )
 
-    logger.info("separating %s: stage 2 (%s)", song_id, STEM_MODEL_KARAOKE)
+    logger.info("separating %s: stage 2 (%s)", song_id, karaoke_model)
     split = _run_separator(
-        vocals, STEM_MODEL_KARAOKE, work, {"Vocals": "lead", "Instrumental": "backing"}
+        vocals, karaoke_model, work, {"Vocals": "lead", "Instrumental": "backing"}
     )
 
     # On a karaoke model the "vocals" output is the lead and the "instrumental"
@@ -172,7 +173,7 @@ def separate(path: str | Path, song_id: str) -> list[StemFile]:
     backing = _pick(split, "backing") or _pick(split, "instrumental")
     if lead is None or backing is None:
         raise RuntimeError(
-            f"{STEM_MODEL_KARAOKE} did not split lead from backing "
+            f"{karaoke_model} did not split lead from backing "
             f"(got: {[Path(p).name for p in split]})"
         )
 

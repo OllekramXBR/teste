@@ -66,16 +66,27 @@ SEPARATOR_BIN = Path(
 # because a wedged model must not hold a worker thread forever.
 SEPARATION_TIMEOUT = int(os.environ.get("CHORDSMITH_SEPARATION_TIMEOUT", "5400"))
 
-# Stage one splits the mix four ways. htdemucs is the balance point: htdemucs_ft
-# scores about a decibel better on vocals and takes four times as long, and
-# htdemucs_6s trades a little vocal quality for separate guitar and piano stems
-# — worth switching to when the goal is muting an instrument rather than a voice.
-STEM_MODEL_BASE = os.environ.get("CHORDSMITH_STEM_MODEL", "htdemucs.yaml")
+# Two model pairs, and the choice between them is a real trade rather than a
+# preference. Stage one splits the mix four ways; stage two splits the vocal
+# stem it produced into lead and backing, which Demucs cannot do at any size
+# because it has no notion of which voice is the lead.
+#
+# "fast" is the pair measured at about eight minutes for a four-minute track on
+# a CPU. "best" swaps in the fine-tuned Demucs, which scores roughly a decibel
+# better on vocals for four times the work, and a Roformer karaoke model whose
+# published SDR on the lead/backing split is 10.2 against 5.4 — that second
+# difference is the one worth paying for when the point is singing over your own
+# backing vocals.
+STEM_MODELS: dict[str, tuple[str, str]] = {
+    "fast": ("htdemucs.yaml", "UVR_MDXNET_KARA_2.onnx"),
+    "best": ("htdemucs_ft.yaml", "mel_band_roformer_karaoke_aufr33_viperx_sdr_10.1956.ckpt"),
+}
+STEM_QUALITY = os.environ.get("CHORDSMITH_STEM_QUALITY", "best")
 
-# Stage two splits that vocal stem into lead and backing. Demucs cannot do this
-# at any size — it has no notion of which voice is the lead — so it takes a
-# model trained for the job.
-STEM_MODEL_KARAOKE = os.environ.get("CHORDSMITH_STEM_KARAOKE_MODEL", "UVR_MDXNET_KARA_2.onnx")
+
+def stem_models(quality: str | None = None) -> tuple[str, str]:
+    """The (mix-splitter, karaoke-splitter) pair for a quality name."""
+    return STEM_MODELS.get(quality or STEM_QUALITY, STEM_MODELS["fast"])
 
 # MP3 keeps five stems small enough to load into the browser at once, which is
 # what the stage view does before it will let anyone press play.
