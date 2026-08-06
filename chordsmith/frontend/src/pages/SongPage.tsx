@@ -6,6 +6,7 @@ import { AudioEngine, voiceChord, type InstrumentVoice } from '../lib/audioEngin
 import { INSTRUMENTS } from '../lib/fretboard'
 import { mod12, parseLabel, QUALITY_LABELS, romanNumeral } from '../lib/theory'
 import { usePlayer } from '../hooks/usePlayer'
+import { ChordFilmstrip } from '../components/ChordFilmstrip'
 import { ChordGrid, displayLabel, groupIntoBars } from '../components/ChordGrid'
 import { ChordPopover } from '../components/ChordPopover'
 import { ChordSheet } from '../components/ChordSheet'
@@ -21,10 +22,11 @@ import { Toolbar, type ToolbarSettings } from '../components/Toolbar'
 import { Transport } from '../components/Transport'
 import { Tuner } from '../components/Tuner'
 
-type View = 'chords' | 'tab' | 'letra' | 'cifra' | 'partitura' | 'both'
+type View = 'chords' | 'estudo' | 'tab' | 'letra' | 'cifra' | 'partitura' | 'both'
 
 const VIEW_LABELS: Record<View, string> = {
   chords: 'Grade',
+  estudo: 'Estudo',
   tab: 'Tablatura',
   letra: 'Letra',
   cifra: 'Cifra',
@@ -600,7 +602,7 @@ export function SongPage() {
             </p>
           )}
           <div className="flex items-center gap-1 rounded-lg bg-slate-200/70 p-1 dark:bg-slate-800">
-            {(['chords', 'tab', 'letra', 'cifra', 'partitura', 'both'] as View[]).map((option) => (
+            {(['chords', 'estudo', 'tab', 'letra', 'cifra', 'partitura', 'both'] as View[]).map((option) => (
               <button
                 key={option}
                 type="button"
@@ -628,6 +630,19 @@ export function SongPage() {
               Simplificar
             </button>
           </div>
+
+          {(view === 'estudo' || view === 'both') && (
+            <ChordFilmstrip
+              chords={analysis.chords}
+              transpose={settings.transpose}
+              capo={settings.capo}
+              useFlats={analysis.useFlats}
+              simplify={settings.simplify}
+              currentTime={player.currentTime}
+              instrument={settings.instrument}
+              onSeek={handleSeek}
+            />
+          )}
 
           {view === 'letra' && song.lyrics && editingLyrics && (
             <LyricEditor
