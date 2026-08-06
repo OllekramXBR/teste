@@ -98,7 +98,18 @@ export function SignInPage({ onSignedIn }: { onSignedIn: () => void }) {
         </button>
       )}
 
-      <p className="mt-6 text-[11px] text-ink-faint">
+      {/* The dedication. Below the form rather than above it, so it is the last
+          thing read on the way in and never something to get past. */}
+      <figure className="mt-10 border-t border-line pt-6 text-center">
+        <blockquote className="text-[15px] italic leading-relaxed text-ink-soft">
+          Pois onde está teu coração. Ali está o teu tesouro.
+        </blockquote>
+        <figcaption className="mt-2 text-xs font-semibold tracking-[0.18em] text-accent">
+          TE AMO
+        </figcaption>
+      </figure>
+
+      <p className="mt-8 text-[11px] text-ink-faint">
         A senha é guardada com PBKDF2 e sal próprio. Ninguém, nem o servidor, consegue lê-la de
         volta.
       </p>
