@@ -8,7 +8,7 @@
 import { chordPitchClasses, mod12 } from './theory'
 
 export interface Instrument {
-  id: 'guitar' | 'ukulele'
+  id: 'guitar' | 'ukulele' | 'cavaquinho' | 'viola' | 'bass' | 'mandolin' | 'banjo'
   name: string
   /** MIDI note of each open string, in string order (not pitch order). */
   tuning: number[]
@@ -40,9 +40,67 @@ export const UKULELE: Instrument = {
   reentrant: true,
 }
 
+// The search does not care what it is fingering, so a new instrument is a
+// tuning and nothing else — no shapes to draw, no table to maintain. Which is
+// why the two that matter here and appear in almost no chord site, the
+// cavaquinho and the viola caipira, cost the same as the ones that do.
+export const CAVAQUINHO: Instrument = {
+  id: 'cavaquinho',
+  name: 'Cavaquinho',
+  tuning: [62, 67, 71, 74], // D4 G4 B4 D5
+  stringNames: ['D', 'G', 'B', 'D'],
+  frets: 15,
+  reentrant: false,
+}
+
+export const VIOLA_CAIPIRA: Instrument = {
+  id: 'viola',
+  name: 'Viola caipira',
+  // Cebolão em Mi, the most common Brazilian tuning; each course is drawn as a
+  // single string because both strings of a course are fingered together.
+  tuning: [47, 52, 56, 59, 64], // B2 E3 G#3 B3 E4
+  stringNames: ['B', 'E', 'G#', 'B', 'E'],
+  frets: 15,
+  reentrant: false,
+}
+
+export const BASS: Instrument = {
+  id: 'bass',
+  name: 'Baixo',
+  tuning: [28, 33, 38, 43], // E1 A1 D2 G2
+  stringNames: ['E', 'A', 'D', 'G'],
+  frets: 15,
+  reentrant: false,
+}
+
+export const MANDOLIN: Instrument = {
+  id: 'mandolin',
+  name: 'Bandolim',
+  tuning: [55, 62, 69, 76], // G3 D4 A4 E5
+  stringNames: ['G', 'D', 'A', 'E'],
+  frets: 15,
+  reentrant: false,
+}
+
+export const BANJO: Instrument = {
+  id: 'banjo',
+  name: 'Banjo',
+  // Open G. The fifth string is a high drone that sits beside the lowest one,
+  // so the set is re-entrant and root-in-the-bass scoring does not apply.
+  tuning: [67, 50, 55, 59, 62], // G4 D3 G3 B3 D4
+  stringNames: ['G', 'D', 'G', 'B', 'D'],
+  frets: 15,
+  reentrant: true,
+}
+
 export const INSTRUMENTS: Record<Instrument['id'], Instrument> = {
   guitar: GUITAR,
   ukulele: UKULELE,
+  cavaquinho: CAVAQUINHO,
+  viola: VIOLA_CAIPIRA,
+  bass: BASS,
+  mandolin: MANDOLIN,
+  banjo: BANJO,
 }
 
 /** `-1` means the string is muted; `0` is open; any other number is a fret. */

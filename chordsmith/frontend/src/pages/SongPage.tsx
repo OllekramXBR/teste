@@ -7,6 +7,7 @@ import { INSTRUMENTS } from '../lib/fretboard'
 import { mod12, parseLabel, QUALITY_LABELS, romanNumeral } from '../lib/theory'
 import { usePlayer } from '../hooks/usePlayer'
 import { ChordGrid, displayLabel, groupIntoBars } from '../components/ChordGrid'
+import { ChordPopover } from '../components/ChordPopover'
 import { ChordSheet } from '../components/ChordSheet'
 import { KaraokeView } from '../components/KaraokeView'
 import { LyricEditor } from '../components/LyricEditor'
@@ -85,6 +86,7 @@ export function SongPage() {
   const [busy, setBusy] = useState<string | null>(null)
   const [cifra, setCifra] = useState('')
   const [editingLyrics, setEditingLyrics] = useState(false)
+  const [popoverChord, setPopoverChord] = useState<string | null>(null)
 
   const engineRef = useRef<AudioEngine | null>(null)
   if (engineRef.current === null) engineRef.current = new AudioEngine()
@@ -595,9 +597,15 @@ export function SongPage() {
                 </span>
               )}
             </div>
-            <div className="mb-3 text-4xl font-bold text-indigo-600 dark:text-indigo-400">
+            <button
+              type="button"
+              onClick={() => displayedChord && setPopoverChord(displayedChord)}
+              disabled={!displayedChord}
+              title="Ver a digitação"
+              className="mb-3 block text-4xl font-bold text-accent transition hover:opacity-80"
+            >
               {displayedChord || '—'}
-            </div>
+            </button>
             {settings.capo > 0 && soundingChord && (
               <p className="mb-2 text-[11px] text-slate-500">
                 sounds as {soundingChord} with the capo on fret {settings.capo}
@@ -657,14 +665,16 @@ export function SongPage() {
                     )
                   : null
                 return (
-                  <span
+                  <button
+                    type="button"
                     key={label}
-                    title={numeral ? `${numeral} in the key` : 'borrowed from outside the key'}
-                    className="rounded bg-slate-100 px-2 py-1 text-xs font-semibold dark:bg-slate-700"
+                    onClick={() => setPopoverChord(shown)}
+                    title={numeral ? `${numeral} no tom` : 'fora do tom'}
+                    className="rounded bg-slate-100 px-2 py-1 text-xs font-semibold transition hover:bg-accent-soft dark:bg-slate-700"
                   >
                     {shown}
                     {numeral && <span className="ml-1 text-[9px] text-slate-400">{numeral}</span>}
-                  </span>
+                  </button>
                 )
               })}
             </div>
@@ -677,6 +687,14 @@ export function SongPage() {
           <Tuner />
         </aside>
       </div>
+
+      {popoverChord && (
+        <ChordPopover
+          label={popoverChord}
+          useFlats={analysis.useFlats}
+          onClose={() => setPopoverChord(null)}
+        />
+      )}
 
       <ChordSheet
         title={song.title}
