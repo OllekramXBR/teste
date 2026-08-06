@@ -36,7 +36,15 @@ ENV PYTHONUNBUFFERED=1 \
 WORKDIR /app
 
 COPY backend/requirements.txt ./backend/requirements.txt
-RUN pip install --no-cache-dir -r backend/requirements.txt
+# diffq, pulled in by the separation stack, publishes no wheel for this Python,
+# so a compiler has to exist while pip runs. It is installed and removed inside
+# one layer: kept in its own RUN it would stay in the image forever, since a
+# later layer cannot delete what an earlier one wrote.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends build-essential \
+    && pip install --no-cache-dir -r backend/requirements.txt \
+    && apt-get purge -y --auto-remove build-essential \
+    && rm -rf /var/lib/apt/lists/*
 
 COPY backend/ ./backend/
 COPY docker/entrypoint.sh /usr/local/bin/entrypoint.sh

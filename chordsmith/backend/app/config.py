@@ -45,15 +45,22 @@ ASR_THREADS = int(os.environ.get("CHORDSMITH_ASR_THREADS", "0"))
 # size of the original each — so they live beside the audio rather than in the
 # database, and can be deleted without losing the analysis.
 STEMS_DIR = DATA_DIR / "stems"
-STEM_MODEL = os.environ.get("CHORDSMITH_STEM_MODEL", "htdemucs")
-# Demucs is trained at 44.1 kHz stereo; changing this changes the model's input
-# distribution, not just the file size.
-STEM_SR = 44100
-STEM_FORMAT = os.environ.get("CHORDSMITH_STEM_FORMAT", "ogg")
-# Seconds of audio per inference chunk. Whole-track inference is where Demucs's
-# memory use gets out of hand; smaller segments cost a little speed and bound
-# the peak, which matters on a box that is also serving everything else.
-STEM_SEGMENT = float(os.environ.get("CHORDSMITH_STEM_SEGMENT", "10"))
+STEM_MODEL_DIR = Path(os.environ.get("CHORDSMITH_STEM_MODEL_DIR", DATA_DIR / "models" / "stems"))
+
+# Stage one splits the mix four ways. htdemucs is the balance point: htdemucs_ft
+# scores about a decibel better on vocals and takes four times as long, and
+# htdemucs_6s trades a little vocal quality for separate guitar and piano stems
+# — worth switching to when the goal is muting an instrument rather than a voice.
+STEM_MODEL_BASE = os.environ.get("CHORDSMITH_STEM_MODEL", "htdemucs.yaml")
+
+# Stage two splits that vocal stem into lead and backing. Demucs cannot do this
+# at any size — it has no notion of which voice is the lead — so it takes a
+# model trained for the job.
+STEM_MODEL_KARAOKE = os.environ.get("CHORDSMITH_STEM_KARAOKE_MODEL", "UVR_MDXNET_KARA_2.onnx")
+
+# MP3 keeps five stems small enough to load into the browser at once, which is
+# what the stage view does before it will let anyone press play.
+STEM_FORMAT = os.environ.get("CHORDSMITH_STEM_FORMAT", "mp3")
 
 CORS_ORIGINS = os.environ.get(
     "CHORDSMITH_CORS_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173"

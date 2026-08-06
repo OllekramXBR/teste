@@ -79,6 +79,35 @@ def enqueue(song_id: str, filename: str) -> None:
     get_executor().submit(_run_analysis, song_id, AUDIO_DIR / filename)
 
 
+def _run_stems(song_id: str, path: Path) -> None:
+    from .analysis.stems import separate
+
+    try:
+        storage.set_stems_status(song_id, "separating")
+        started = time.perf_counter()
+        written = separate(path, song_id)
+        storage.set_stems_status(song_id, "ready")
+        logger.info(
+            "separated %s into %d stems in %.1fs",
+            song_id,
+            len(written),
+            time.perf_counter() - started,
+        )
+    except Exception as exc:  # noqa: BLE001 - surfaced to the client verbatim
+        logger.exception("separation failed for %s", song_id)
+        storage.set_stems_status(song_id, "failed", error=str(exc))
+
+
+def enqueue_stems(song_id: str, filename: str) -> None:
+    """Queue a separation.
+
+    Two model passes over the whole recording, on a CPU. Minutes, not seconds —
+    which is exactly why it is asked for rather than done on upload.
+    """
+    storage.set_stems_status(song_id, "pending")
+    get_executor().submit(_run_stems, song_id, AUDIO_DIR / filename)
+
+
 def enqueue_lyrics(song_id: str, filename: str, model_name: str | None = None) -> None:
     """Queue a transcription.
 
@@ -108,6 +137,8 @@ def requeue_incomplete() -> int:
     # stuck showing a spinner either.
     for song_id in storage.stale_lyrics_ids():
         storage.set_lyrics_status(song_id, "failed", error="Interrupted by a restart")
+    for song_id in storage.stale_stems_ids():
+        storage.set_stems_status(song_id, "failed", error="Interrupted by a restart")
     return count
 
 

@@ -13,8 +13,14 @@ from fastapi.responses import FileResponse, Response, StreamingResponse
 from .. import jobs, storage, transcode
 # `cifra` only pulls in the theory primitives, not librosa, so importing it at
 # module level does not put the numba import back on the API's startup path.
-from ..analysis import cifra
-from ..config import ALLOWED_EXTENSIONS, AUDIO_DIR, MAX_UPLOAD_BYTES, NATIVE_EXTENSIONS
+from ..analysis import cifra, stems
+from ..config import (
+    ALLOWED_EXTENSIONS,
+    AUDIO_DIR,
+    MAX_UPLOAD_BYTES,
+    NATIVE_EXTENSIONS,
+    STEM_FORMAT,
+)
 from ..midi import build_midi
 
 router = APIRouter(prefix="/api/songs", tags=["songs"])
@@ -119,6 +125,7 @@ def delete_song(song_id: str) -> Response:
     if filename is None:
         raise HTTPException(status_code=404, detail="Song not found")
     (AUDIO_DIR / filename).unlink(missing_ok=True)
+    stems.delete_stems(song_id)
     return Response(status_code=204)
 
 
@@ -168,6 +175,60 @@ def delete_lyrics(song_id: str) -> Response:
     storage.set_lyrics_status(song_id, "none")
     storage.clear_lyrics(song_id)
     return Response(status_code=204)
+
+
+@router.post("/{song_id}/stems", status_code=202)
+def separate_stems(song_id: str) -> dict:
+    """Queue the two-pass separation for this song."""
+    stored = storage.get_song_file(song_id)
+    if stored is None:
+        raise HTTPException(status_code=404, detail="Song not found")
+    if not (AUDIO_DIR / stored[0]).exists():
+        raise HTTPException(status_code=410, detail="The audio file is no longer available")
+    jobs.enqueue_stems(song_id, stored[0])
+    return storage.get_song(song_id, include_analysis=False)  # type: ignore[return-value]
+
+
+@router.get("/{song_id}/stems")
+def list_stems(song_id: str) -> dict:
+    song = storage.get_song(song_id, include_analysis=False)
+    if not song:
+        raise HTTPException(status_code=404, detail="Song not found")
+    return {
+        "status": song["stemsStatus"],
+        "error": song["stemsError"],
+        "stems": [
+            {**stem.to_dict(), "url": f"/api/songs/{song_id}/stems/{stem.name}"}
+            for stem in stems.available_stems(song_id)
+        ],
+    }
+
+
+@router.delete("/{song_id}/stems", status_code=204)
+def remove_stems(song_id: str) -> Response:
+    if not storage.get_song(song_id, include_analysis=False):
+        raise HTTPException(status_code=404, detail="Song not found")
+    stems.delete_stems(song_id)
+    storage.set_stems_status(song_id, "none")
+    return Response(status_code=204)
+
+
+@router.get("/{song_id}/stems/{name}")
+def stream_stem(song_id: str, name: str) -> FileResponse:
+    """Serve one stem.
+
+    Plain FileResponse rather than the ranged reader used for the original
+    audio: the stage view fetches each stem whole and decodes it into memory
+    before playback, so there is nothing to seek within.
+    """
+    path = stems.stem_path(song_id, name)
+    if path is None:
+        raise HTTPException(status_code=404, detail="That stem has not been produced")
+    return FileResponse(
+        path,
+        media_type=f"audio/{STEM_FORMAT}",
+        headers={"Cache-Control": "private, max-age=86400"},
+    )
 
 
 @router.get("/{song_id}/cifra")

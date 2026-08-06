@@ -46,6 +46,8 @@ MIGRATIONS: dict[str, str] = {
     "lyrics": "ALTER TABLE songs ADD COLUMN lyrics TEXT",
     "lyrics_status": "ALTER TABLE songs ADD COLUMN lyrics_status TEXT NOT NULL DEFAULT 'none'",
     "lyrics_error": "ALTER TABLE songs ADD COLUMN lyrics_error TEXT",
+    "stems_status": "ALTER TABLE songs ADD COLUMN stems_status TEXT NOT NULL DEFAULT 'none'",
+    "stems_error": "ALTER TABLE songs ADD COLUMN stems_error TEXT",
 }
 
 
@@ -179,6 +181,23 @@ def stale_lyrics_ids() -> Iterable[str]:
     return [row["id"] for row in rows]
 
 
+def set_stems_status(song_id: str, status: str, error: str | None = None) -> None:
+    with _write_lock, connect() as connection:
+        connection.execute(
+            "UPDATE songs SET stems_status = ?, stems_error = ?, updated_at = ? WHERE id = ?",
+            (status, error, _now(), song_id),
+        )
+
+
+def stale_stems_ids() -> Iterable[str]:
+    """Separations left mid-flight by a process that died."""
+    with connect() as connection:
+        rows = connection.execute(
+            "SELECT id FROM songs WHERE stems_status IN ('pending', 'separating')"
+        ).fetchall()
+    return [row["id"] for row in rows]
+
+
 def _row_to_song(row: sqlite3.Row, include_analysis: bool) -> dict[str, Any]:
     song = {
         "id": row["id"],
@@ -197,6 +216,8 @@ def _row_to_song(row: sqlite3.Row, include_analysis: bool) -> dict[str, Any]:
         "audioUrl": f"/api/songs/{row['id']}/audio",
         "lyricsStatus": row["lyrics_status"] or "none",
         "lyricsError": row["lyrics_error"],
+        "stemsStatus": row["stems_status"] or "none",
+        "stemsError": row["stems_error"],
     }
     if include_analysis:
         song["analysis"] = json.loads(row["analysis"]) if row["analysis"] else None

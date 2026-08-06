@@ -13,6 +13,15 @@ scipy>=1.13
 # first use into the data volume.
 faster-whisper>=1.1
 
+# Source separation. Wraps the Demucs and UVR model families behind one
+# interface, which is what lets the two-pass split — mix into parts, then lead
+# vocal out of the vocal part — use one dependency instead of two. Weights are
+# not in the image; they download on first use into the data volume.
+#
+# One of its dependencies (diffq) ships no wheel, so the image needs a compiler
+# at build time. See the Dockerfile.
+audio-separator[cpu]>=0.30
+
 # Development / tests
 pytest>=8.0
 httpx>=0.27
