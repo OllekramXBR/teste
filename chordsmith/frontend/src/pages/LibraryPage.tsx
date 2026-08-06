@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import * as api from '../lib/api'
 import type { Song } from '../lib/api'
 import { formatTime } from '../components/Transport'
+import { LibraryBrowser } from '../components/LibraryBrowser'
 
 const POLL_INTERVAL_MS = 2000
 
@@ -164,6 +165,11 @@ export function LibraryPage() {
       </header>
 
       <Uploader onUploaded={(song) => setSongs((previous) => [song, ...(previous ?? [])])} />
+
+      <LibraryBrowser
+        artist=""
+        onImported={(song) => setSongs((previous) => [song, ...(previous ?? [])])}
+      />
 
       <input
         value={search}

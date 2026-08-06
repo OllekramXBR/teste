@@ -9,6 +9,7 @@ import { usePlayer } from '../hooks/usePlayer'
 import { ChordGrid, displayLabel, groupIntoBars } from '../components/ChordGrid'
 import { ChordSheet } from '../components/ChordSheet'
 import { KaraokeView } from '../components/KaraokeView'
+import { LyricEditor } from '../components/LyricEditor'
 import { ProductionCard } from '../components/ProductionCard'
 import { ChordToneLegend, FretDiagram } from '../components/FretDiagram'
 import { PianoDiagram } from '../components/PianoDiagram'
@@ -83,6 +84,7 @@ export function SongPage() {
   const [stems, setStems] = useState<api.Stem[]>([])
   const [busy, setBusy] = useState<string | null>(null)
   const [cifra, setCifra] = useState('')
+  const [editingLyrics, setEditingLyrics] = useState(false)
 
   const engineRef = useRef<AudioEngine | null>(null)
   if (engineRef.current === null) engineRef.current = new AudioEngine()
@@ -304,6 +306,21 @@ export function SongPage() {
     }
   }, [song])
 
+  const handleSaveLyrics = useCallback(
+    async (segments: api.LyricSegment[]) => {
+      if (!song) return
+      setBusy('edit')
+      try {
+        const { lyrics } = await api.editLyrics(song.id, segments)
+        setSong({ ...song, lyrics })
+        setEditingLyrics(false)
+      } finally {
+        setBusy(null)
+      }
+    },
+    [song],
+  )
+
   const handleReanalyze = useCallback(async () => {
     if (!song) return
     const updated = await api.reanalyze(song.id)
@@ -460,9 +477,34 @@ export function SongPage() {
             ))}
           </div>
 
+          {view === 'letra' && song.lyrics && editingLyrics && (
+            <LyricEditor
+              lyrics={song.lyrics}
+              currentTime={player.currentTime}
+              saving={busy === 'edit'}
+              onSeek={handleSeek}
+              onCancel={() => setEditingLyrics(false)}
+              onSave={handleSaveLyrics}
+            />
+          )}
+
           {view === 'letra' &&
+            !editingLyrics &&
             (song.lyrics ? (
               <div className="rounded-xl border border-slate-200 bg-panel dark:border-slate-800">
+                <div className="flex items-center justify-between gap-2 border-b border-slate-100 px-4 py-2.5 dark:border-slate-800">
+                  <span className="text-xs text-slate-500">
+                    {song.lyrics.wordCount} palavras
+                    {song.lyrics.edited ? ' · corrigida à mão' : ` · ${song.lyrics.model}`}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setEditingLyrics(true)}
+                    className="rounded-full border border-slate-300 px-3 py-1 text-xs font-medium transition hover:border-accent hover:text-accent dark:border-slate-700"
+                  >
+                    Corrigir letra
+                  </button>
+                </div>
                 <KaraokeView
                   lyrics={song.lyrics}
                   chords={analysis.chords

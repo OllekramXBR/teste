@@ -98,6 +98,8 @@ export interface Lyrics {
   wordCount: number
   audioSeconds: number
   transcribeSeconds?: number
+  /** True once a person has corrected it; the model no longer overwrites it. */
+  edited?: boolean
 }
 
 /** Stems are produced together, so one status covers the whole set. */
@@ -260,6 +262,42 @@ export function getLyrics(id: string): Promise<{
   lyrics: Lyrics | null
 }> {
   return request(`/api/songs/${id}/lyrics`)
+}
+
+export function editLyrics(id: string, segments: LyricSegment[]): Promise<{ lyrics: Lyrics }> {
+  return request(`/api/songs/${id}/lyrics`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ segments }),
+  })
+}
+
+export interface LibraryEntry {
+  name: string
+  path: string
+  isDir: boolean
+  bytes: number
+}
+
+export function browseLibrary(path = ''): Promise<{
+  enabled: boolean
+  path: string
+  parent: string | null
+  entries: LibraryEntry[]
+}> {
+  return request(`/api/library?path=${encodeURIComponent(path)}`)
+}
+
+export function importFromLibrary(path: string, artist = ''): Promise<Song> {
+  return request('/api/songs/import', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ path, artist }),
+  })
+}
+
+export function separateAll(): Promise<{ queued: number; songs: string[] }> {
+  return request('/api/songs/stems/all', { method: 'POST' })
 }
 
 export function separateStems(id: string): Promise<Song> {
