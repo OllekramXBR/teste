@@ -72,6 +72,9 @@ MIGRATIONS: dict[str, str] = {
     # on is not a migration, it is a data loss report.
     "owner_id": "ALTER TABLE songs ADD COLUMN owner_id TEXT",
     "shared": "ALTER TABLE songs ADD COLUMN shared INTEGER NOT NULL DEFAULT 1",
+    # The chords of a song, joined, so a list of a hundred songs can show them
+    # without parsing a hundred analysis blobs to find four labels each.
+    "chords_summary": "ALTER TABLE songs ADD COLUMN chords_summary TEXT",
 }
 
 SETLIST_MIGRATIONS: dict[str, str] = {
@@ -160,7 +163,7 @@ def save_analysis(song_id: str, analysis: dict[str, Any]) -> None:
             """
             UPDATE songs
                SET status = 'ready', error = NULL, analysis = ?, duration = ?,
-                   bpm = ?, key_name = ?, updated_at = ?
+                   bpm = ?, key_name = ?, chords_summary = ?, updated_at = ?
              WHERE id = ?
             """,
             (
@@ -168,6 +171,7 @@ def save_analysis(song_id: str, analysis: dict[str, Any]) -> None:
                 analysis.get("duration"),
                 analysis.get("bpm"),
                 (analysis.get("key") or {}).get("name"),
+                " ".join((analysis.get("uniqueChords") or [])[:12]),
                 _now(),
                 song_id,
             ),
@@ -255,6 +259,7 @@ def _row_to_song(row: sqlite3.Row, include_analysis: bool) -> dict[str, Any]:
         "lyricsError": row["lyrics_error"],
         "stemsStatus": row["stems_status"] or "none",
         "stemsError": row["stems_error"],
+        "chords": (row["chords_summary"] or "").split() if row["chords_summary"] else [],
         "ownerId": row["owner_id"],
         "shared": bool(row["shared"]),
     }

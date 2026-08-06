@@ -5,6 +5,7 @@ import type { Song } from '../lib/api'
 import { formatTime } from '../components/Transport'
 import { LibraryBrowser } from '../components/LibraryBrowser'
 import { Page, PageHeader } from '../components/Page'
+import { br } from '../lib/brazilian'
 
 const POLL_INTERVAL_MS = 2000
 
@@ -165,7 +166,6 @@ export function LibraryPage() {
       <Uploader onUploaded={(song) => setSongs((previous) => [song, ...(previous ?? [])])} />
 
       <LibraryBrowser
-        artist=""
         onImported={(song) => setSongs((previous) => [song, ...(previous ?? [])])}
       />
 
@@ -207,6 +207,14 @@ export function LibraryPage() {
                     {song.bpm ? ` · ${Math.round(song.bpm)} BPM` : ''}
                     {song.duration ? ` · ${formatTime(song.duration)}` : ''}
                   </p>
+                  {/* The chords, right in the list. It is the one thing that
+                      tells you at a glance whether a song is worth opening,
+                      and it costs nothing now that the summary is stored. */}
+                  {song.chords?.length ? (
+                    <p className="mt-0.5 truncate font-mono text-xs text-accent">
+                      {song.chords.map((chord) => br(chord)).join('  ')}
+                    </p>
+                  ) : null}
                   {song.status === 'failed' && song.error && (
                     <p className="truncate text-xs text-rose-500">{song.error}</p>
                   )}

@@ -131,6 +131,8 @@ export interface Song {
   createdAt: string
   updatedAt: string
   audioUrl: string
+  /** The song's chords, joined, for showing in a list without the analysis. */
+  chords?: string[]
   lyricsStatus: JobStatus
   lyricsError: string | null
   stemsStatus: JobStatus
@@ -270,6 +272,22 @@ export function editLyrics(id: string, segments: LyricSegment[]): Promise<{ lyri
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ segments }),
   })
+}
+
+export interface LibraryTrack {
+  name: string
+  path: string
+  artist: string
+  album: string
+  bytes: number
+}
+
+export function searchLibrary(query: string): Promise<{
+  enabled: boolean
+  tracks: LibraryTrack[]
+  indexed: number
+}> {
+  return request(`/api/library/search?q=${encodeURIComponent(query)}`)
 }
 
 export interface LibraryEntry {
