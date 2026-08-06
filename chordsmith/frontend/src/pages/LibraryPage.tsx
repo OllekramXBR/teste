@@ -8,6 +8,7 @@ import { Page, PageHeader } from '../components/Page'
 import { br } from '../lib/brazilian'
 
 const POLL_INTERVAL_MS = 2000
+const LAYOUT_KEY = 'metatron.libraryLayout.v1'
 
 function StatusBadge({ status }: { status: Song['status'] }) {
   const styles: Record<Song['status'], string> = {
@@ -54,6 +55,27 @@ function Cover({ song }: { song: Song }) {
       loading="lazy"
       onError={() => setFailed(true)}
       className="h-11 w-11 shrink-0 rounded-md object-cover"
+    />
+  )
+}
+
+/** The same picture at card size, with the same fallback. */
+function CoverLarge({ song }: { song: Song }) {
+  const [failed, setFailed] = useState(false)
+  if (failed) {
+    return (
+      <div className="flex h-full w-full items-center justify-center text-3xl font-semibold text-slate-400">
+        {song.title.trim().charAt(0).toUpperCase() || '♪'}
+      </div>
+    )
+  }
+  return (
+    <img
+      src={`/api/songs/${song.id}/cover`}
+      alt=""
+      loading="lazy"
+      onError={() => setFailed(true)}
+      className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
     />
   )
 }
@@ -160,6 +182,15 @@ export function LibraryPage() {
   const [songs, setSongs] = useState<Song[] | null>(null)
   const [search, setSearch] = useState('')
   const [error, setError] = useState<string | null>(null)
+  // Remembered, because it is a preference about how somebody reads, not a
+  // thing they want to re-choose on every visit.
+  const [layout, setLayout] = useState<'list' | 'grid'>(
+    () => (localStorage.getItem(LAYOUT_KEY) as 'list' | 'grid') || 'list',
+  )
+
+  useEffect(() => {
+    localStorage.setItem(LAYOUT_KEY, layout)
+  }, [layout])
 
   const refresh = useCallback(async (term: string) => {
     try {
@@ -196,12 +227,32 @@ export function LibraryPage() {
         onImported={(song) => setSongs((previous) => [song, ...(previous ?? [])])}
       />
 
-      <input
-        value={search}
-        onChange={(event) => setSearch(event.target.value)}
-        placeholder="Buscar na biblioteca"
-        className="w-full rounded-lg border border-slate-200 bg-panel px-3.5 py-2.5 text-sm transition-colors placeholder:text-slate-400 focus:border-accent focus:outline-none dark:border-slate-800"
-      />
+      <div className="flex items-center gap-2">
+        <input
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+          placeholder="Buscar na biblioteca"
+          className="w-full rounded-lg border border-slate-200 bg-panel px-3.5 py-2.5 text-sm transition-colors placeholder:text-slate-400 focus:border-accent focus:outline-none dark:border-slate-800"
+        />
+        <div className="flex shrink-0 items-center gap-1 rounded-lg bg-slate-200/70 p-1 dark:bg-slate-800">
+          {(['list', 'grid'] as const).map((option) => (
+            <button
+              key={option}
+              type="button"
+              onClick={() => setLayout(option)}
+              aria-pressed={layout === option}
+              title={option === 'list' ? 'Lista' : 'Grade'}
+              className={`rounded-md px-2.5 py-1.5 text-xs font-semibold transition-colors ${
+                layout === option
+                  ? 'bg-panel text-slate-900 shadow-sm dark:text-white'
+                  : 'text-slate-500'
+              }`}
+            >
+              {option === 'list' ? '☰' : '▦'}
+            </button>
+          ))}
+        </div>
+      </div>
 
       {error && <p className="text-sm text-rose-500">{error}</p>}
 
@@ -211,6 +262,28 @@ export function LibraryPage() {
         <p className="py-10 text-center text-sm text-slate-500">
           {search ? 'Nada corresponde a essa busca.' : 'Biblioteca vazia — suba uma faixa acima.'}
         </p>
+      ) : layout === 'grid' ? (
+        <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+          {songs.map((song) => (
+            <li key={song.id}>
+              <Link to={`/song/${song.id}`} className="group block">
+                <div className="aspect-square overflow-hidden rounded-lg bg-slate-200 dark:bg-slate-800">
+                  <CoverLarge song={song} />
+                </div>
+                <p className="mt-2 truncate text-sm font-medium tracking-tight">{song.title}</p>
+                <p className="truncate text-xs text-slate-500">
+                  {song.artist || 'Sem artista'}
+                  {song.keyName && ` · ${song.keyName}`}
+                </p>
+                {song.chords?.length ? (
+                  <p className="truncate font-mono text-xs text-accent">
+                    {song.chords.slice(0, 6).map((chord) => br(chord)).join(' ')}
+                  </p>
+                ) : null}
+              </Link>
+            </li>
+          ))}
+        </ul>
       ) : (
         <ul className="divide-y divide-slate-200 overflow-hidden rounded-xl border border-slate-200 dark:divide-slate-800">
           {songs.map((song) => (
