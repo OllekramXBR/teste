@@ -181,6 +181,66 @@ def transcribe(
     }
 
 
+def rebuild_from_segments(segments: list[dict], previous: dict | None = None) -> dict:
+    """Rebuild the word clock after a human has rewritten the lines.
+
+    Editing is offered per line rather than per word because that is the shape
+    the mistakes come in: the recogniser hears one wrong word inside a phrase it
+    otherwise got right, and asking someone to fix that word-by-word — with its
+    own start and end in seconds — would be worse than the mistake.
+
+    So a corrected line keeps its own start and end, and the words inside it are
+    laid out across that span in proportion to their length. Longer words get
+    more of the line, which is roughly how singing works and is certainly closer
+    than dividing the line equally. The karaoke highlight stays believable; it
+    stops being sample-accurate, which is a trade worth making for a lyric that
+    is actually right.
+    """
+    words: list[dict] = []
+    lines: list[dict] = []
+
+    for segment in segments:
+        text = str(segment.get("text", "")).strip()
+        start = float(segment.get("start", 0.0))
+        end = max(float(segment.get("end", start)), start)
+        if not text:
+            continue
+        lines.append({"start": round(start, 3), "end": round(end, 3), "text": text})
+
+        pieces = text.split()
+        # Whitespace between words is time too, so each word is weighted by its
+        # length plus one for the gap that follows it.
+        weights = [len(piece) + 1 for piece in pieces]
+        total = sum(weights) or 1
+        span = end - start
+        cursor = start
+        for piece, weight in zip(pieces, weights):
+            length = span * (weight / total)
+            words.append(
+                {
+                    "text": piece,
+                    "start": round(cursor, 3),
+                    "end": round(cursor + length, 3),
+                    # Full confidence: a human typed it. The karaoke view dims
+                    # words the model was unsure of, and an edited word should
+                    # never be dimmed.
+                    "probability": 1.0,
+                }
+            )
+            cursor += length
+
+    base = dict(previous or {})
+    base.update(
+        {
+            "words": words,
+            "segments": lines,
+            "wordCount": len(words),
+            "edited": True,
+        }
+    )
+    return base
+
+
 def transcribe_file(path, **kwargs) -> dict:
     """Convenience wrapper that loads the audio through the project's decoder."""
     from .pipeline import load_audio

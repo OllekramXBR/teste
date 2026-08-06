@@ -9,11 +9,13 @@ from pathlib import Path
 
 from fastapi import APIRouter, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.responses import FileResponse, Response, StreamingResponse
+from pydantic import BaseModel, Field
 
 from .. import jobs, storage, transcode
 # `cifra` only pulls in the theory primitives, not librosa, so importing it at
 # module level does not put the numba import back on the API's startup path.
 from ..analysis import cifra, stems
+from ..analysis import lyrics as lyrics_module
 from ..config import (
     ALLOWED_EXTENSIONS,
     AUDIO_DIR,
@@ -145,11 +147,25 @@ def reanalyze(song_id: str) -> dict:
 def transcribe_lyrics(
     song_id: str,
     model: str = Query("", max_length=40, description="Whisper size; empty uses the default"),
+    force: bool = Query(False, description="Discard corrections made by hand"),
 ) -> dict:
     """Queue a lyric transcription for this song."""
     stored = storage.get_song_file(song_id)
     if stored is None:
         raise HTTPException(status_code=404, detail="Song not found")
+
+    # Hand corrections outrank the model. Losing an evening's worth of them to a
+    # stray click on "transcribe again" is the kind of thing that stops someone
+    # trusting the tool with a set list.
+    existing = storage.get_lyrics(song_id)
+    if existing and existing.get("edited") and not force:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "This lyric was corrected by hand. Transcribing again would discard those "
+                "corrections; repeat with force=true to do it anyway."
+            ),
+        )
     if not (AUDIO_DIR / stored[0]).exists():
         raise HTTPException(status_code=410, detail="The audio file is no longer available")
     jobs.enqueue_lyrics(song_id, stored[0], model.strip() or None)
@@ -168,6 +184,36 @@ def get_lyrics(song_id: str) -> dict:
     }
 
 
+class LyricLine(BaseModel):
+    start: float = Field(ge=0)
+    end: float = Field(ge=0)
+    text: str = Field(max_length=2000)
+
+
+class LyricEdit(BaseModel):
+    segments: list[LyricLine] = Field(max_length=2000)
+
+
+@router.put("/{song_id}/lyrics")
+def edit_lyrics(song_id: str, edit: LyricEdit) -> dict:
+    """Replace the transcribed lines with corrected ones.
+
+    The recogniser will always get some words wrong, and a wrong word on a
+    screen someone is singing from is not a cosmetic problem. Corrections are
+    marked as such, and a later transcription refuses to overwrite them unless
+    it is asked to.
+    """
+    song = storage.get_song(song_id, include_analysis=False)
+    if not song:
+        raise HTTPException(status_code=404, detail="Song not found")
+
+    rebuilt = lyrics_module.rebuild_from_segments(
+        [line.model_dump() for line in edit.segments], storage.get_lyrics(song_id)
+    )
+    storage.save_lyrics(song_id, rebuilt)
+    return {"status": "ready", "lyrics": rebuilt}
+
+
 @router.delete("/{song_id}/lyrics", status_code=204)
 def delete_lyrics(song_id: str) -> Response:
     if not storage.get_song(song_id, include_analysis=False):
@@ -175,6 +221,13 @@ def delete_lyrics(song_id: str) -> Response:
     storage.set_lyrics_status(song_id, "none")
     storage.clear_lyrics(song_id)
     return Response(status_code=204)
+
+
+@router.post("/stems/all", status_code=202)
+def separate_everything() -> dict:
+    """Queue separation for the whole library, one song at a time."""
+    queued = jobs.enqueue_all_stems()
+    return {"queued": len(queued), "songs": queued}
 
 
 @router.post("/{song_id}/stems", status_code=202)

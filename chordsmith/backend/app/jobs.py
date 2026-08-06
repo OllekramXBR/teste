@@ -19,6 +19,7 @@ from .config import ANALYSIS_WORKERS, AUDIO_DIR
 logger = logging.getLogger(__name__)
 
 _executor: ThreadPoolExecutor | None = None
+_heavy_executor: ThreadPoolExecutor | None = None
 _executor_lock = threading.Lock()
 
 
@@ -32,12 +33,33 @@ def get_executor() -> ThreadPoolExecutor:
         return _executor
 
 
-def shutdown() -> None:
-    global _executor
+def get_heavy_executor() -> ThreadPoolExecutor:
+    """A queue of its own for source separation.
+
+    Separation takes minutes where analysis takes seconds, and both used to
+    share a pool of two. One separation therefore held half the capacity, and
+    two of them held all of it — a track uploaded in the meantime sat in the
+    queue behind eight minutes of model inference for no reason.
+
+    One worker, deliberately: the models are already using every core, so a
+    second concurrent separation would not finish two jobs faster, it would
+    just make the first one late.
+    """
+    global _heavy_executor
     with _executor_lock:
-        if _executor is not None:
-            _executor.shutdown(wait=False, cancel_futures=True)
-            _executor = None
+        if _heavy_executor is None:
+            _heavy_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="separation")
+        return _heavy_executor
+
+
+def shutdown() -> None:
+    global _executor, _heavy_executor
+    with _executor_lock:
+        for pool in (_executor, _heavy_executor):
+            if pool is not None:
+                pool.shutdown(wait=False, cancel_futures=True)
+        _executor = None
+        _heavy_executor = None
 
 
 def _run_analysis(song_id: str, path: Path) -> None:
@@ -105,7 +127,33 @@ def enqueue_stems(song_id: str, filename: str) -> None:
     which is exactly why it is asked for rather than done on upload.
     """
     storage.set_stems_status(song_id, "pending")
-    get_executor().submit(_run_stems, song_id, AUDIO_DIR / filename)
+    get_heavy_executor().submit(_run_stems, song_id, AUDIO_DIR / filename)
+
+
+def enqueue_all_stems() -> list[str]:
+    """Queue separation for every analysed song that has none yet.
+
+    The point is to be able to hand the library over and walk away: the queue is
+    served one song at a time and survives the browser being closed, because it
+    was never running there in the first place.
+    """
+    from .analysis import stems as stem_module
+
+    queued: list[str] = []
+    for song in storage.list_songs(limit=500):
+        if song["status"] != "ready":
+            continue
+        if song["stemsStatus"] in ("pending", "separating"):
+            continue
+        if stem_module.available_stems(song["id"]):
+            continue
+        stored = storage.get_song_file(song["id"])
+        if not stored or not (AUDIO_DIR / stored[0]).exists():
+            continue
+        enqueue_stems(song["id"], stored[0])
+        queued.append(song["id"])
+    logger.info("queued %d songs for separation", len(queued))
+    return queued
 
 
 def enqueue_lyrics(song_id: str, filename: str, model_name: str | None = None) -> None:
