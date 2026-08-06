@@ -296,6 +296,23 @@ export function importFromLibrary(path: string, artist = ''): Promise<Song> {
   })
 }
 
+export interface TranscribedTrack {
+  name: string
+  program: number
+  notes: { midi: number; start: number; end: number; velocity: number }[]
+}
+
+export function getTracks(id: string): Promise<{
+  status: 'none' | 'pending' | 'ready'
+  tracks: TranscribedTrack[]
+}> {
+  return request(`/api/songs/${id}/tracks`)
+}
+
+export function midiMultitrackUrl(id: string, transpose = 0): string {
+  return `/api/songs/${id}/midi?tracks=multi&transpose=${transpose}`
+}
+
 export function separateAll(): Promise<{ queued: number; songs: string[] }> {
   return request('/api/songs/stems/all', { method: 'POST' })
 }

@@ -442,6 +442,26 @@ def stream_audio(song_id: str, request: Request):
     )
 
 
+@router.get("/{song_id}/tracks")
+def get_tracks(song_id: str) -> dict:
+    """The per-stem transcription, for drawing notation.
+
+    Queues the work and reports ``pending`` rather than blocking, because
+    transcribing three stems is a minute of signal processing and a page that
+    hangs for a minute reads as broken.
+    """
+    if not storage.get_song(song_id, include_analysis=False):
+        raise HTTPException(status_code=404, detail="Song not found")
+    if not stems.available_stems(song_id):
+        return {"status": "none", "tracks": []}
+
+    cached = stems.STEMS_DIR / song_id / "tracks.json"
+    if not cached.exists():
+        jobs.enqueue_multitrack(song_id)
+        return {"status": "pending", "tracks": []}
+    return {"status": "ready", "tracks": json.loads(cached.read_text(encoding="utf-8"))}
+
+
 @router.get("/{song_id}/midi")
 def download_midi(
     song_id: str,

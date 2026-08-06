@@ -12,6 +12,7 @@ import { ChordSheet } from '../components/ChordSheet'
 import { KaraokeView } from '../components/KaraokeView'
 import { LyricEditor } from '../components/LyricEditor'
 import { ProductionCard } from '../components/ProductionCard'
+import { StaffNotation } from '../components/StaffNotation'
 import { ChordToneLegend, FretDiagram } from '../components/FretDiagram'
 import { PianoDiagram } from '../components/PianoDiagram'
 import { LeadSummary, TabStaff } from '../components/TabStaff'
@@ -19,13 +20,14 @@ import { Toolbar, type ToolbarSettings } from '../components/Toolbar'
 import { Transport } from '../components/Transport'
 import { Tuner } from '../components/Tuner'
 
-type View = 'chords' | 'tab' | 'letra' | 'cifra' | 'both'
+type View = 'chords' | 'tab' | 'letra' | 'cifra' | 'partitura' | 'both'
 
 const VIEW_LABELS: Record<View, string> = {
   chords: 'Grade',
   tab: 'Tablatura',
   letra: 'Letra',
   cifra: 'Cifra',
+  partitura: 'Partitura',
   both: 'Tudo',
 }
 
@@ -99,6 +101,10 @@ export function SongPage() {
   const [cifra, setCifra] = useState('')
   const [editingLyrics, setEditingLyrics] = useState(false)
   const [popoverChord, setPopoverChord] = useState<string | null>(null)
+  const [tracks, setTracks] = useState<{
+    status: 'none' | 'pending' | 'ready'
+    tracks: api.TranscribedTrack[]
+  }>({ status: 'none', tracks: [] })
 
   const engineRef = useRef<AudioEngine | null>(null)
   if (engineRef.current === null) engineRef.current = new AudioEngine()
@@ -304,6 +310,31 @@ export function SongPage() {
     }
   }, [view, song, settings.transpose, settings.capo])
 
+  // The transcription is queued by the first request, so opening the view is
+  // what starts it; polling stops as soon as it is ready.
+  useEffect(() => {
+    if (view !== 'partitura' || !song || song.status !== 'ready') return
+    let cancelled = false
+    let timer: number | undefined
+
+    const poll = async () => {
+      try {
+        const response = await api.getTracks(song.id)
+        if (cancelled) return
+        setTracks(response)
+        if (response.status === 'pending') timer = window.setTimeout(poll, 5000)
+      } catch {
+        if (!cancelled) setTracks({ status: 'none', tracks: [] })
+      }
+    }
+
+    void poll()
+    return () => {
+      cancelled = true
+      if (timer) window.clearTimeout(timer)
+    }
+  }, [view, song])
+
   const handleTranscribe = useCallback(async () => {
     if (!song) return
     setBusy('lyrics')
@@ -479,7 +510,7 @@ export function SongPage() {
             </p>
           )}
           <div className="flex items-center gap-1 rounded-lg bg-slate-200/70 p-1 dark:bg-slate-800">
-            {(['chords', 'tab', 'letra', 'cifra', 'both'] as View[]).map((option) => (
+            {(['chords', 'tab', 'letra', 'cifra', 'partitura', 'both'] as View[]).map((option) => (
               <button
                 key={option}
                 type="button"
@@ -545,6 +576,51 @@ export function SongPage() {
                 Ainda não transcrevi a letra desta música. O botão está no painel Produção.
               </p>
             ))}
+
+          {view === 'partitura' && (
+            <div className="space-y-4">
+              {tracks.status === 'none' && (
+                <p className="rounded-xl border border-dashed border-slate-300 p-8 text-center text-sm text-slate-500 dark:border-slate-700">
+                  A partitura vem das pistas separadas. Separe esta música primeiro.
+                </p>
+              )}
+              {tracks.status === 'pending' && (
+                <p className="rounded-xl border border-dashed border-slate-300 p-8 text-center text-sm text-slate-500 dark:border-slate-700">
+                  Transcrevendo cada pista. Leva cerca de um minuto — a página atualiza sozinha.
+                </p>
+              )}
+              {tracks.status === 'ready' && (
+                <>
+                  <div className="flex justify-end">
+                    <a
+                      href={api.midiMultitrackUrl(song.id, settings.transpose)}
+                      className="rounded-full border border-slate-300 px-3 py-1 text-xs font-medium transition hover:border-accent hover:text-accent dark:border-slate-700"
+                    >
+                      Baixar MIDI multipista
+                    </a>
+                  </div>
+                  {tracks.tracks.map((track) => (
+                    <section
+                      key={track.name}
+                      className="rounded-xl border border-slate-200 bg-panel p-4 dark:border-slate-800"
+                    >
+                      <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                        {track.name} · {track.notes.length} notas
+                      </h3>
+                      <StaffNotation
+                        track={track}
+                        bpm={analysis.bpm}
+                        beatsPerBar={analysis.beatsPerBar}
+                        useFlats={analysis.useFlats}
+                        currentTime={player.currentTime}
+                        onSeek={handleSeek}
+                      />
+                    </section>
+                  ))}
+                </>
+              )}
+            </div>
+          )}
 
           {view === 'cifra' && (
             <div className="rounded-xl border border-slate-200 bg-panel p-5 dark:border-slate-800">
