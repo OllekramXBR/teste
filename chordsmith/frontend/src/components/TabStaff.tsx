@@ -76,7 +76,7 @@ export function TabStaff({ lead, bars, currentTime, onSeek, autoScroll }: TabSta
 
   if (!barNotes.length) {
     return (
-      <div className="rounded-xl bg-slate-50 p-8 text-center text-sm text-slate-500 dark:bg-slate-900/60">
+      <div className="rounded-xl bg-slate-50 p-8 text-center text-sm text-ink-soft">
         No lead line was picked out of this track. Transcription follows the loudest melodic voice,
         so tracks that are all rhythm parts — or where the melody is buried — come back empty.
       </div>
@@ -86,7 +86,7 @@ export function TabStaff({ lead, bars, currentTime, onSeek, autoScroll }: TabSta
   return (
     <div
       ref={containerRef}
-      className="max-h-[58vh] overflow-y-auto rounded-xl bg-slate-50 p-3 dark:bg-slate-900/60"
+      className="max-h-[58vh] overflow-y-auto rounded-xl bg-slate-50 p-3"
     >
       <div
         className="grid gap-3"
@@ -103,12 +103,12 @@ export function TabStaff({ lead, bars, currentTime, onSeek, autoScroll }: TabSta
                 'relative rounded-lg border p-2 transition-colors',
                 isActive
                   ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-950/40'
-                  : 'border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800/60',
+                  : 'border-line bg-panel',
                 isSolo ? 'ring-2 ring-fuchsia-400/70' : '',
               ].join(' ')}
             >
               <div className="mb-1 flex items-center justify-between">
-                <span className="text-[9px] font-semibold text-slate-400">{bar.number}</span>
+                <span className="text-[9px] font-semibold text-ink-faint">{bar.number}</span>
                 {isSolo && (
                   <span className="rounded bg-fuchsia-500 px-1 text-[8px] font-bold uppercase text-white">
                     solo
@@ -126,7 +126,7 @@ export function TabStaff({ lead, bars, currentTime, onSeek, autoScroll }: TabSta
                     .map((name, index) => (
                       <span
                         key={name + index}
-                        className="absolute text-[8px] leading-none text-slate-400"
+                        className="absolute text-[8px] leading-none text-ink-faint"
                         style={{ top: TOP_PADDING + index * STRING_GAP - 3 }}
                       >
                         {name}
@@ -177,7 +177,7 @@ export function TabStaff({ lead, bars, currentTime, onSeek, autoScroll }: TabSta
                         className={`absolute -translate-x-1/2 -translate-y-1/2 rounded px-0.5 text-[10px] font-bold leading-tight tabular-nums ${
                           sounding
                             ? 'z-10 bg-indigo-600 text-white'
-                            : 'bg-white text-slate-700 dark:bg-slate-800 dark:text-slate-200'
+                            : 'bg-panel text-slate-700'
                         }`}
                         style={{
                           left: `${Math.min(Math.max(left, 2), 96)}%`,
@@ -210,7 +210,7 @@ export function LeadSummary({
   const solos = lead.sections.filter((section) => section.isSolo)
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-800/70">
+    <div className="rounded-xl border border-line bg-panel p-3">
       <h3 className="mb-2 text-sm font-semibold">
         Lead line — {lead.sections.length} section{lead.sections.length === 1 ? '' : 's'}
         {solos.length > 0 &&
@@ -226,7 +226,7 @@ export function LeadSummary({
             className={`rounded px-2 py-1 text-xs font-semibold transition-colors ${
               section.isSolo
                 ? 'bg-fuchsia-500 text-white hover:bg-fuchsia-400'
-                : 'bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-700 dark:text-slate-300'
+                : 'bg-slate-100 text-ink-soft hover:bg-slate-200 '
             }`}
           >
             bars {section.startBar}–{section.endBar}

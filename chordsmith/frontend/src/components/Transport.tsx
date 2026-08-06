@@ -56,7 +56,7 @@ export function Transport({
         )}
       </button>
 
-      <span className="w-12 shrink-0 text-right text-xs tabular-nums text-slate-500">
+      <span className="w-12 shrink-0 text-right text-xs tabular-nums text-ink-soft">
         {formatTime(currentTime)}
       </span>
 
@@ -72,7 +72,7 @@ export function Transport({
           if (event.key === 'ArrowRight') onSeek(currentTime + 5)
           if (event.key === 'ArrowLeft') onSeek(currentTime - 5)
         }}
-        className="relative h-8 flex-1 cursor-pointer overflow-hidden rounded-lg bg-slate-200 dark:bg-slate-700"
+        className="relative h-8 flex-1 cursor-pointer overflow-hidden rounded-lg bg-slate-200 "
       >
         {loopRegion && duration > 0 && (
           <div
@@ -98,7 +98,7 @@ export function Transport({
         />
       </div>
 
-      <span className="w-12 shrink-0 text-xs tabular-nums text-slate-500">
+      <span className="w-12 shrink-0 text-xs tabular-nums text-ink-soft">
         {formatTime(duration)}
       </span>
     </div>

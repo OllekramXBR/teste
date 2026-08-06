@@ -111,7 +111,7 @@ export function Tuner() {
   const inTune = reading !== null && Math.abs(cents) <= 5
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800/70">
+    <div className="rounded-xl border border-line bg-panel p-4">
       <div className="mb-3 flex items-center justify-between">
         <h3 className="text-sm font-semibold">Chromatic tuner</h3>
         <button
@@ -130,7 +130,7 @@ export function Tuner() {
       {error && <p className="text-xs text-rose-500">{error}</p>}
 
       {!active && !error && (
-        <p className="text-xs text-slate-500">
+        <p className="text-xs text-ink-soft">
           Uses your microphone to show the nearest note and how many cents off you are.
         </p>
       )}
@@ -140,22 +140,22 @@ export function Tuner() {
           <div className="text-center">
             <div
               className={`text-4xl font-bold tabular-nums ${
-                inTune ? 'text-emerald-500' : 'text-slate-700 dark:text-slate-200'
+                inTune ? 'text-emerald-500' : 'text-slate-700'
               }`}
             >
               {reading ? noteName(reading.midi % 12) : '—'}
               {reading && (
-                <span className="ml-1 align-super text-sm text-slate-400">
+                <span className="ml-1 align-super text-sm text-ink-faint">
                   {Math.floor(reading.midi / 12) - 1}
                 </span>
               )}
             </div>
-            <div className="text-xs text-slate-400 tabular-nums">
+            <div className="text-xs text-ink-faint tabular-nums">
               {reading ? `${reading.frequency.toFixed(1)} Hz · ${cents > 0 ? '+' : ''}${cents} cents` : 'play a note'}
             </div>
           </div>
 
-          <div className="relative h-3 rounded-full bg-slate-200 dark:bg-slate-700">
+          <div className="relative h-3 rounded-full bg-slate-200 ">
             <div className="absolute left-1/2 top-0 h-3 w-0.5 -translate-x-1/2 bg-slate-400" />
             {reading && (
               <div

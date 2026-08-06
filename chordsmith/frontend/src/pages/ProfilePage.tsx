@@ -26,7 +26,7 @@ export function ProfilePage({ user, onChanged }: { user: AuthUser | null; onChan
 
   if (!user) {
     return (
-      <p className="p-16 text-center text-sm text-slate-500">
+      <p className="p-16 text-center text-sm text-ink-soft">
         Entre para ver seu perfil. As contas estão criadas, mas o servidor ainda não exige login.
       </p>
     )
@@ -77,12 +77,12 @@ export function ProfilePage({ user, onChanged }: { user: AuthUser | null; onChan
             value={displayName}
             onChange={(event) => setDisplayName(event.target.value)}
             placeholder={user.username}
-            className="flex-1 rounded-lg border border-slate-200 bg-panel px-3.5 py-2.5 text-sm focus:border-accent focus:outline-none dark:border-slate-800"
+            className="flex-1 rounded-lg border border-line bg-panel px-3.5 py-2.5 text-sm focus:border-accent focus:outline-none "
           />
           <button
             type="button"
             onClick={() => void saveName()}
-            className="rounded-lg border border-slate-300 px-4 text-sm font-medium dark:border-slate-700"
+            className="rounded-lg border border-line px-4 text-sm font-medium "
           >
             Salvar
           </button>
@@ -97,7 +97,7 @@ export function ProfilePage({ user, onChanged }: { user: AuthUser | null; onChan
           onChange={(event) => setCurrent(event.target.value)}
           placeholder="senha atual"
           autoComplete="current-password"
-          className="w-full rounded-lg border border-slate-200 bg-panel px-3.5 py-2.5 text-sm focus:border-accent focus:outline-none dark:border-slate-800"
+          className="w-full rounded-lg border border-line bg-panel px-3.5 py-2.5 text-sm focus:border-accent focus:outline-none "
         />
         <input
           type="password"
@@ -105,17 +105,17 @@ export function ProfilePage({ user, onChanged }: { user: AuthUser | null; onChan
           onChange={(event) => setReplacement(event.target.value)}
           placeholder="senha nova (mínimo 8)"
           autoComplete="new-password"
-          className="w-full rounded-lg border border-slate-200 bg-panel px-3.5 py-2.5 text-sm focus:border-accent focus:outline-none dark:border-slate-800"
+          className="w-full rounded-lg border border-line bg-panel px-3.5 py-2.5 text-sm focus:border-accent focus:outline-none "
         />
         <button
           type="button"
           onClick={() => void savePassword()}
           disabled={!current || replacement.length < 8}
-          className="w-full rounded-lg bg-slate-900 py-2.5 text-sm font-semibold text-white disabled:opacity-40 dark:bg-white dark:text-slate-900"
+          className="w-full rounded-lg bg-ink py-2.5 text-sm font-semibold text-canvas disabled:opacity-40"
         >
           Trocar senha
         </button>
-        <p className="text-[11px] text-slate-400">
+        <p className="text-[11px] text-ink-faint">
           Trocar a senha encerra todas as sessões, inclusive esta. É de propósito: se você está
           trocando porque alguém entrou, deixar a sessão dele viva não adiantaria nada.
         </p>
@@ -123,18 +123,18 @@ export function ProfilePage({ user, onChanged }: { user: AuthUser | null; onChan
 
       <section>
         <h2 className="mb-2 text-sm font-semibold tracking-tight">Quem mais usa este servidor</h2>
-        <ul className="divide-y divide-slate-200 overflow-hidden rounded-xl border border-slate-200 dark:divide-slate-800 dark:border-slate-800">
+        <ul className="divide-y divide-line overflow-hidden rounded-xl border border-line ">
           {people.map((person) => (
             <li key={person.id} className="flex items-center justify-between bg-panel px-4 py-2.5">
               <span className="text-sm">{person.displayName || person.username}</span>
-              {person.id === user.id && <span className="text-xs text-slate-400">você</span>}
+              {person.id === user.id && <span className="text-xs text-ink-faint">você</span>}
             </li>
           ))}
           {!people.length && (
-            <li className="bg-panel px-4 py-3 text-xs text-slate-400">Só você, por enquanto.</li>
+            <li className="bg-panel px-4 py-3 text-xs text-ink-faint">Só você, por enquanto.</li>
           )}
         </ul>
-        <p className="mt-2 text-[11px] text-slate-400">
+        <p className="mt-2 text-[11px] text-ink-faint">
           As músicas são compartilhadas entre todos por padrão; as setlists não. Cada música pode
           ser tornada privada na página dela.
         </p>

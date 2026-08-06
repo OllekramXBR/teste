@@ -534,7 +534,7 @@ export function SongPage() {
     return (
       <Centered>
         <h2 className="text-lg font-semibold">Analysis failed</h2>
-        <p className="max-w-md text-center text-sm text-slate-500">{song.error}</p>
+        <p className="max-w-md text-center text-sm text-ink-soft">{song.error}</p>
         <button
           type="button"
           onClick={handleReanalyze}
@@ -549,9 +549,9 @@ export function SongPage() {
   if (song.status !== 'ready' || !analysis) {
     return (
       <Centered>
-        <div className="h-10 w-10 animate-spin rounded-full border-4 border-slate-300 border-t-indigo-600" />
+        <div className="h-10 w-10 animate-spin rounded-full border-4 border-line border-t-indigo-600" />
         <h2 className="text-lg font-semibold">Detecting beats and chords…</h2>
-        <p className="text-sm text-slate-500">
+        <p className="text-sm text-ink-soft">
           {song.title} — this usually takes a few seconds per minute of audio.
         </p>
       </Centered>
@@ -569,13 +569,13 @@ export function SongPage() {
   return (
     <div className="mx-auto max-w-6xl space-y-5 px-4 py-6 print:px-0 print:py-0">
       <div className="print:hidden">
-        <Link to="/" className="text-xs text-slate-500 hover:text-indigo-500">
+        <Link to="/" className="text-xs text-ink-soft hover:text-indigo-500">
           ← Library
         </Link>
         <div className="mt-2 flex flex-wrap items-end justify-between gap-3">
           <div>
             <h1 className="text-2xl font-bold">{song.title}</h1>
-            <p className="text-sm text-slate-500">
+            <p className="text-sm text-ink-soft">
               {song.artist || 'Unknown artist'} · {analysis.key.name} ·{' '}
               {Math.round(analysis.bpm)} BPM · {analysis.beatsPerBar}/4 ·{' '}
               {analysis.chords.length} chord changes
@@ -584,21 +584,21 @@ export function SongPage() {
           <div className="flex flex-wrap gap-2">
             <a
               href={api.midiUrl(song.id, settings.transpose)}
-              className="rounded border border-slate-300 px-3 py-1.5 text-xs font-semibold hover:bg-slate-100 dark:border-slate-600 dark:hover:bg-slate-700"
+              className="rounded border border-line px-3 py-1.5 text-xs font-semibold hover:bg-slate-100 dark:hover:bg-slate-700"
             >
               Download MIDI
             </a>
             <button
               type="button"
               onClick={() => window.print()}
-              className="rounded border border-slate-300 px-3 py-1.5 text-xs font-semibold hover:bg-slate-100 dark:border-slate-600 dark:hover:bg-slate-700"
+              className="rounded border border-line px-3 py-1.5 text-xs font-semibold hover:bg-slate-100 dark:hover:bg-slate-700"
             >
               Chord sheet (PDF)
             </button>
             <button
               type="button"
               onClick={handleReanalyze}
-              className="rounded border border-slate-300 px-3 py-1.5 text-xs font-semibold hover:bg-slate-100 dark:border-slate-600 dark:hover:bg-slate-700"
+              className="rounded border border-line px-3 py-1.5 text-xs font-semibold hover:bg-slate-100 dark:hover:bg-slate-700"
             >
               Re-analyse
             </button>
@@ -659,7 +659,7 @@ export function SongPage() {
             </p>
           )}
           <div className="flex items-center gap-3">
-            <div className="flex flex-1 items-center gap-1 overflow-x-auto rounded-lg bg-slate-200/70 p-1 dark:bg-slate-800">
+            <div className="flex flex-1 items-center gap-1 overflow-x-auto rounded-lg bg-slate-200/70 p-1 ">
             {(['chords', 'estudo', 'tab', 'letra', 'cifra', 'partitura', 'both'] as View[]).map((option) => (
               <button
                 key={option}
@@ -667,8 +667,8 @@ export function SongPage() {
                 onClick={() => setView(option)}
                 className={`shrink-0 rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
                   view === option
-                    ? 'bg-panel text-slate-900 shadow-sm dark:text-white'
-                    : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-200'
+                    ? 'bg-panel text-ink shadow-sm dark:text-white'
+                    : 'text-ink-soft hover:text-slate-700'
                 }`}
               >
                 {VIEW_LABELS[option]}
@@ -683,7 +683,7 @@ export function SongPage() {
               className={`shrink-0 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors ${
                 settings.simplify
                   ? 'border-accent bg-accent text-white'
-                  : 'border-slate-300 text-slate-500 dark:border-slate-700'
+                  : 'border-line text-ink-soft'
               }`}
             >
               Simplificar
@@ -695,7 +695,7 @@ export function SongPage() {
               className={`shrink-0 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors ${
                 settings.countIn
                   ? 'border-accent bg-accent text-white'
-                  : 'border-slate-300 text-slate-500 dark:border-slate-700'
+                  : 'border-line text-ink-soft'
               }`}
             >
               {settings.countIn ? `Contagem ${settings.countIn}` : 'Contagem'}
@@ -729,16 +729,16 @@ export function SongPage() {
           {view === 'letra' &&
             !editingLyrics &&
             (song.lyrics ? (
-              <div className="rounded-xl border border-slate-200 bg-panel dark:border-slate-800">
-                <div className="flex items-center justify-between gap-2 border-b border-slate-100 px-4 py-2.5 dark:border-slate-800">
-                  <span className="text-xs text-slate-500">
+              <div className="rounded-xl border border-line bg-panel ">
+                <div className="flex items-center justify-between gap-2 border-b border-line px-4 py-2.5 ">
+                  <span className="text-xs text-ink-soft">
                     {song.lyrics.wordCount} palavras
                     {song.lyrics.edited ? ' · corrigida à mão' : ` · ${song.lyrics.model}`}
                   </span>
                   <button
                     type="button"
                     onClick={() => setEditingLyrics(true)}
-                    className="rounded-full border border-slate-300 px-3 py-1 text-xs font-medium transition hover:border-accent hover:text-accent dark:border-slate-700"
+                    className="rounded-full border border-line px-3 py-1 text-xs font-medium transition hover:border-accent hover:text-accent "
                   >
                     Corrigir letra
                   </button>
@@ -761,7 +761,7 @@ export function SongPage() {
                 />
               </div>
             ) : (
-              <p className="rounded-xl border border-dashed border-slate-300 p-8 text-center text-sm text-slate-500 dark:border-slate-700">
+              <p className="rounded-xl border border-dashed border-line p-8 text-center text-sm text-ink-soft ">
                 Ainda não transcrevi a letra desta música. O botão está no painel Produção.
               </p>
             ))}
@@ -769,12 +769,12 @@ export function SongPage() {
           {view === 'partitura' && (
             <div className="space-y-4">
               {tracks.status === 'none' && (
-                <p className="rounded-xl border border-dashed border-slate-300 p-8 text-center text-sm text-slate-500 dark:border-slate-700">
+                <p className="rounded-xl border border-dashed border-line p-8 text-center text-sm text-ink-soft ">
                   A partitura vem das pistas separadas. Separe esta música primeiro.
                 </p>
               )}
               {tracks.status === 'pending' && (
-                <p className="rounded-xl border border-dashed border-slate-300 p-8 text-center text-sm text-slate-500 dark:border-slate-700">
+                <p className="rounded-xl border border-dashed border-line p-8 text-center text-sm text-ink-soft ">
                   Transcrevendo cada pista. Leva cerca de um minuto — a página atualiza sozinha.
                 </p>
               )}
@@ -783,7 +783,7 @@ export function SongPage() {
                   <div className="flex justify-end">
                     <a
                       href={api.midiMultitrackUrl(song.id, settings.transpose)}
-                      className="rounded-full border border-slate-300 px-3 py-1 text-xs font-medium transition hover:border-accent hover:text-accent dark:border-slate-700"
+                      className="rounded-full border border-line px-3 py-1 text-xs font-medium transition hover:border-accent hover:text-accent "
                     >
                       Baixar MIDI multipista
                     </a>
@@ -791,9 +791,9 @@ export function SongPage() {
                   {tracks.tracks.map((track) => (
                     <section
                       key={track.name}
-                      className="rounded-xl border border-slate-200 bg-panel p-4 dark:border-slate-800"
+                      className="rounded-xl border border-line bg-panel p-4 "
                     >
-                      <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                      <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-faint">
                         {track.name} · {track.notes.length} notas
                       </h3>
                       <StaffNotation
@@ -811,7 +811,7 @@ export function SongPage() {
           )}
 
           {view === 'cifra' && (
-            <div className="rounded-xl border border-slate-200 bg-panel p-5 dark:border-slate-800">
+            <div className="rounded-xl border border-line bg-panel p-5 ">
               <div className="mb-3 flex justify-end">
                 <a
                   href={api.cifraUrl(song.id, {
@@ -819,7 +819,7 @@ export function SongPage() {
                     capo: settings.capo,
                     download: true,
                   })}
-                  className="rounded-full border border-slate-300 px-3 py-1 text-xs font-medium transition hover:border-accent hover:text-accent dark:border-slate-700"
+                  className="rounded-full border border-line px-3 py-1 text-xs font-medium transition hover:border-accent hover:text-accent "
                 >
                   Baixar .txt
                 </a>
@@ -893,11 +893,11 @@ export function SongPage() {
             renderedKeys={renderedKeys}
           />
 
-          <div className="rounded-xl border border-slate-200 bg-panel p-4 dark:border-slate-800">
+          <div className="rounded-xl border border-line bg-panel p-4 ">
             <div className="mb-2 flex items-baseline justify-between">
               <h3 className="text-sm font-semibold">Now playing</h3>
               {parsedChord && (
-                <span className="text-[10px] uppercase tracking-wide text-slate-400">
+                <span className="text-[10px] uppercase tracking-wide text-ink-faint">
                   {QUALITY_LABELS[parsedChord.quality]}
                 </span>
               )}
@@ -912,7 +912,7 @@ export function SongPage() {
               {displayedChord || '—'}
             </button>
             {settings.capo > 0 && soundingChord && (
-              <p className="mb-2 text-[11px] text-slate-500">
+              <p className="mb-2 text-[11px] text-ink-soft">
                 sounds as {soundingChord} with the capo on fret {settings.capo}
               </p>
             )}
@@ -953,10 +953,10 @@ export function SongPage() {
             )}
           </div>
 
-          <details className="group rounded-xl border border-slate-200 bg-panel p-4 dark:border-slate-800">
+          <details className="group rounded-xl border border-line bg-panel p-4 ">
             <summary className="cursor-pointer list-none text-sm font-semibold marker:content-none">
               Acordes desta música
-              <span className="float-right text-xs font-normal text-slate-400 group-open:hidden">
+              <span className="float-right text-xs font-normal text-ink-faint group-open:hidden">
                 {analysis.uniqueChords.length}
               </span>
             </summary>
@@ -981,22 +981,22 @@ export function SongPage() {
                     key={label}
                     onClick={() => setPopoverChord(shown)}
                     title={numeral ? `${numeral} no tom` : 'fora do tom'}
-                    className="rounded bg-slate-100 px-2 py-1 text-xs font-semibold transition hover:bg-accent-soft dark:bg-slate-700"
+                    className="rounded bg-slate-100 px-2 py-1 text-xs font-semibold transition hover:bg-accent-soft "
                   >
                     {shown}
-                    {numeral && <span className="ml-1 text-[9px] text-slate-400">{numeral}</span>}
+                    {numeral && <span className="ml-1 text-[9px] text-ink-faint">{numeral}</span>}
                   </button>
                 )
               })}
             </div>
-              <p className="mt-3 text-[11px] text-slate-400">
+              <p className="mt-3 text-[11px] text-ink-faint">
                 Confiança do tom {Math.round(analysis.key.confidence * 100)}% · analisada em{' '}
                 {analysis.analysisSeconds}s
               </p>
             </div>
           </details>
 
-          <details className="rounded-xl border border-slate-200 bg-panel p-4 dark:border-slate-800">
+          <details className="rounded-xl border border-line bg-panel p-4 ">
             <summary className="cursor-pointer list-none text-sm font-semibold marker:content-none">
               Afinador
             </summary>

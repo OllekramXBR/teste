@@ -80,7 +80,7 @@ export function ChordPopover({ label, useFlats, onClose }: Props) {
       role="presentation"
     >
       <div
-        className="w-full max-w-md rounded-2xl border border-slate-200 bg-panel p-5 shadow-xl dark:border-slate-800"
+        className="w-full max-w-md rounded-2xl border border-line bg-panel p-5 shadow-xl "
         onClick={(event) => event.stopPropagation()}
         role="dialog"
         aria-label={`Acorde ${label}`}
@@ -89,7 +89,7 @@ export function ChordPopover({ label, useFlats, onClose }: Props) {
           <div>
             <p className="text-3xl font-bold tracking-tight">{label}</p>
             {parsed && (
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-ink-soft">
                 {QUALITY_LABELS[parsed.quality]} ·{' '}
                 {chordPitchClasses(parsed.root, parsed.quality)
                   .map((pitch) => noteName(mod12(pitch), useFlats))
@@ -100,7 +100,7 @@ export function ChordPopover({ label, useFlats, onClose }: Props) {
           <button
             type="button"
             onClick={onClose}
-            className="h-9 w-9 shrink-0 rounded-full border border-slate-300 text-sm text-slate-500 dark:border-slate-700"
+            className="h-9 w-9 shrink-0 rounded-full border border-line text-sm text-ink-soft "
             aria-label="Fechar"
           >
             ✕
@@ -116,8 +116,8 @@ export function ChordPopover({ label, useFlats, onClose }: Props) {
               className={[
                 'rounded-full border px-3 py-1 text-xs font-medium transition',
                 instrument === option
-                  ? 'border-slate-900 bg-slate-900 text-white dark:border-white dark:bg-white dark:text-slate-900'
-                  : 'border-slate-300 text-slate-600 dark:border-slate-700 dark:text-slate-400',
+                  ? 'border-ink bg-ink text-canvas'
+                  : 'border-line text-ink-soft  ',
               ].join(' ')}
             >
               {LABELS[option]}
@@ -126,7 +126,7 @@ export function ChordPopover({ label, useFlats, onClose }: Props) {
         </div>
 
         {!parsed ? (
-          <p className="py-8 text-center text-sm text-slate-500">
+          <p className="py-8 text-center text-sm text-ink-soft">
             Não sei desenhar “{label}”.
           </p>
         ) : instrument === 'piano' ? (
@@ -151,7 +151,7 @@ export function ChordPopover({ label, useFlats, onClose }: Props) {
             <button
               type="button"
               onClick={() => setVariant((previous) => (previous + 1) % SHAPES)}
-              className="rounded-full border border-slate-300 px-4 py-1.5 text-xs font-medium dark:border-slate-700"
+              className="rounded-full border border-line px-4 py-1.5 text-xs font-medium "
             >
               outra posição ({variant + 1}/{SHAPES})
             </button>

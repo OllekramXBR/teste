@@ -74,7 +74,7 @@ export function StaffNotation({
 
   if (!track.notes.length) {
     return (
-      <p className="px-4 py-6 text-center text-xs text-slate-500">
+      <p className="px-4 py-6 text-center text-xs text-ink-soft">
         Nada foi transcrito nesta pista.
       </p>
     )
@@ -89,7 +89,7 @@ export function StaffNotation({
         width={width}
         height={lineHeight * layout.lines.length}
         viewBox={`0 0 ${width} ${lineHeight * layout.lines.length}`}
-        className="text-slate-900 dark:text-slate-100"
+        className="text-ink"
         role="img"
         aria-label={`Partitura: ${track.name}`}
       >

@@ -52,13 +52,13 @@ export function SetlistsPage() {
           onChange={(event) => setName(event.target.value)}
           onKeyDown={(event) => event.key === 'Enter' && void create()}
           placeholder="Nome do show"
-          className="flex-1 rounded-lg border border-slate-200 bg-panel px-3.5 py-2.5 text-sm focus:border-accent focus:outline-none dark:border-slate-800"
+          className="flex-1 rounded-lg border border-line bg-panel px-3.5 py-2.5 text-sm focus:border-accent focus:outline-none "
         />
         <button
           type="button"
           onClick={() => void create()}
           disabled={!name.trim()}
-          className="rounded-lg bg-slate-900 px-5 text-sm font-semibold text-white disabled:opacity-40 dark:bg-white dark:text-slate-900"
+          className="rounded-lg bg-ink px-5 text-sm font-semibold text-canvas disabled:opacity-40"
         >
           Criar
         </button>
@@ -67,13 +67,13 @@ export function SetlistsPage() {
       {error && <p className="text-sm text-rose-500">{error}</p>}
 
       {setlists === null ? (
-        <p className="text-center text-sm text-slate-500">Carregando…</p>
+        <p className="text-center text-sm text-ink-soft">Carregando…</p>
       ) : !setlists.length ? (
-        <p className="py-10 text-center text-sm text-slate-500">
+        <p className="py-10 text-center text-sm text-ink-soft">
           Nenhuma setlist ainda. Crie uma acima.
         </p>
       ) : (
-        <ul className="divide-y divide-slate-200 overflow-hidden rounded-xl border border-slate-200 dark:divide-slate-800 dark:border-slate-800">
+        <ul className="divide-y divide-line overflow-hidden rounded-xl border border-line ">
           {setlists.map((setlist) => (
             <li key={setlist.id}>
               <Link
@@ -81,7 +81,7 @@ export function SetlistsPage() {
                 className="flex items-center justify-between gap-4 bg-panel p-4 transition-colors hover:bg-accent-soft"
               >
                 <span className="truncate font-medium tracking-tight">{setlist.name}</span>
-                <span className="shrink-0 text-xs text-slate-500">
+                <span className="shrink-0 text-xs text-ink-soft">
                   {setlist.songCount} {setlist.songCount === 1 ? 'música' : 'músicas'}
                 </span>
               </Link>
@@ -119,7 +119,7 @@ export function SetlistPage() {
   }
 
   if (error) return <p className="p-10 text-center text-sm text-rose-500">{error}</p>
-  if (!setlist) return <p className="p-10 text-center text-sm text-slate-500">Carregando…</p>
+  if (!setlist) return <p className="p-10 text-center text-sm text-ink-soft">Carregando…</p>
 
   const ids = setlist.songs.map((song) => song.id)
   const available = library.filter((song) => !ids.includes(song.id) && song.status === 'ready')
@@ -137,7 +137,7 @@ export function SetlistPage() {
   return (
     <Page>
       <div>
-        <Link to="/setlists" className="text-xs text-slate-500 hover:text-accent">
+        <Link to="/setlists" className="text-xs text-ink-soft hover:text-accent">
           ← Setlists
         </Link>
         <div className="mt-2">
@@ -147,7 +147,7 @@ export function SetlistPage() {
               first && (
                 <Link
                   to={`/song/${first.id}/perform?setlist=${setlist.id}`}
-                  className="rounded-lg bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white dark:bg-white dark:text-slate-900"
+                  className="rounded-lg bg-ink px-5 py-2.5 text-sm font-semibold text-canvas"
                 >
                   Começar o show
                 </Link>
@@ -158,19 +158,19 @@ export function SetlistPage() {
       </div>
 
       {!setlist.songs.length ? (
-        <p className="rounded-xl border border-dashed border-slate-300 p-8 text-center text-sm text-slate-500 dark:border-slate-700">
+        <p className="rounded-xl border border-dashed border-line p-8 text-center text-sm text-ink-soft ">
           Setlist vazia. Adicione músicas abaixo.
         </p>
       ) : (
-        <ol className="divide-y divide-slate-200 overflow-hidden rounded-xl border border-slate-200 dark:divide-slate-800 dark:border-slate-800">
+        <ol className="divide-y divide-line overflow-hidden rounded-xl border border-line ">
           {setlist.songs.map((song, index) => (
             <li key={song.id} className="flex items-center gap-3 bg-panel p-3">
-              <span className="w-6 shrink-0 text-center text-sm tabular-nums text-slate-400">
+              <span className="w-6 shrink-0 text-center text-sm tabular-nums text-ink-faint">
                 {index + 1}
               </span>
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium">{song.title}</p>
-                <p className="truncate text-xs text-slate-500">
+                <p className="truncate text-xs text-ink-soft">
                   {song.keyName ?? '—'}
                   {song.bpm ? ` · ${Math.round(song.bpm)} BPM` : ''}
                   {song.lyricsStatus === 'ready' ? ' · letra' : ''}
@@ -203,16 +203,16 @@ export function SetlistPage() {
       <section>
         <h2 className="mb-2 text-sm font-semibold tracking-tight">Adicionar da biblioteca</h2>
         {!available.length ? (
-          <p className="text-xs text-slate-500">Todas as músicas analisadas já estão na setlist.</p>
+          <p className="text-xs text-ink-soft">Todas as músicas analisadas já estão na setlist.</p>
         ) : (
-          <ul className="divide-y divide-slate-200 overflow-hidden rounded-xl border border-slate-200 dark:divide-slate-800 dark:border-slate-800">
+          <ul className="divide-y divide-line overflow-hidden rounded-xl border border-line ">
             {available.map((song) => (
               <li key={song.id} className="flex items-center gap-3 bg-panel p-3">
                 <span className="min-w-0 flex-1 truncate text-sm">{song.title}</span>
                 <button
                   type="button"
                   onClick={() => void save([...ids, song.id])}
-                  className="shrink-0 rounded-full border border-slate-300 px-3 py-1 text-xs font-medium hover:border-accent hover:text-accent dark:border-slate-700"
+                  className="shrink-0 rounded-full border border-line px-3 py-1 text-xs font-medium hover:border-accent hover:text-accent "
                 >
                   adicionar
                 </button>
@@ -243,7 +243,7 @@ function Arrow({
       disabled={disabled}
       aria-label={label}
       title={label}
-      className="h-10 w-10 rounded-lg border border-slate-300 text-sm text-slate-500 transition hover:border-accent hover:text-accent disabled:opacity-30 dark:border-slate-700"
+      className="h-10 w-10 rounded-lg border border-line text-sm text-ink-soft transition hover:border-accent hover:text-accent disabled:opacity-30 "
     >
       {children}
     </button>

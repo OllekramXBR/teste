@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { Link, Route, Routes, useLocation } from 'react-router-dom'
 
 import * as api from './lib/api'
+import { useTheme, type ThemeChoice } from './hooks/useTheme'
 import { ProfilePage } from './pages/ProfilePage'
 import { SignInPage } from './pages/SignInPage'
 import { DictionaryPage } from './pages/DictionaryPage'
@@ -16,6 +17,7 @@ export default function App() {
   // read from two metres away is one more thing to hit by accident.
   const bare = useLocation().pathname.endsWith('/perform')
   const [auth, setAuth] = useState<api.AuthState | null>(null)
+  const theme = useTheme()
 
   const refreshAuth = useCallback(() => {
     void api
@@ -31,16 +33,16 @@ export default function App() {
   // locking anybody out of a library that never had a login.
   if (auth?.required && !auth.user) {
     return (
-      <div className="min-h-screen bg-canvas text-slate-900 antialiased dark:text-slate-100">
+      <div className="min-h-screen bg-canvas text-ink antialiased ">
         <SignInPage onSignedIn={refreshAuth} />
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-canvas text-slate-900 antialiased dark:text-slate-100">
+    <div className="min-h-screen bg-canvas text-ink antialiased ">
       {!bare && (
-        <nav className="sticky top-0 z-20 border-b border-slate-200/80 bg-white/70 backdrop-blur-md print:hidden dark:border-slate-800 dark:bg-slate-950/70">
+        <nav className="sticky top-0 z-20 border-b border-line/80 bg-panel/80 backdrop-blur-md print:hidden ">
           <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-3">
             <Link
               to="/"
@@ -52,25 +54,26 @@ export default function App() {
             <div className="flex items-center gap-4 text-xs">
               <Link
                 to="/setlists"
-                className="text-slate-500 transition-colors hover:text-slate-900 dark:hover:text-slate-200"
+                className="text-ink-soft transition-colors hover:text-ink "
               >
                 Setlists
               </Link>
               <Link
                 to="/ouvir"
-                className="text-slate-500 transition-colors hover:text-slate-900 dark:hover:text-slate-200"
+                className="text-ink-soft transition-colors hover:text-ink "
               >
                 Ouvir
               </Link>
               <Link
                 to="/dicionario"
-                className="text-slate-500 transition-colors hover:text-slate-900 dark:hover:text-slate-200"
+                className="text-ink-soft transition-colors hover:text-ink "
               >
                 Acordes
               </Link>
+              <ThemeButton choice={theme.choice} onCycle={theme.cycle} />
               <a
                 href="/docs"
-                className="text-slate-500 transition-colors hover:text-slate-900 dark:hover:text-slate-200"
+                className="text-ink-soft transition-colors hover:text-ink "
                 target="_blank"
                 rel="noreferrer"
               >
@@ -79,7 +82,7 @@ export default function App() {
               {auth && !auth.user && (
                 <Link
                   to="/entrar"
-                  className="text-slate-500 transition-colors hover:text-slate-900 dark:hover:text-slate-200"
+                  className="text-ink-soft transition-colors hover:text-ink "
                 >
                   {auth.hasUsers ? 'Entrar' : 'Criar conta'}
                 </Link>
@@ -87,7 +90,7 @@ export default function App() {
               {auth?.user && (
                 <Link
                   to="/perfil"
-                  className="text-slate-500 transition-colors hover:text-slate-900 dark:hover:text-slate-200"
+                  className="text-ink-soft transition-colors hover:text-ink "
                 >
                   Perfil
                 </Link>
@@ -96,7 +99,7 @@ export default function App() {
                 <button
                   type="button"
                   onClick={() => void api.logout().then(refreshAuth)}
-                  className="rounded-full border border-slate-200 px-2.5 py-0.5 text-slate-500 transition-colors hover:text-slate-900 dark:border-slate-800 dark:hover:text-slate-200"
+                  className="rounded-full border border-line px-2.5 py-0.5 text-ink-soft transition-colors hover:text-ink "
                   title="Sair"
                 >
                   {auth.user.displayName || auth.user.username}
@@ -125,7 +128,7 @@ export default function App() {
             path="*"
             element={
               <div className="p-20 text-center">
-                <p className="text-slate-500">Esta página não existe.</p>
+                <p className="text-ink-soft">Esta página não existe.</p>
                 <Link to="/" className="mt-2 inline-block text-sm text-accent hover:underline">
                   Voltar para a biblioteca
                 </Link>
@@ -135,6 +138,40 @@ export default function App() {
         </Routes>
       </main>
     </div>
+  )
+}
+
+const THEME_LABEL: Record<ThemeChoice, string> = {
+  system: 'Sistema',
+  light: 'Claro',
+  dark: 'Escuro',
+}
+
+const THEME_ICON: Record<ThemeChoice, string> = {
+  system: '◐',
+  light: '☀',
+  dark: '☾',
+}
+
+/**
+ * Light, dark, or follow the machine.
+ *
+ * Three states rather than two, and "system" is one of them rather than the
+ * unspoken default, because a reader who has chosen a side should keep it when
+ * their laptop switches at sunset.
+ */
+function ThemeButton({ choice, onCycle }: { choice: ThemeChoice; onCycle: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onCycle}
+      title={`Tema: ${THEME_LABEL[choice].toLowerCase()} — toque para trocar`}
+      aria-label={`Tema: ${THEME_LABEL[choice]}`}
+      className="flex h-7 items-center gap-1.5 rounded-full border border-line px-2.5 text-ink-soft transition-colors hover:text-ink"
+    >
+      <span aria-hidden="true">{THEME_ICON[choice]}</span>
+      <span className="hidden sm:inline">{THEME_LABEL[choice]}</span>
+    </button>
   )
 }
 

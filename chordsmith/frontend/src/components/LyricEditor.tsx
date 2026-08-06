@@ -43,11 +43,11 @@ export function LyricEditor({ lyrics, currentTime, saving, onSave, onCancel, onS
   }
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-panel dark:border-slate-800">
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-4 py-3 dark:border-slate-800">
+    <div className="rounded-xl border border-line bg-panel ">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line px-4 py-3 ">
         <p className="text-sm">
           <span className="font-semibold">Corrigindo a letra</span>
-          <span className="ml-2 text-xs text-slate-500">
+          <span className="ml-2 text-xs text-ink-soft">
             {lines.length} linhas · clique no tempo para ouvir a linha
           </span>
         </p>
@@ -55,7 +55,7 @@ export function LyricEditor({ lyrics, currentTime, saving, onSave, onCancel, onS
           <button
             type="button"
             onClick={onCancel}
-            className="rounded-full border border-slate-300 px-4 py-1.5 text-xs font-medium dark:border-slate-700"
+            className="rounded-full border border-line px-4 py-1.5 text-xs font-medium "
           >
             Cancelar
           </button>
@@ -63,14 +63,14 @@ export function LyricEditor({ lyrics, currentTime, saving, onSave, onCancel, onS
             type="button"
             onClick={() => onSave(lines)}
             disabled={!dirty || saving}
-            className="rounded-full bg-slate-900 px-4 py-1.5 text-xs font-semibold text-white disabled:opacity-40 dark:bg-white dark:text-slate-900"
+            className="rounded-full bg-ink px-4 py-1.5 text-xs font-semibold text-canvas disabled:opacity-40"
           >
             {saving ? 'Salvando…' : 'Salvar'}
           </button>
         </div>
       </div>
 
-      <ul className="max-h-[30rem] divide-y divide-slate-100 overflow-y-auto dark:divide-slate-800">
+      <ul className="max-h-[30rem] divide-y divide-line overflow-y-auto ">
         {lines.map((line, index) => {
           const playing = currentTime >= line.start && currentTime < line.end
           return (
@@ -82,7 +82,7 @@ export function LyricEditor({ lyrics, currentTime, saving, onSave, onCancel, onS
                 <button
                   type="button"
                   onClick={() => onSeek?.(line.start)}
-                  className="mt-1.5 w-14 shrink-0 text-left text-[11px] tabular-nums text-slate-400 hover:text-accent"
+                  className="mt-1.5 w-14 shrink-0 text-left text-[11px] tabular-nums text-ink-faint hover:text-accent"
                   title="Ouvir esta linha"
                 >
                   {formatTime(line.start)}
@@ -99,7 +99,7 @@ export function LyricEditor({ lyrics, currentTime, saving, onSave, onCancel, onS
         })}
       </ul>
 
-      <p className="border-t border-slate-100 px-4 py-2.5 text-[11px] text-slate-400 dark:border-slate-800">
+      <p className="border-t border-line px-4 py-2.5 text-[11px] text-ink-faint ">
         Ao salvar, o tempo de cada palavra é redistribuído dentro da linha. A letra passa a contar
         como corrigida, e transcrever de novo não apaga o que você escreveu sem avisar.
       </p>

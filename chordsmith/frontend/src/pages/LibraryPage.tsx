@@ -15,7 +15,7 @@ function StatusBadge({ status }: { status: Song['status'] }) {
     ready: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300',
     failed: 'bg-rose-100 text-rose-700 dark:bg-rose-950/60 dark:text-rose-300',
     analyzing: 'bg-indigo-100 text-indigo-700 dark:bg-indigo-950/60 dark:text-indigo-300',
-    pending: 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300',
+    pending: 'bg-slate-100 text-ink-soft  ',
   }
   const labels: Record<Song['status'], string> = {
     ready: 'pronta',
@@ -43,7 +43,7 @@ function Cover({ song }: { song: Song }) {
   const [failed, setFailed] = useState(false)
   if (failed) {
     return (
-      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md bg-slate-200 text-sm font-semibold text-slate-400 dark:bg-slate-800">
+      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md bg-slate-200 text-sm font-semibold text-ink-faint ">
         {song.title.trim().charAt(0).toUpperCase() || '♪'}
       </div>
     )
@@ -64,7 +64,7 @@ function CoverLarge({ song }: { song: Song }) {
   const [failed, setFailed] = useState(false)
   if (failed) {
     return (
-      <div className="flex h-full w-full items-center justify-center text-3xl font-semibold text-slate-400">
+      <div className="flex h-full w-full items-center justify-center text-3xl font-semibold text-ink-faint">
         {song.title.trim().charAt(0).toUpperCase() || '♪'}
       </div>
     )
@@ -82,7 +82,7 @@ function CoverLarge({ song }: { song: Song }) {
 
 function Chip({ children }: { children: React.ReactNode }) {
   return (
-    <span className="shrink-0 rounded-full border border-slate-200 px-1.5 py-0.5 text-[10px] text-slate-500 dark:border-slate-700">
+    <span className="shrink-0 rounded-full border border-line px-1.5 py-0.5 text-[10px] text-ink-soft ">
       {children}
     </span>
   )
@@ -130,7 +130,7 @@ function Uploader({ onUploaded }: { onUploaded: (song: Song) => void }) {
         className={`cursor-pointer rounded-2xl border border-dashed p-10 text-center transition-colors ${
           dragging
             ? 'border-accent bg-accent-soft'
-            : 'border-slate-300 hover:border-accent dark:border-slate-700'
+            : 'border-line hover:border-accent'
         }`}
       >
         <input
@@ -147,11 +147,11 @@ function Uploader({ onUploaded }: { onUploaded: (song: Song) => void }) {
         <p className="text-[15px] font-semibold tracking-tight">
           Arraste um arquivo de áudio para tirar a cifra
         </p>
-        <p className="mt-1.5 text-xs text-slate-500">
+        <p className="mt-1.5 text-xs text-ink-soft">
           MP3, WAV, FLAC, OGG, AIFF, M4A · analisado aqui no servidor, nada sai da sua rede
         </p>
         {progress !== null && (
-          <div className="mx-auto mt-5 h-1 w-56 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-800">
+          <div className="mx-auto mt-5 h-1 w-56 overflow-hidden rounded-full bg-canvas">
             <div
               className="h-full bg-accent transition-all"
               style={{ width: `${Math.round(progress * 100)}%` }}
@@ -161,7 +161,7 @@ function Uploader({ onUploaded }: { onUploaded: (song: Song) => void }) {
       </div>
 
       <div className="flex items-center gap-2">
-        <label htmlFor="artist" className="shrink-0 text-xs text-slate-500">
+        <label htmlFor="artist" className="shrink-0 text-xs text-ink-soft">
           Artista do próximo envio
         </label>
         <input
@@ -169,7 +169,7 @@ function Uploader({ onUploaded }: { onUploaded: (song: Song) => void }) {
           value={artist}
           onChange={(event) => setArtist(event.target.value)}
           placeholder="opcional"
-          className="flex-1 rounded-lg border border-slate-200 bg-panel px-2.5 py-1.5 text-sm placeholder:text-slate-400 focus:border-accent focus:outline-none dark:border-slate-800"
+          className="flex-1 rounded-lg border border-line bg-panel px-2.5 py-1.5 text-sm placeholder:text-ink-faint focus:border-accent focus:outline-none "
         />
       </div>
 
@@ -232,9 +232,9 @@ export function LibraryPage() {
           value={search}
           onChange={(event) => setSearch(event.target.value)}
           placeholder="Buscar na biblioteca"
-          className="w-full rounded-lg border border-slate-200 bg-panel px-3.5 py-2.5 text-sm transition-colors placeholder:text-slate-400 focus:border-accent focus:outline-none dark:border-slate-800"
+          className="w-full rounded-lg border border-line bg-panel px-3.5 py-2.5 text-sm transition-colors placeholder:text-ink-faint focus:border-accent focus:outline-none "
         />
-        <div className="flex shrink-0 items-center gap-1 rounded-lg bg-slate-200/70 p-1 dark:bg-slate-800">
+        <div className="flex shrink-0 items-center gap-1 rounded-lg bg-slate-200/70 p-1 ">
           {(['list', 'grid'] as const).map((option) => (
             <button
               key={option}
@@ -244,8 +244,8 @@ export function LibraryPage() {
               title={option === 'list' ? 'Lista' : 'Grade'}
               className={`rounded-md px-2.5 py-1.5 text-xs font-semibold transition-colors ${
                 layout === option
-                  ? 'bg-panel text-slate-900 shadow-sm dark:text-white'
-                  : 'text-slate-500'
+                  ? 'bg-panel text-ink shadow-sm dark:text-white'
+                  : 'text-ink-soft'
               }`}
             >
               {option === 'list' ? '☰' : '▦'}
@@ -257,9 +257,9 @@ export function LibraryPage() {
       {error && <p className="text-sm text-rose-500">{error}</p>}
 
       {songs === null ? (
-        <p className="text-center text-sm text-slate-500">Carregando a biblioteca…</p>
+        <p className="text-center text-sm text-ink-soft">Carregando a biblioteca…</p>
       ) : songs.length === 0 ? (
-        <p className="py-10 text-center text-sm text-slate-500">
+        <p className="py-10 text-center text-sm text-ink-soft">
           {search ? 'Nada corresponde a essa busca.' : 'Biblioteca vazia — suba uma faixa acima.'}
         </p>
       ) : layout === 'grid' ? (
@@ -267,11 +267,11 @@ export function LibraryPage() {
           {songs.map((song) => (
             <li key={song.id}>
               <Link to={`/song/${song.id}`} className="group block">
-                <div className="aspect-square overflow-hidden rounded-lg bg-slate-200 dark:bg-slate-800">
+                <div className="aspect-square overflow-hidden rounded-lg bg-canvas">
                   <CoverLarge song={song} />
                 </div>
                 <p className="mt-2 truncate text-sm font-medium tracking-tight">{song.title}</p>
-                <p className="truncate text-xs text-slate-500">
+                <p className="truncate text-xs text-ink-soft">
                   {song.artist || 'Sem artista'}
                   {song.keyName && ` · ${song.keyName}`}
                 </p>
@@ -285,7 +285,7 @@ export function LibraryPage() {
           ))}
         </ul>
       ) : (
-        <ul className="divide-y divide-slate-200 overflow-hidden rounded-xl border border-slate-200 dark:divide-slate-800">
+        <ul className="divide-y divide-line overflow-hidden rounded-xl border border-line ">
           {songs.map((song) => (
             <li key={song.id}>
               <Link
@@ -302,7 +302,7 @@ export function LibraryPage() {
                     {song.lyricsStatus === 'ready' && <Chip>letra</Chip>}
                     {song.stemsStatus === 'ready' && <Chip>pistas</Chip>}
                   </div>
-                  <p className="truncate text-xs text-slate-500">
+                  <p className="truncate text-xs text-ink-soft">
                     {song.artist || 'Sem artista'}
                     {song.keyName && ` · ${song.keyName}`}
                     {song.bpm ? ` · ${Math.round(song.bpm)} BPM` : ''}
@@ -320,7 +320,7 @@ export function LibraryPage() {
                     <p className="truncate text-xs text-rose-500">{song.error}</p>
                   )}
                 </div>
-                <span className="shrink-0 text-xs text-slate-400">abrir →</span>
+                <span className="shrink-0 text-xs text-ink-faint">abrir →</span>
               </Link>
             </li>
           ))}

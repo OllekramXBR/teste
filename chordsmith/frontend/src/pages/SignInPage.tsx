@@ -54,7 +54,7 @@ export function SignInPage({ onSignedIn }: { onSignedIn: () => void }) {
       <h1 className="text-[26px] font-semibold tracking-tight">
         {mode === 'register' ? 'Criar conta' : 'Entrar'}
       </h1>
-      <p className="mb-6 mt-1 text-sm text-slate-500">
+      <p className="mb-6 mt-1 text-sm text-ink-soft">
         {mode === 'register'
           ? 'Esta é a primeira conta deste servidor.'
           : 'Entre para ver sua biblioteca e suas setlists.'}
@@ -66,7 +66,7 @@ export function SignInPage({ onSignedIn }: { onSignedIn: () => void }) {
           onChange={(event) => setUsername(event.target.value)}
           placeholder="usuário"
           autoComplete="username"
-          className="w-full rounded-lg border border-slate-200 bg-panel px-3.5 py-2.5 text-sm focus:border-accent focus:outline-none dark:border-slate-800"
+          className="w-full rounded-lg border border-line bg-panel px-3.5 py-2.5 text-sm focus:border-accent focus:outline-none "
         />
         <input
           type="password"
@@ -74,7 +74,7 @@ export function SignInPage({ onSignedIn }: { onSignedIn: () => void }) {
           onChange={(event) => setPassword(event.target.value)}
           placeholder="senha"
           autoComplete={mode === 'register' ? 'new-password' : 'current-password'}
-          className="w-full rounded-lg border border-slate-200 bg-panel px-3.5 py-2.5 text-sm focus:border-accent focus:outline-none dark:border-slate-800"
+          className="w-full rounded-lg border border-line bg-panel px-3.5 py-2.5 text-sm focus:border-accent focus:outline-none "
         />
 
         {error && <p className="text-sm text-rose-500">{error}</p>}
@@ -82,7 +82,7 @@ export function SignInPage({ onSignedIn }: { onSignedIn: () => void }) {
         <button
           type="submit"
           disabled={busy || username.length < 3 || password.length < 8}
-          className="w-full rounded-lg bg-slate-900 py-2.5 text-sm font-semibold text-white disabled:opacity-40 dark:bg-white dark:text-slate-900"
+          className="w-full rounded-lg bg-ink py-2.5 text-sm font-semibold text-canvas disabled:opacity-40"
         >
           {busy ? '…' : mode === 'register' ? 'Criar conta' : 'Entrar'}
         </button>
@@ -92,13 +92,13 @@ export function SignInPage({ onSignedIn }: { onSignedIn: () => void }) {
         <button
           type="button"
           onClick={() => setMode(mode === 'register' ? 'login' : 'register')}
-          className="mt-4 text-xs text-slate-500 hover:text-accent"
+          className="mt-4 text-xs text-ink-soft hover:text-accent"
         >
           {mode === 'register' ? 'Já tenho conta' : 'Criar outra conta'}
         </button>
       )}
 
-      <p className="mt-6 text-[11px] text-slate-400">
+      <p className="mt-6 text-[11px] text-ink-faint">
         A senha é guardada com PBKDF2 e sal próprio. Ninguém, nem o servidor, consegue lê-la de
         volta.
       </p>

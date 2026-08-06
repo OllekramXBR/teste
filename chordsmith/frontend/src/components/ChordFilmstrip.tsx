@@ -83,7 +83,7 @@ export function ChordFilmstrip({
 
   if (!cards.length) {
     return (
-      <p className="rounded-xl border border-dashed border-slate-300 p-8 text-center text-sm text-slate-500 dark:border-slate-700">
+      <p className="rounded-xl border border-dashed border-line p-8 text-center text-sm text-ink-soft ">
         Nenhum acorde detectado nesta música.
       </p>
     )
@@ -92,7 +92,7 @@ export function ChordFilmstrip({
   return (
     <div
       ref={containerRef}
-      className="flex gap-3 overflow-x-auto rounded-xl border border-slate-200 bg-panel p-4 dark:border-slate-800"
+      className="flex gap-3 overflow-x-auto rounded-xl border border-line bg-panel p-4 "
     >
       {cards.map((card, index) => {
         const parsed = parseLabel(card.label)
@@ -134,7 +134,7 @@ export function ChordFilmstrip({
                   width={92}
                 />
               ))}
-            <span className="text-[10px] tabular-nums text-slate-400">
+            <span className="text-[10px] tabular-nums text-ink-faint">
               {formatTime(card.start)}
             </span>
           </button>

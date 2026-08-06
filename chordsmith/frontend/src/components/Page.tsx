@@ -55,7 +55,7 @@ export function PageHeader({
         <h1 className="text-[26px] font-semibold leading-tight tracking-tight">{title}</h1>
         {description && (
           <p
-            className={`mt-1.5 text-sm leading-relaxed text-slate-500 ${
+            className={`mt-1.5 text-sm leading-relaxed text-ink-soft ${
               centered ? 'mx-auto max-w-lg' : ''
             }`}
           >
@@ -80,7 +80,7 @@ export function Card({
 }) {
   return (
     <section
-      className={`rounded-xl border border-slate-200 bg-panel dark:border-slate-800 ${
+      className={`rounded-xl border border-line bg-panel  ${
         padded ? 'p-4' : ''
       } ${className}`}
     >

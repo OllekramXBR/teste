@@ -93,13 +93,13 @@ export function ChordGrid({
   }, [activeBarNumber, autoScroll])
 
   if (!bars.length) {
-    return <p className="p-8 text-center text-slate-500">No chords were detected in this track.</p>
+    return <p className="p-8 text-center text-ink-soft">No chords were detected in this track.</p>
   }
 
   return (
     <div
       ref={containerRef}
-      className="max-h-[58vh] overflow-y-auto rounded-xl bg-slate-50 p-3 dark:bg-slate-900/60"
+      className="max-h-[58vh] overflow-y-auto rounded-xl bg-slate-50 p-3"
     >
       <div
         className="grid gap-2"
@@ -116,7 +116,7 @@ export function ChordGrid({
                 'group relative rounded-lg border p-1 transition-colors',
                 isActive
                   ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-950/40'
-                  : 'border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800/60',
+                  : 'border-line bg-panel',
                 inLoop ? 'ring-2 ring-amber-400/70' : '',
               ].join(' ')}
             >
@@ -124,7 +124,7 @@ export function ChordGrid({
                 type="button"
                 onClick={(event) => onBarSelect(bar.number, event.shiftKey)}
                 title="Click to set the loop start, shift-click to set the loop end"
-                className="absolute -top-1.5 left-1 rounded bg-slate-200 px-1 text-[9px] font-semibold text-slate-500 hover:bg-amber-300 hover:text-slate-900 dark:bg-slate-700 dark:text-slate-400"
+                className="absolute -top-1.5 left-1 rounded bg-slate-200 px-1 text-[9px] font-semibold text-ink-soft hover:bg-amber-300 hover:text-ink "
               >
                 {bar.number}
               </button>
@@ -147,7 +147,7 @@ export function ChordGrid({
                         'flex h-12 flex-1 flex-col items-center justify-center rounded text-sm font-semibold transition-all',
                         isCurrent
                           ? 'scale-105 bg-indigo-600 text-white shadow-lg'
-                          : 'bg-slate-100 text-slate-700 hover:bg-slate-200 dark:bg-slate-700/60 dark:text-slate-200 dark:hover:bg-slate-600',
+                          : 'bg-slate-100 text-slate-700 hover:bg-slate-200 /60 dark:hover:bg-slate-600',
                         isRepeat && !isCurrent ? 'opacity-45' : '',
                       ].join(' ')}
                     >

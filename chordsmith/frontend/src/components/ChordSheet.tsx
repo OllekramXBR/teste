@@ -20,8 +20,8 @@ export function ChordSheet({ title, artist, analysis, transpose, capo }: ChordSh
   return (
     <div className="chord-sheet hidden print:block">
       <h1 className="text-2xl font-bold">{title}</h1>
-      {artist && <p className="text-sm text-slate-600">{artist}</p>}
-      <p className="mt-1 text-xs text-slate-600">
+      {artist && <p className="text-sm text-ink-soft">{artist}</p>}
+      <p className="mt-1 text-xs text-ink-soft">
         {analysis.key.name}
         {transpose !== 0 && ` · transposed ${transpose > 0 ? '+' : ''}${transpose}`}
         {capo > 0 && ` · capo fret ${capo}`} · {Math.round(analysis.bpm)} BPM ·{' '}
@@ -36,8 +36,8 @@ export function ChordSheet({ title, artist, analysis, transpose, capo }: ChordSh
             if (!labels.length || labels[labels.length - 1] !== label) labels.push(label)
           }
           return (
-            <div key={bar.number} className="border-b border-slate-300 pb-1">
-              <div className="text-[8px] text-slate-400">{bar.number}</div>
+            <div key={bar.number} className="border-b border-line pb-1">
+              <div className="text-[8px] text-ink-faint">{bar.number}</div>
               <div className="text-sm font-semibold">
                 {labels.filter(Boolean).join('  ') || '–'}
               </div>

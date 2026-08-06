@@ -32,7 +32,7 @@ export function FretDiagram({
 
   if (!fingering) {
     return (
-      <div className="flex h-32 items-center justify-center text-xs text-slate-500">
+      <div className="flex h-32 items-center justify-center text-xs text-ink-soft">
         No playable shape
       </div>
     )
@@ -173,14 +173,14 @@ export function FretDiagram({
 /** Legend describing what the coloured dots mean. */
 export function ChordToneLegend({ quality }: { quality: string }) {
   return (
-    <div className="flex flex-wrap items-center gap-2 text-[10px] text-slate-500">
+    <div className="flex flex-wrap items-center gap-2 text-[10px] text-ink-soft">
       <span className="flex items-center gap-1">
         <span className="inline-block h-2.5 w-2.5 rounded-full bg-amber-400" /> root
       </span>
       <span className="flex items-center gap-1">
         <span className="inline-block h-2.5 w-2.5 rounded-full bg-indigo-500" /> chord tone
       </span>
-      <span className="text-slate-400">{intervalNames(quality).join(' · ')}</span>
+      <span className="text-ink-faint">{intervalNames(quality).join(' · ')}</span>
     </div>
   )
 }

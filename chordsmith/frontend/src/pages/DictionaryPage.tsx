@@ -32,14 +32,14 @@ export function DictionaryPage() {
         <button
           type="button"
           onClick={() => setUseFlats((previous) => !previous)}
-          className="rounded-full border border-slate-300 px-3 py-1 text-xs font-medium dark:border-slate-700"
+          className="rounded-full border border-line px-3 py-1 text-xs font-medium "
         >
           {useFlats ? 'bemóis (Bb)' : 'sustenidos (A#)'}
         </button>
         <select
           value={quality ?? ''}
           onChange={(event) => setQuality(event.target.value || null)}
-          className="rounded-full border border-slate-300 bg-panel px-3 py-1 text-xs dark:border-slate-700"
+          className="rounded-full border border-line bg-panel px-3 py-1 text-xs "
         >
           <option value="">todas as qualidades</option>
           {qualities.map((option) => (
@@ -53,7 +53,7 @@ export function DictionaryPage() {
       <div className="space-y-5">
         {shown.map((option) => (
           <section key={option}>
-            <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
+            <h2 className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-faint">
               {QUALITY_LABELS[option] ?? (option || "maior")}
             </h2>
             <div className="flex flex-wrap gap-1.5">
@@ -64,7 +64,7 @@ export function DictionaryPage() {
                     key={`${root}-${option}`}
                     type="button"
                     onClick={() => setSelected(br(label))}
-                    className="rounded-lg border border-slate-200 bg-panel px-3 py-2 text-sm font-semibold transition hover:border-accent hover:text-accent dark:border-slate-800"
+                    className="rounded-lg border border-line bg-panel px-3 py-2 text-sm font-semibold transition hover:border-accent hover:text-accent "
                   >
                     {br(label)}
                   </button>
@@ -75,7 +75,7 @@ export function DictionaryPage() {
         ))}
       </div>
 
-      <p className="text-[11px] text-slate-400">
+      <p className="text-[11px] text-ink-faint">
         As formas são procuradas no braço de cada instrumento, não tiradas de uma tabela — por isso
         cavaquinho e viola caipira funcionam igual ao violão. {ALL_KEYS.length * qualities.length}{' '}
         acordes ao todo, sem contar as posições alternativas de cada um.

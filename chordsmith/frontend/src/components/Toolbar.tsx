@@ -32,7 +32,7 @@ const RATES = [0.5, 0.65, 0.75, 0.9, 1, 1.15, 1.25]
 function Control({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="flex min-w-0 flex-col gap-1">
-      <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+      <span className="text-[10px] font-semibold uppercase tracking-wide text-ink-faint">
         {label}
       </span>
       {children}
@@ -60,7 +60,7 @@ function Stepper({
         aria-label="Decrease"
         disabled={value <= min}
         onClick={() => onChange(value - 1)}
-        className="h-7 w-7 rounded bg-slate-200 text-sm font-bold text-slate-700 disabled:opacity-40 hover:bg-slate-300 dark:bg-slate-700 dark:text-slate-200"
+        className="h-7 w-7 rounded bg-slate-200 text-sm font-bold text-slate-700 disabled:opacity-40 hover:bg-slate-300 "
       >
         −
       </button>
@@ -70,7 +70,7 @@ function Stepper({
         aria-label="Increase"
         disabled={value >= max}
         onClick={() => onChange(value + 1)}
-        className="h-7 w-7 rounded bg-slate-200 text-sm font-bold text-slate-700 disabled:opacity-40 hover:bg-slate-300 dark:bg-slate-700 dark:text-slate-200"
+        className="h-7 w-7 rounded bg-slate-200 text-sm font-bold text-slate-700 disabled:opacity-40 hover:bg-slate-300 "
       >
         +
       </button>
@@ -113,7 +113,7 @@ export function Toolbar({
   const soundingKey = noteName(keyTonic + settings.transpose, useFlats)
 
   return (
-    <div className="flex flex-wrap items-end gap-x-6 gap-y-4 rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800/70">
+    <div className="flex flex-wrap items-end gap-x-6 gap-y-4 rounded-xl border border-line bg-panel p-4">
       <Control label="Transpose">
         <Stepper
           value={settings.transpose}
@@ -122,7 +122,7 @@ export function Toolbar({
           onChange={(next) => onChange({ transpose: next })}
           format={(value) => (value > 0 ? `+${value}` : `${value}`)}
         />
-        <span className="text-[10px] text-slate-400">
+        <span className="text-[10px] text-ink-faint">
           sounds in {soundingKey} {keyMode}
         </span>
       </Control>
@@ -135,14 +135,14 @@ export function Toolbar({
           onChange={(next) => onChange({ capo: next })}
           format={(value) => (value === 0 ? 'off' : `fret ${value}`)}
         />
-        <span className="text-[10px] text-slate-400">shapes change, pitch does not</span>
+        <span className="text-[10px] text-ink-faint">shapes change, pitch does not</span>
       </Control>
 
       <Control label="Tempo">
         <select
           value={settings.rate}
           onChange={(event) => onChange({ rate: Number(event.target.value) })}
-          className="h-7 rounded border border-slate-300 bg-white px-2 text-sm dark:border-slate-600 dark:bg-slate-700"
+          className="h-7 rounded border border-line bg-panel px-2 text-sm "
         >
           {RATES.map((rate) => (
             <option key={rate} value={rate}>
@@ -150,7 +150,7 @@ export function Toolbar({
             </option>
           ))}
         </select>
-        <span className="text-[10px] text-slate-400">pitch preserved</span>
+        <span className="text-[10px] text-ink-faint">pitch preserved</span>
       </Control>
 
       <Control label="Instrument">
@@ -159,7 +159,7 @@ export function Toolbar({
           onChange={(event) =>
             onChange({ instrument: event.target.value as ToolbarSettings['instrument'] })
           }
-          className="h-7 rounded border border-slate-300 bg-white px-2 text-sm dark:border-slate-600 dark:bg-slate-700"
+          className="h-7 rounded border border-line bg-panel px-2 text-sm "
         >
           <option value="guitar">Guitar</option>
           <option value="ukulele">Ukulele</option>
@@ -196,12 +196,12 @@ export function Toolbar({
           <button
             type="button"
             onClick={onClearLoop}
-            className="h-7 rounded bg-amber-400 px-3 text-xs font-semibold text-slate-900 hover:bg-amber-300"
+            className="h-7 rounded bg-amber-400 px-3 text-xs font-semibold text-ink hover:bg-amber-300"
           >
             bars {loopBars.start}–{loopBars.end} · clear
           </button>
         ) : (
-          <span className="text-[11px] text-slate-400">click a bar number to start</span>
+          <span className="text-[11px] text-ink-faint">click a bar number to start</span>
         )}
       </Control>
 
@@ -216,7 +216,7 @@ export function Toolbar({
           }`}
         >
           <span
-            className={`block h-5 w-5 rounded-full bg-white transition-transform ${
+            className={`block h-5 w-5 rounded-full bg-panel transition-transform ${
               settings.autoScroll ? 'translate-x-7' : ''
             }`}
           />

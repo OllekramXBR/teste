@@ -31,7 +31,7 @@ export function ProductionCard({ song, stems, busy, onTranscribe, onSeparate }: 
   const canPerform = stems.length > 0 && song.lyricsStatus === 'ready'
 
   return (
-    <section className="rounded-xl border border-slate-200 bg-panel p-4 dark:border-slate-800">
+    <section className="rounded-xl border border-line bg-panel p-4 ">
       <h3 className="mb-3 text-sm font-semibold tracking-tight">Produção</h3>
 
       <Row
@@ -63,7 +63,7 @@ export function ProductionCard({ song, stems, busy, onTranscribe, onSeparate }: 
       {stems.length > 0 && (
         <a
           href={`/api/songs/${song.id}/stems.zip`}
-          className="mt-3 flex w-full items-center justify-center rounded-lg border border-slate-300 px-4 py-2 text-xs font-medium transition hover:border-accent hover:text-accent dark:border-slate-700"
+          className="mt-3 flex w-full items-center justify-center rounded-lg border border-line px-4 py-2 text-xs font-medium transition hover:border-accent hover:text-accent "
         >
           Baixar as pistas (.zip)
         </a>
@@ -78,14 +78,14 @@ export function ProductionCard({ song, stems, busy, onTranscribe, onSeparate }: 
         className={[
           'mt-4 flex w-full items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold transition',
           canPerform
-            ? 'bg-slate-900 text-white hover:bg-slate-700 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-200'
-            : 'cursor-not-allowed bg-slate-200 text-slate-400 dark:bg-slate-800 dark:text-slate-600',
+            ? 'bg-ink text-canvas hover:opacity-90'
+            : 'cursor-not-allowed bg-slate-200 text-ink-faint  dark:text-ink-soft',
         ].join(' ')}
       >
         Modo palco
       </Link>
       {!canPerform && (
-        <p className="mt-1.5 text-center text-[11px] text-slate-400">
+        <p className="mt-1.5 text-center text-[11px] text-ink-faint">
           Precisa da letra transcrita e das pistas separadas.
         </p>
       )}
@@ -114,14 +114,14 @@ function Row({
 }) {
   const running = tone === 'pending' || tone === 'transcribing' || tone === 'separating' || busy
   return (
-    <div className="border-t border-slate-100 py-3 first:border-t-0 first:pt-0 dark:border-slate-800">
+    <div className="border-t border-line py-3 first:border-t-0 first:pt-0 ">
       <div className="flex items-center justify-between gap-2">
         <div className="min-w-0">
           <p className="text-sm font-medium">{title}</p>
           <p
             className={[
               'truncate text-xs',
-              tone === 'failed' ? 'text-rose-500' : 'text-slate-500',
+              tone === 'failed' ? 'text-rose-500' : 'text-ink-soft',
             ].join(' ')}
           >
             {status}
@@ -132,12 +132,12 @@ function Row({
           onClick={onClick}
           disabled={running}
           title={hint}
-          className="shrink-0 rounded-full border border-slate-300 px-3 py-1 text-xs font-medium transition hover:border-accent hover:text-accent disabled:opacity-40 dark:border-slate-700"
+          className="shrink-0 rounded-full border border-line px-3 py-1 text-xs font-medium transition hover:border-accent hover:text-accent disabled:opacity-40 "
         >
           {running ? '…' : action}
         </button>
       </div>
-      {detail && <p className="mt-1 truncate text-[11px] text-slate-400">{detail}</p>}
+      {detail && <p className="mt-1 truncate text-[11px] text-ink-faint">{detail}</p>}
     </div>
   )
 }

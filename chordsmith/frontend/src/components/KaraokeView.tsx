@@ -61,7 +61,7 @@ export function KaraokeView({ lyrics, chords, currentTime, performance = false, 
 
   if (!lines.length) {
     return (
-      <p className="p-8 text-center text-sm text-slate-500">
+      <p className="p-8 text-center text-sm text-ink-soft">
         Nenhuma letra transcrita para esta música ainda.
       </p>
     )
@@ -110,7 +110,7 @@ export function KaraokeView({ lyrics, chords, currentTime, performance = false, 
                         : sung && active
                           ? performance
                             ? 'text-white'
-                            : 'text-slate-900 dark:text-slate-100'
+                            : 'text-ink'
                           : '',
                       // A word the recogniser was unsure of is dimmed rather
                       // than hidden: on stage a wrong word you can see is
@@ -136,7 +136,7 @@ function ChordRow({ line, performance }: { line: KaraokeLine; performance: boole
     <span
       className={[
         'mb-1 flex flex-wrap gap-x-[0.32em] font-semibold',
-        performance ? 'text-xl text-amber-400 md:text-2xl' : 'text-sm text-indigo-500',
+        performance ? 'text-xl text-amber-400 md:text-2xl' : 'text-sm text-accent',
       ].join(' ')}
     >
       {line.words.map((word, index) => {

@@ -70,10 +70,10 @@ export function KeyChooser({
   )
 
   return (
-    <section className="rounded-xl border border-slate-200 bg-panel p-4 dark:border-slate-800">
+    <section className="rounded-xl border border-line bg-panel p-4 ">
       <div className="mb-3">
         <h3 className="text-sm font-semibold tracking-tight">Em que tom cantar</h3>
-        <p className="text-xs text-slate-500">
+        <p className="text-xs text-ink-soft">
           Mova até caber na sua voz. “Abertos” conta quantos acordes saem sem pestana, no{' '}
           {(INSTRUMENTS[instrument] ?? INSTRUMENTS.guitar).name.toLowerCase()}.
         </p>
@@ -96,11 +96,11 @@ export function KeyChooser({
                   onClick={() => onTranspose(row.semitones)}
                   className="flex min-w-0 flex-1 items-center gap-2 text-left"
                 >
-                  <span className="w-8 shrink-0 text-xs tabular-nums text-slate-400">
+                  <span className="w-8 shrink-0 text-xs tabular-nums text-ink-faint">
                     {row.semitones > 0 ? `+${row.semitones}` : row.semitones}
                   </span>
                   <span className="w-24 shrink-0 text-sm font-medium">{row.key}</span>
-                  <span className="truncate text-xs text-slate-500">{row.labels.join('  ')}</span>
+                  <span className="truncate text-xs text-ink-soft">{row.labels.join('  ')}</span>
                 </button>
 
                 <span
@@ -108,7 +108,7 @@ export function KeyChooser({
                     'shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold tabular-nums',
                     row.semitones === easiest.semitones
                       ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300'
-                      : 'text-slate-400',
+                      : 'text-ink-faint',
                   ].join(' ')}
                   title="Acordes que saem em posição aberta"
                 >
@@ -120,7 +120,7 @@ export function KeyChooser({
                     type="button"
                     onClick={() => onRenderAudio(row.semitones)}
                     disabled={rendered}
-                    className="shrink-0 rounded-full border border-slate-300 px-2.5 py-0.5 text-[10px] font-medium disabled:opacity-40 dark:border-slate-700"
+                    className="shrink-0 rounded-full border border-line px-2.5 py-0.5 text-[10px] font-medium disabled:opacity-40 "
                     title="Renderizar o áudio neste tom"
                   >
                     {rendered ? 'áudio pronto' : 'áudio'}
@@ -133,7 +133,7 @@ export function KeyChooser({
       </ul>
 
       {!onRenderAudio && (
-        <p className="mt-3 text-[11px] text-slate-400">
+        <p className="mt-3 text-[11px] text-ink-faint">
           Separe as pistas para poder ouvir a gravação no tom escolhido — sem elas a transposição
           muda só a grade.
         </p>

@@ -72,7 +72,7 @@ export function ListenPage() {
       />
 
       <div className="flex flex-wrap items-center gap-2">
-        <div className="flex items-center gap-1 rounded-lg bg-slate-200/70 p-1 dark:bg-slate-800">
+        <div className="flex items-center gap-1 rounded-lg bg-slate-200/70 p-1 ">
           {(['detect', 'practice'] as Mode[]).map((option) => (
             <button
               key={option}
@@ -80,8 +80,8 @@ export function ListenPage() {
               onClick={() => setMode(option)}
               className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
                 mode === option
-                  ? 'bg-panel text-slate-900 shadow-sm dark:text-white'
-                  : 'text-slate-500'
+                  ? 'bg-panel text-ink shadow-sm dark:text-white'
+                  : 'text-ink-soft'
               }`}
             >
               {option === 'detect' ? 'Que acorde é este' : 'Praticar'}
@@ -92,7 +92,7 @@ export function ListenPage() {
         <select
           value={instrument}
           onChange={(event) => setInstrument(event.target.value as Instrument['id'])}
-          className="rounded-lg border border-slate-300 bg-panel px-3 py-1.5 text-xs dark:border-slate-700"
+          className="rounded-lg border border-line bg-panel px-3 py-1.5 text-xs "
         >
           {Object.values(INSTRUMENTS).map((option) => (
             <option key={option.id} value={option.id}>
@@ -107,7 +107,7 @@ export function ListenPage() {
           className={`rounded-lg px-4 py-2 text-sm font-semibold ${
             listening
               ? 'bg-rose-500 text-white'
-              : 'bg-slate-900 text-white dark:bg-white dark:text-slate-900'
+              : 'bg-ink text-canvas'
           }`}
         >
           {listening ? 'Parar' : 'Ouvir'}
@@ -116,10 +116,10 @@ export function ListenPage() {
 
       {error && <p className="text-sm text-rose-500">{error}</p>}
 
-      <section className="rounded-xl border border-slate-200 bg-panel p-6 dark:border-slate-800">
+      <section className="rounded-xl border border-line bg-panel p-6 ">
         {mode === 'practice' && (
           <div className="mb-5 text-center">
-            <p className="text-xs uppercase tracking-wide text-slate-400">Toque este</p>
+            <p className="text-xs uppercase tracking-wide text-ink-faint">Toque este</p>
             <button
               type="button"
               onClick={() => setPopover(targetLabel)}
@@ -127,10 +127,10 @@ export function ListenPage() {
             >
               {targetLabel}
             </button>
-            <p className="mt-1 text-xs text-slate-500">
+            <p className="mt-1 text-xs text-ink-soft">
               {score.right} {score.right === 1 ? 'acerto' : 'acertos'}
             </p>
-            <div className="mx-auto mt-3 h-1 w-40 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-800">
+            <div className="mx-auto mt-3 h-1 w-40 overflow-hidden rounded-full bg-canvas">
               <div
                 className="h-full bg-emerald-500 transition-all"
                 style={{ width: `${Math.min(100, (held / HOLD_FRAMES) * 100)}%` }}
@@ -147,7 +147,7 @@ export function ListenPage() {
           >
             {label ? br(label) : listening ? '…' : '—'}
           </p>
-          <p className="mt-1 h-4 text-xs text-slate-500">
+          <p className="mt-1 h-4 text-xs text-ink-soft">
             {label && heard.quality in QUALITY_LABELS ? QUALITY_LABELS[heard.quality] : ''}
           </p>
         </div>
@@ -175,17 +175,17 @@ export function ListenPage() {
                 className="w-full rounded-t bg-accent transition-all"
                 style={{ height: `${Math.max(2, value * 56)}px`, opacity: 0.35 + value * 0.65 }}
               />
-              <span className="text-[9px] text-slate-400">{noteName(pitch)}</span>
+              <span className="text-[9px] text-ink-faint">{noteName(pitch)}</span>
             </div>
           ))}
         </div>
 
         {listening && heard.level <= 0.012 && (
-          <p className="mt-4 text-center text-xs text-slate-400">Toque alguma coisa…</p>
+          <p className="mt-4 text-center text-xs text-ink-faint">Toque alguma coisa…</p>
         )}
       </section>
 
-      <p className="text-[11px] text-slate-400">
+      <p className="text-[11px] text-ink-faint">
         A detecção compara o que entra com os mesmos moldes de acorde que o analisador usa, mas sem
         as vantagens dele: aqui não há grade de tempo nem tom estimado para desempatar, só o
         presente. Por isso o acorde precisa ser sustentado por alguns quadros antes de aparecer.
