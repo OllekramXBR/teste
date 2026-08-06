@@ -112,11 +112,19 @@ def _continue_after_analysis(song_id: str, path: Path) -> None:
     if not song:
         return
 
-    if AUTO_LYRICS and song["lyricsStatus"] in ("none", "failed"):
-        enqueue_lyrics(song_id, path.name)
-    if AUTO_STEMS and not stem_module.available_stems(song_id):
-        if song["stemsStatus"] not in ("pending", "separating"):
-            enqueue_stems(song_id, path.name)
+    try:
+        if AUTO_LYRICS and song["lyricsStatus"] in ("none", "failed"):
+            enqueue_lyrics(song_id, path.name)
+        if AUTO_STEMS and not stem_module.available_stems(song_id):
+            if song["stemsStatus"] not in ("pending", "separating"):
+                enqueue_stems(song_id, path.name)
+    except RuntimeError:
+        # The pool refuses new work once the interpreter is shutting down. A
+        # song that finished its analysis exactly as the server stopped is a
+        # real race, not only a test artefact, and the follow-up work is picked
+        # up again on the next start — losing it is not worth crashing the
+        # analysis that already succeeded.
+        logger.info("not queueing follow-up work for %s: shutting down", song_id)
 
 
 def enqueue(song_id: str, filename: str) -> None:
