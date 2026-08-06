@@ -558,12 +558,31 @@ export function SongPage() {
     )
   }
 
-  const displayedChord = activeBeat
-    ? displayLabel(activeBeat.label, settings.transpose, settings.capo, analysis.useFlats)
+  // The chord that is *sounding*, which is not always the chord the decoder
+  // labelled this beat with. Long stretches come back as "no chord" — a quiet
+  // passage, a held note, a bar of drums — and the harmony does not stop there,
+  // it just stops being detectable. Showing a dash is honest about the decoder
+  // and useless to a player, so the last chord found is held until another one
+  // arrives, which is what a chart on paper does.
+  const heldBeat = (() => {
+    if (activeBeatIndex < 0) return undefined
+    for (let index = activeBeatIndex; index >= 0; index -= 1) {
+      const beat = analysis.beats[index]
+      if (beat.root !== null && beat.label && beat.label !== 'N') return beat
+    }
+    return undefined
+  })()
+
+  // True when nothing was detected right here and the label is being carried
+  // over, so the panel can say so instead of implying a fresh reading.
+  const chordIsHeld = Boolean(heldBeat && activeBeat && heldBeat.index !== activeBeat.index)
+
+  const displayedChord = heldBeat
+    ? displayLabel(heldBeat.label, settings.transpose, settings.capo, analysis.useFlats, settings.simplify)
     : ''
   const parsedChord = parseLabel(displayedChord)
-  const soundingChord = activeBeat
-    ? displayLabel(activeBeat.label, settings.transpose, 0, analysis.useFlats)
+  const soundingChord = heldBeat
+    ? displayLabel(heldBeat.label, settings.transpose, 0, analysis.useFlats, settings.simplify)
     : ''
 
   return (
@@ -895,7 +914,7 @@ export function SongPage() {
 
           <div className="rounded-xl border border-line bg-panel p-4 ">
             <div className="mb-2 flex items-baseline justify-between">
-              <h3 className="text-sm font-semibold">Now playing</h3>
+              <h3 className="text-sm font-semibold">Tocando agora</h3>
               {parsedChord && (
                 <span className="text-[10px] uppercase tracking-wide text-ink-faint">
                   {QUALITY_LABELS[parsedChord.quality]}
@@ -911,6 +930,11 @@ export function SongPage() {
             >
               {displayedChord || '—'}
             </button>
+            {chordIsHeld && displayedChord && (
+              <p className="mb-2 text-[11px] text-ink-faint">
+                sustentado — nada foi detectado neste tempo
+              </p>
+            )}
             {settings.capo > 0 && soundingChord && (
               <p className="mb-2 text-[11px] text-ink-soft">
                 sounds as {soundingChord} with the capo on fret {settings.capo}
