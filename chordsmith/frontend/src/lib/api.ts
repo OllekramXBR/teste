@@ -76,6 +76,42 @@ export interface Analysis {
   analysisSeconds: number
 }
 
+export interface LyricWord {
+  text: string
+  start: number
+  end: number
+  probability: number
+}
+
+export interface LyricSegment {
+  start: number
+  end: number
+  text: string
+}
+
+export interface Lyrics {
+  language: string
+  languageProbability: number
+  model: string
+  words: LyricWord[]
+  segments: LyricSegment[]
+  wordCount: number
+  audioSeconds: number
+  transcribeSeconds?: number
+}
+
+/** Stems are produced together, so one status covers the whole set. */
+export type StemName = 'lead' | 'backing' | 'drums' | 'bass' | 'other'
+
+export interface Stem {
+  name: StemName
+  label: string
+  url: string
+  bytes: number
+}
+
+export type JobStatus = 'none' | 'pending' | 'transcribing' | 'separating' | 'ready' | 'failed'
+
 export type SongStatus = 'pending' | 'analyzing' | 'ready' | 'failed'
 
 export interface Song {
@@ -93,7 +129,12 @@ export interface Song {
   createdAt: string
   updatedAt: string
   audioUrl: string
+  lyricsStatus: JobStatus
+  lyricsError: string | null
+  stemsStatus: JobStatus
+  stemsError: string | null
   analysis?: Analysis | null
+  lyrics?: Lyrics | null
 }
 
 export class ApiError extends Error {
@@ -184,6 +225,57 @@ export function uploadSong(
 
 export function midiUrl(id: string, transpose = 0): string {
   return `/api/songs/${id}/midi?transpose=${transpose}`
+}
+
+export interface CifraOptions {
+  transpose?: number
+  capo?: number
+  simplify?: boolean
+  download?: boolean
+}
+
+export function cifraUrl(id: string, options: CifraOptions = {}): string {
+  const query = new URLSearchParams({
+    transpose: String(options.transpose ?? 0),
+    capo: String(options.capo ?? 0),
+    simplify: String(options.simplify ?? true),
+  })
+  if (options.download) query.set('download', 'true')
+  return `/api/songs/${id}/cifra?${query}`
+}
+
+export async function getCifra(id: string, options: CifraOptions = {}): Promise<string> {
+  const response = await fetch(cifraUrl(id, options))
+  if (!response.ok) throw new ApiError('The cifra could not be built', response.status)
+  return response.text()
+}
+
+export function transcribeLyrics(id: string): Promise<Song> {
+  return request(`/api/songs/${id}/lyrics`, { method: 'POST' })
+}
+
+export function getLyrics(id: string): Promise<{
+  status: JobStatus
+  error: string | null
+  lyrics: Lyrics | null
+}> {
+  return request(`/api/songs/${id}/lyrics`)
+}
+
+export function separateStems(id: string): Promise<Song> {
+  return request(`/api/songs/${id}/stems`, { method: 'POST' })
+}
+
+export function getStems(id: string): Promise<{
+  status: JobStatus
+  error: string | null
+  stems: Stem[]
+}> {
+  return request(`/api/songs/${id}/stems`)
+}
+
+export function deleteStems(id: string): Promise<void> {
+  return request(`/api/songs/${id}/stems`, { method: 'DELETE' })
 }
 
 export interface Health {

@@ -3,6 +3,32 @@
 /* The app follows the OS colour scheme; Tailwind's `dark:` variants key off it. */
 @custom-variant dark (&:where(.dark, .dark *), @media (prefers-color-scheme: dark));
 
+/* One accent, one canvas, named rather than repeated. A single accent used
+   sparingly is what stops an instrument-heavy interface from reading as a toy:
+   every colour left over can then mean something — amber for a chord, sky for
+   the syllable being sung, rose for a level that is muted. */
+@theme {
+  --color-accent: oklch(0.55 0.19 264);
+  --color-accent-soft: oklch(0.96 0.03 264);
+  --color-canvas: oklch(0.985 0.002 264);
+  --color-panel: oklch(1 0 0);
+  --font-sans:
+    'Inter var', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue',
+    Arial, sans-serif;
+  /* Chord charts are columnar: a chord label sitting above a syllable only
+     lines up if the digits and letters share one advance width. */
+  --font-mono: ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  @theme {
+    --color-accent: oklch(0.72 0.15 264);
+    --color-accent-soft: oklch(0.28 0.06 264);
+    --color-canvas: oklch(0.19 0.015 264);
+    --color-panel: oklch(0.23 0.015 264);
+  }
+}
+
 html,
 body,
 #root {
@@ -10,10 +36,70 @@ body,
 }
 
 body {
-  font-family:
-    ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
-    sans-serif;
+  font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* Numbers that change every frame — a clock, a BPM, a fret number — must not
+   reflow the layout under them. */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Range inputs are the app's main continuous control; the default look differs
+   wildly between browsers and reads as unfinished in all of them. */
+input[type='range'] {
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+input[type='range']::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 999px;
+  background: color-mix(in oklch, currentColor 18%, transparent);
+}
+
+input[type='range']::-webkit-slider-thumb {
+  appearance: none;
+  margin-top: -5px;
+  height: 14px;
+  width: 14px;
+  border-radius: 999px;
+  background: currentColor;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.35);
+}
+
+input[type='range']::-moz-range-track {
+  height: 4px;
+  border-radius: 999px;
+  background: color-mix(in oklch, currentColor 18%, transparent);
+}
+
+input[type='range']::-moz-range-thumb {
+  height: 14px;
+  width: 14px;
+  border: none;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+/* Focus is visible on purpose and only for the keyboard: this gets used on a
+   stage, where tabbing to the transport beats hunting for it with a mouse. */
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 /* Printing produces the chord sheet only: screen chrome is hidden and the sheet
