@@ -75,6 +75,9 @@ MIGRATIONS: dict[str, str] = {
     # The chords of a song, joined, so a list of a hundred songs can show them
     # without parsing a hundred analysis blobs to find four labels each.
     "chords_summary": "ALTER TABLE songs ADD COLUMN chords_summary TEXT",
+    # SHA-256 of the audio as it arrived. Names lie — the same recording came in
+    # twice under two of them — so sameness is decided by content.
+    "audio_sha256": "ALTER TABLE songs ADD COLUMN audio_sha256 TEXT",
 }
 
 SETLIST_MIGRATIONS: dict[str, str] = {
@@ -123,14 +126,16 @@ def create_song(
     size_bytes: int,
     owner_id: str | None = None,
     shared: bool = True,
+    audio_sha256: str | None = None,
 ) -> dict[str, Any]:
     timestamp = _now()
     with _write_lock, connect() as connection:
         connection.execute(
             """
             INSERT INTO songs (id, title, artist, filename, original_name, content_type,
-                               size_bytes, status, created_at, updated_at, owner_id, shared)
-            VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?)
+                               size_bytes, status, created_at, updated_at, owner_id, shared,
+                               audio_sha256)
+            VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?)
             """,
             (
                 song_id,
@@ -144,6 +149,7 @@ def create_song(
                 timestamp,
                 owner_id,
                 1 if shared else 0,
+                audio_sha256,
             ),
         )
     return get_song(song_id)  # type: ignore[return-value]
@@ -352,6 +358,22 @@ def delete_song(song_id: str) -> str | None:
             return None
         connection.execute("DELETE FROM songs WHERE id = ?", (song_id,))
     return row["filename"]
+
+
+def find_by_hash(digest: str) -> dict[str, Any] | None:
+    """The song already holding this exact audio, if there is one."""
+    with connect() as connection:
+        row = connection.execute(
+            "SELECT * FROM songs WHERE audio_sha256 = ? LIMIT 1", (digest,)
+        ).fetchone()
+    return _row_to_song(row, include_analysis=False) if row else None
+
+
+def set_audio_hash(song_id: str, digest: str) -> None:
+    with _write_lock, connect() as connection:
+        connection.execute(
+            "UPDATE songs SET audio_sha256 = ? WHERE id = ?", (digest, song_id)
+        )
 
 
 def set_song_sharing(song_id: str, shared: bool) -> bool:

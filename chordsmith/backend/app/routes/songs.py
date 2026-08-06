@@ -15,7 +15,7 @@ from fastapi import APIRouter, File, Form, HTTPException, Query, Request, Upload
 from fastapi.responses import FileResponse, Response, StreamingResponse
 from pydantic import BaseModel, Field
 
-from .. import auth, covers, jobs, library, storage, transcode
+from .. import auth, covers, fingerprint, jobs, library, storage, transcode
 # `cifra` only pulls in the theory primitives, not librosa, so importing it at
 # module level does not put the numba import back on the API's startup path.
 from ..analysis import cifra, stems, variants
@@ -100,6 +100,19 @@ async def upload_song(
         destination.unlink(missing_ok=True)
         raise HTTPException(status_code=400, detail="The uploaded file is empty")
 
+    digest = fingerprint.of_file(destination)
+    existing = storage.find_by_hash(digest)
+    if existing:
+        # Byte-identical to something already here. Refused rather than stored
+        # twice: a duplicate costs a second separation, a second transcription
+        # and a second copy of five stems — hours of CPU and a gigabyte — to
+        # produce an answer that already exists.
+        destination.unlink(missing_ok=True)
+        raise HTTPException(
+            status_code=409,
+            detail=f"Esta gravação já está na biblioteca como “{existing['title']}”.",
+        )
+
     if extension not in NATIVE_EXTENSIONS:
         # Converted once, here, so that every stage downstream sees a file
         # libsndfile can open and the pipeline never needs a second decoder.
@@ -120,6 +133,7 @@ async def upload_song(
         content_type=file.content_type or mimetypes.guess_type(original_name)[0] or "audio/mpeg",
         size_bytes=size,
         owner_id=auth.current_user_id(request),
+        audio_sha256=digest,
     )
     jobs.enqueue(song_id, stored_name)
     return song
@@ -149,6 +163,14 @@ def import_from_library(payload: ImportRequest, request: Request) -> dict:
     destination = AUDIO_DIR / f"{song_id}{extension}"
     destination.parent.mkdir(parents=True, exist_ok=True)
 
+    digest = fingerprint.of_file(source)
+    existing = storage.find_by_hash(digest)
+    if existing:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Esta gravação já está na biblioteca como “{existing['title']}”.",
+        )
+
     try:
         shutil.copy2(source, destination)
     except OSError as exc:
@@ -171,6 +193,7 @@ def import_from_library(payload: ImportRequest, request: Request) -> dict:
         content_type=mimetypes.guess_type(source.name)[0] or "audio/mpeg",
         size_bytes=destination.stat().st_size,
         owner_id=auth.current_user_id(request),
+        audio_sha256=digest,
     )
     # The album folder is only known here, at import: after this the song is a
     # copy in the data directory with no link back to where it came from.
