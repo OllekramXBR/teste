@@ -147,7 +147,13 @@ def _run_stems(song_id: str, path: Path, quality: str | None = None) -> None:
         )
         # The tablature and the notation both read this, so it follows straight
         # on rather than waiting for someone to open the view that needs it.
-        enqueue_multitrack(song_id)
+        try:
+            enqueue_multitrack(song_id)
+        except RuntimeError:
+            # Same shutdown race as after the analysis: the separation itself
+            # succeeded and its stems are on disk, so it must not be reported
+            # as a failure because the follow-up could not be queued.
+            logger.info("not queueing transcription for %s: shutting down", song_id)
     except Exception as exc:  # noqa: BLE001 - surfaced to the client verbatim
         logger.exception("separation failed for %s", song_id)
         storage.set_stems_status(song_id, "failed", error=str(exc))
