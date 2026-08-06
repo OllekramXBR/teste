@@ -63,23 +63,37 @@ app.add_middleware(
     expose_headers=["Content-Range", "Accept-Ranges", "Content-Length"],
 )
 
+# Reachable without a session, and each one for a stated reason. Everything
+# else — every song, every stem, every byte of audio — is refused.
+PUBLIC_PREFIXES = ("/api/auth/",)
+PUBLIC_PATHS = frozenset({"/api/health"})
+
+# Not under /api/, and therefore missed by a prefix check: the interactive docs
+# and the schema describe every endpoint this server has. That is a map of the
+# building handed to someone who has not been let in.
+PRIVATE_WHEN_CLOSED = ("/docs", "/redoc", "/openapi.json")
+
+
 @app.middleware("http")
 async def require_session(request, call_next):
-    """Refuse API calls without a session — but only when asked to.
+    """Refuse anything but the sign-in door when accounts are enforced.
 
-    The check is a middleware rather than a per-route dependency so that a route
-    added later cannot forget it. Health and the auth endpoints stay open, since
-    a monitor has to reach one and a sign-in form has to reach the other.
+    A middleware rather than a per-route dependency, so a route added later
+    cannot forget it. Health stays open because a monitor has to reach it, and
+    the auth endpoints stay open because a sign-in form has to reach them —
+    including registration, which is what stops enabling this before anybody has
+    an account from locking the owner out of their own library.
     """
+    if not auth.enabled():
+        return await call_next(request)
+
     path = request.url.path
-    if (
-        auth.enabled()
-        and path.startswith("/api/")
-        and not path.startswith("/api/auth/")
-        and path != "/api/health"
-        and auth.user_for_token(request.cookies.get(auth.SESSION_COOKIE)) is None
-    ):
-        return JSONResponse({"detail": "Entre para continuar"}, status_code=401)
+    guarded = path.startswith("/api/") or path.startswith(PRIVATE_WHEN_CLOSED)
+    exempt = path in PUBLIC_PATHS or path.startswith(PUBLIC_PREFIXES)
+
+    if guarded and not exempt:
+        if auth.user_for_token(request.cookies.get(auth.SESSION_COOKIE)) is None:
+            return JSONResponse({"detail": "Entre para continuar"}, status_code=401)
     return await call_next(request)
 
 

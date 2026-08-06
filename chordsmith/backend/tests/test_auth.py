@@ -173,3 +173,45 @@ class TestProfile:
         auth.create_user("marcelo", "senha muito boa")
         listed = auth.list_users()
         assert set(listed[0]) == {"id", "username", "displayName"}
+
+
+class TestWhatIsReachableWhenClosed:
+    """The exact list of doors left open when accounts are enforced.
+
+    Registration has to stay open or enabling this before anybody has an account
+    locks the owner out of their own library — and that is a state with no way
+    back that does not involve editing the server's environment by hand.
+    """
+
+    def test_registration_stays_open_so_the_first_account_can_exist(self):
+        from app.main import PUBLIC_PREFIXES
+
+        assert any("/api/auth/register".startswith(prefix) for prefix in PUBLIC_PREFIXES)
+
+    def test_signing_in_stays_open(self):
+        from app.main import PUBLIC_PREFIXES
+
+        assert any("/api/auth/login".startswith(prefix) for prefix in PUBLIC_PREFIXES)
+
+    def test_health_stays_open_for_the_container_check(self):
+        from app.main import PUBLIC_PATHS
+
+        assert "/api/health" in PUBLIC_PATHS
+
+    @pytest.mark.parametrize(
+        "path",
+        ["/api/songs", "/api/setlists", "/api/library/search", "/api/songs/abc/audio"],
+    )
+    def test_everything_that_holds_music_is_closed(self, path):
+        from app.main import PUBLIC_PATHS, PUBLIC_PREFIXES
+
+        assert path not in PUBLIC_PATHS
+        assert not any(path.startswith(prefix) for prefix in PUBLIC_PREFIXES)
+
+    @pytest.mark.parametrize("path", ["/docs", "/openapi.json", "/redoc"])
+    def test_the_api_documentation_is_closed_too(self, path):
+        # It is not under /api/, so a prefix check misses it — and it describes
+        # every endpoint this server has, which is a map of the building.
+        from app.main import PRIVATE_WHEN_CLOSED
+
+        assert path.startswith(PRIVATE_WHEN_CLOSED)
