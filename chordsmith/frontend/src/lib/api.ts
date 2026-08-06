@@ -296,6 +296,35 @@ export function importFromLibrary(path: string, artist = ''): Promise<Song> {
   })
 }
 
+export interface Variant {
+  key: string
+  stems: StemName[]
+}
+
+export function renderVariant(
+  id: string,
+  semitones: number,
+  rate = 1,
+): Promise<{ key: string; status: 'ready' | 'rendering' }> {
+  return request(`/api/songs/${id}/variants?semitones=${semitones}&rate=${rate}`, {
+    method: 'POST',
+  })
+}
+
+export function listVariants(id: string): Promise<{ variants: Variant[] }> {
+  return request(`/api/songs/${id}/variants`)
+}
+
+/** Key for a rendered combination; mirrors `variants.variant_key` on the server. */
+export function variantKey(semitones: number, rate = 1): string {
+  const sign = semitones < 0 ? 'm' : 'p'
+  return `t${sign}${Math.abs(semitones)}_r${Math.round(rate * 100)}`
+}
+
+export function variantStemUrl(id: string, key: string, stem: StemName): string {
+  return `/api/songs/${id}/variants/${key}/${stem}`
+}
+
 export interface TranscribedTrack {
   name: string
   program: number

@@ -35,7 +35,19 @@ export function PerformancePage() {
   const [transpose, setTranspose] = useState(0)
   const [locked, setLocked] = useState(false)
 
-  const player = useStemPlayer(stems)
+  const [variantState, setVariantState] = useState<'original' | 'rendering' | 'ready'>('original')
+
+  // Transposition swaps the audio for a pre-rendered copy in the new key rather
+  // than shifting pitch during playback. Until that copy exists the original
+  // keeps playing, and the header says so — a chart in one key over a recording
+  // in another is the one thing worse than no transposition at all.
+  const playing = useMemo(() => {
+    if (transpose === 0 || variantState !== 'ready') return stems
+    const key = api.variantKey(transpose)
+    return stems.map((stem) => ({ ...stem, url: api.variantStemUrl(songId, key, stem.name) }))
+  }, [stems, transpose, variantState, songId])
+
+  const player = useStemPlayer(playing)
 
   useEffect(() => {
     let cancelled = false
@@ -70,6 +82,38 @@ export function PerformancePage() {
       cancelled = true
     }
   }, [setlistId])
+
+  useEffect(() => {
+    if (transpose === 0 || !stems.length) {
+      setVariantState('original')
+      return
+    }
+    let cancelled = false
+    let timer: number | undefined
+
+    const ask = async () => {
+      try {
+        const response = await api.renderVariant(songId, transpose)
+        if (cancelled) return
+        if (response.status === 'ready') {
+          setVariantState('ready')
+          return
+        }
+        setVariantState('rendering')
+        // A few minutes of phase vocoder per stem; polling slowly costs nothing
+        // and the answer only changes once.
+        timer = window.setTimeout(ask, 15000)
+      } catch {
+        if (!cancelled) setVariantState('original')
+      }
+    }
+
+    void ask()
+    return () => {
+      cancelled = true
+      if (timer) window.clearTimeout(timer)
+    }
+  }, [songId, transpose, stems.length])
 
   const position = setlist?.songs.findIndex((entry) => entry.id === songId) ?? -1
   const nextSong = position >= 0 ? setlist?.songs[position + 1] : undefined
@@ -174,6 +218,18 @@ export function PerformancePage() {
             {song.artist || 'Sem artista'}
             {song.analysis ? ` · ${song.analysis.key.name} · ${Math.round(song.analysis.bpm)} BPM` : ''}
           </p>
+          {transpose !== 0 && (
+            <p
+              className={[
+                'truncate text-xs',
+                variantState === 'ready' ? 'text-emerald-400' : 'text-amber-400',
+              ].join(' ')}
+            >
+              {variantState === 'ready'
+                ? `áudio transposto ${transpose > 0 ? '+' : ''}${transpose}`
+                : 'grade transposta — o áudio ainda está no tom original, renderizando…'}
+            </p>
+          )}
         </div>
         <div className={locked ? 'pointer-events-none opacity-30' : 'flex items-center gap-2'}>
           <Stepper value={transpose} onChange={setTranspose} />
