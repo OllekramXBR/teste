@@ -10,6 +10,7 @@ import { ChordGrid, displayLabel, groupIntoBars } from '../components/ChordGrid'
 import { ChordPopover } from '../components/ChordPopover'
 import { ChordSheet } from '../components/ChordSheet'
 import { KaraokeView } from '../components/KaraokeView'
+import { KeyChooser } from '../components/KeyChooser'
 import { LyricEditor } from '../components/LyricEditor'
 import { ProductionCard } from '../components/ProductionCard'
 import { StaffNotation } from '../components/StaffNotation'
@@ -105,6 +106,7 @@ export function SongPage() {
     status: 'none' | 'pending' | 'ready'
     tracks: api.TranscribedTrack[]
   }>({ status: 'none', tracks: [] })
+  const [renderedKeys, setRenderedKeys] = useState<Set<number>>(new Set())
 
   const engineRef = useRef<AudioEngine | null>(null)
   if (engineRef.current === null) engineRef.current = new AudioEngine()
@@ -354,6 +356,41 @@ export function SongPage() {
       setBusy(null)
     }
   }, [song])
+
+  // Which keys already have audio rendered, so the chooser can say so instead
+  // of offering to render the same thing twice.
+  useEffect(() => {
+    if (!song || !stems.length) return
+    let cancelled = false
+    api
+      .listVariants(song.id)
+      .then(({ variants }) => {
+        if (cancelled) return
+        const keys = new Set<number>()
+        for (const variant of variants) {
+          const match = variant.key.match(/^t([pm])(\d+)_r100$/)
+          if (match) keys.add(match[1] === 'm' ? -Number(match[2]) : Number(match[2]))
+        }
+        setRenderedKeys(keys)
+      })
+      .catch(() => undefined)
+    return () => {
+      cancelled = true
+    }
+  }, [song, stems.length, busy])
+
+  const handleRenderAudio = useCallback(
+    async (semitones: number) => {
+      if (!song) return
+      setBusy('variant')
+      try {
+        await api.renderVariant(song.id, semitones)
+      } finally {
+        setBusy(null)
+      }
+    },
+    [song],
+  )
 
   const handleSaveLyrics = useCallback(
     async (segments: api.LyricSegment[]) => {
@@ -677,6 +714,18 @@ export function SongPage() {
             busy={busy}
             onTranscribe={handleTranscribe}
             onSeparate={handleSeparate}
+          />
+
+          <KeyChooser
+            uniqueChords={analysis.uniqueChords}
+            keyTonic={analysis.key.tonic}
+            keyMode={analysis.key.mode}
+            useFlats={analysis.useFlats}
+            instrument={settings.instrument === 'piano' ? 'guitar' : settings.instrument}
+            transpose={settings.transpose}
+            onTranspose={(semitones) => handleSettings({ transpose: semitones })}
+            onRenderAudio={stems.length ? handleRenderAudio : undefined}
+            renderedKeys={renderedKeys}
           />
 
           <div className="rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-700 dark:bg-slate-800/70">
