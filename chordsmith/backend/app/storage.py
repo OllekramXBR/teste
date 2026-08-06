@@ -37,6 +37,25 @@ CREATE TABLE IF NOT EXISTS songs (
     updated_at    TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS songs_created_at ON songs (created_at DESC);
+
+CREATE TABLE IF NOT EXISTS setlists (
+    id         TEXT PRIMARY KEY,
+    name       TEXT NOT NULL,
+    notes      TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+
+-- The order of a set is the whole point of a set, so position is stored
+-- explicitly rather than inferred from insertion. ON DELETE CASCADE means
+-- deleting a song cannot leave a set pointing at a hole.
+CREATE TABLE IF NOT EXISTS setlist_songs (
+    setlist_id TEXT NOT NULL REFERENCES setlists (id) ON DELETE CASCADE,
+    song_id    TEXT NOT NULL REFERENCES songs (id) ON DELETE CASCADE,
+    position   INTEGER NOT NULL,
+    PRIMARY KEY (setlist_id, song_id)
+);
+CREATE INDEX IF NOT EXISTS setlist_order ON setlist_songs (setlist_id, position);
 """
 
 # Columns added after the first release. SQLite has no "ADD COLUMN IF NOT
@@ -264,6 +283,117 @@ def delete_song(song_id: str) -> str | None:
             return None
         connection.execute("DELETE FROM songs WHERE id = ?", (song_id,))
     return row["filename"]
+
+
+def create_setlist(name: str, notes: str = "") -> dict[str, Any]:
+    setlist_id = new_id()
+    timestamp = _now()
+    with _write_lock, connect() as connection:
+        connection.execute(
+            "INSERT INTO setlists (id, name, notes, created_at, updated_at) VALUES (?, ?, ?, ?, ?)",
+            (setlist_id, name, notes, timestamp, timestamp),
+        )
+    return get_setlist(setlist_id)  # type: ignore[return-value]
+
+
+def get_setlist(setlist_id: str) -> dict[str, Any] | None:
+    """A setlist with its songs, in playing order.
+
+    The songs carry enough of themselves to draw a stage list — title, key,
+    tempo, and whether the lyric and stems are ready — without a second request
+    per song while someone is standing in front of an audience.
+    """
+    with connect() as connection:
+        row = connection.execute("SELECT * FROM setlists WHERE id = ?", (setlist_id,)).fetchone()
+        if not row:
+            return None
+        songs = connection.execute(
+            """
+            SELECT s.*, ls.position
+              FROM setlist_songs ls
+              JOIN songs s ON s.id = ls.song_id
+             WHERE ls.setlist_id = ?
+             ORDER BY ls.position
+            """,
+            (setlist_id,),
+        ).fetchall()
+
+    return {
+        "id": row["id"],
+        "name": row["name"],
+        "notes": row["notes"],
+        "createdAt": row["created_at"],
+        "updatedAt": row["updated_at"],
+        "songs": [_row_to_song(song, include_analysis=False) for song in songs],
+    }
+
+
+def list_setlists() -> list[dict[str, Any]]:
+    with connect() as connection:
+        rows = connection.execute(
+            """
+            SELECT l.*, COUNT(ls.song_id) AS songs
+              FROM setlists l
+              LEFT JOIN setlist_songs ls ON ls.setlist_id = l.id
+             GROUP BY l.id
+             ORDER BY l.updated_at DESC
+            """
+        ).fetchall()
+    return [
+        {
+            "id": row["id"],
+            "name": row["name"],
+            "notes": row["notes"],
+            "songCount": row["songs"],
+            "createdAt": row["created_at"],
+            "updatedAt": row["updated_at"],
+        }
+        for row in rows
+    ]
+
+
+def update_setlist(setlist_id: str, name: str | None, notes: str | None) -> bool:
+    with _write_lock, connect() as connection:
+        cursor = connection.execute(
+            """
+            UPDATE setlists
+               SET name = COALESCE(?, name), notes = COALESCE(?, notes), updated_at = ?
+             WHERE id = ?
+            """,
+            (name, notes, _now(), setlist_id),
+        )
+    return cursor.rowcount > 0
+
+
+def delete_setlist(setlist_id: str) -> bool:
+    with _write_lock, connect() as connection:
+        cursor = connection.execute("DELETE FROM setlists WHERE id = ?", (setlist_id,))
+    return cursor.rowcount > 0
+
+
+def set_setlist_songs(setlist_id: str, song_ids: list[str]) -> bool:
+    """Replace the whole running order in one transaction.
+
+    Replacing rather than patching: reordering, adding and removing are the same
+    operation from the client's point of view, and a set that is briefly missing
+    a song because two requests interleaved is not a state worth being able to
+    reach.
+    """
+    with _write_lock, connect() as connection:
+        exists = connection.execute(
+            "SELECT 1 FROM setlists WHERE id = ?", (setlist_id,)
+        ).fetchone()
+        if not exists:
+            return False
+        connection.execute("DELETE FROM setlist_songs WHERE setlist_id = ?", (setlist_id,))
+        connection.executemany(
+            "INSERT INTO setlist_songs (setlist_id, song_id, position) VALUES (?, ?, ?)",
+            [(setlist_id, song_id, index) for index, song_id in enumerate(song_ids)],
+        )
+        connection.execute(
+            "UPDATE setlists SET updated_at = ? WHERE id = ?", (_now(), setlist_id)
+        )
+    return True
 
 
 def stale_processing_ids() -> Iterable[str]:
