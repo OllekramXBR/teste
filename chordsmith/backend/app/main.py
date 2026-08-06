@@ -13,7 +13,12 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from . import jobs, storage
-from .config import CORS_ORIGINS, MAX_UPLOAD_BYTES, NATIVE_EXTENSIONS, ensure_directories
+from .config import (
+    ALLOWED_EXTENSIONS,
+    CORS_ORIGINS,
+    MAX_UPLOAD_BYTES,
+    ensure_directories,
+)
 from . import auth
 from .routes import auth as auth_routes
 from .routes import library as library_routes
@@ -94,7 +99,11 @@ def health() -> dict:
         "analyzing": sum(1 for s in library if s["status"] in ("pending", "analyzing")),
         "storedBytes": songs_routes.audio_dir_size(),
         "maxUploadBytes": MAX_UPLOAD_BYTES,
-        "supportedFormats": sorted(NATIVE_EXTENSIONS),
+        # Everything the upload endpoint accepts, not only what libsndfile
+        # opens directly: .m4a has been converted at the door since ffmpeg
+        # arrived, and reporting the shorter list told clients to reject
+        # files this server handles fine.
+        "supportedFormats": sorted(ALLOWED_EXTENSIONS),
     }
 
 

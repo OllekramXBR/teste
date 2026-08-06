@@ -6,6 +6,7 @@ import { ProfilePage } from './pages/ProfilePage'
 import { SignInPage } from './pages/SignInPage'
 import { DictionaryPage } from './pages/DictionaryPage'
 import { LibraryPage } from './pages/LibraryPage'
+import { ListenPage } from './pages/ListenPage'
 import { PerformancePage } from './pages/PerformancePage'
 import { SetlistPage, SetlistsPage } from './pages/SetlistsPage'
 import { SongPage } from './pages/SongPage'
@@ -56,6 +57,12 @@ export default function App() {
                 Setlists
               </Link>
               <Link
+                to="/ouvir"
+                className="text-slate-500 transition-colors hover:text-slate-900 dark:hover:text-slate-200"
+              >
+                Ouvir
+              </Link>
+              <Link
                 to="/dicionario"
                 className="text-slate-500 transition-colors hover:text-slate-900 dark:hover:text-slate-200"
               >
@@ -98,6 +105,7 @@ export default function App() {
           <Route path="/song/:songId" element={<SongPage />} />
           <Route path="/song/:songId/perform" element={<PerformancePage />} />
           <Route path="/dicionario" element={<DictionaryPage />} />
+          <Route path="/ouvir" element={<ListenPage />} />
           <Route
             path="/perfil"
             element={<ProfilePage user={auth?.user ?? null} onChanged={refreshAuth} />}
