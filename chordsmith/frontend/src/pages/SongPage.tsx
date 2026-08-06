@@ -658,8 +658,8 @@ export function SongPage() {
         />
       </div>
 
-      <div className="grid gap-5 lg:grid-cols-[1fr_260px] print:hidden">
-        <div className="space-y-4">
+      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_260px] print:hidden">
+        <div className="min-w-0 space-y-4">
           <Toolbar
             settings={settings}
             onChange={handleSettings}

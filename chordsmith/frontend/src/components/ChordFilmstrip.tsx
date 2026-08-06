@@ -99,11 +99,17 @@ export function ChordFilmstrip({
   return (
     <div
       ref={containerRef}
-      // The padding on both ends is what lets the first and last chord reach
-      // the middle at all: without it the strip runs out of scroll and they sit
-      // stranded against an edge.
-      className="flex items-center gap-4 overflow-x-auto rounded-xl border border-line bg-panel px-[45%] py-5"
+      // min-w-0 matters: a grid child defaults to min-width:auto, so without it
+      // a wide strip pushes its own column open and the whole page scrolls
+      // sideways instead of the strip doing it.
+      className="flex min-w-0 max-w-full items-center gap-4 overflow-x-auto overscroll-x-contain rounded-xl border border-line bg-panel py-6"
     >
+      {/* Spacers rather than percentage padding. A percentage resolves against
+          the container's own width, so on a wide screen it became a thousand
+          pixels of empty scroll on each side. These are half the visible width
+          less half a card, which is exactly what lets the first and last chord
+          reach the middle and no more. */}
+      <div className="w-[calc(50%-6rem)] shrink-0" aria-hidden="true" />
       {cards.map((card, index) => {
         const parsed = parseLabel(card.label)
         const active = index === activeIndex
@@ -117,9 +123,13 @@ export function ChordFilmstrip({
               'flex shrink-0 flex-col items-center gap-2 rounded-xl px-4 py-3 transition-all duration-300',
               // The played chord is bigger, not just tinted. From a stand,
               // colour alone is a weak signal and size is an unmissable one.
+              // The played chord is ringed, lifted and full strength; the rest
+              // are shrunk and faded. At two metres a size difference reads
+              // before a colour one does, so it has to be a large difference,
+              // not a polite one.
               active
-                ? 'scale-100 bg-accent-soft opacity-100'
-                : 'scale-[0.78] opacity-40 hover:opacity-75',
+                ? 'scale-100 bg-accent-soft opacity-100 ring-2 ring-accent'
+                : 'scale-[0.62] opacity-35 hover:opacity-70',
             ].join(' ')}
           >
             <span
@@ -154,6 +164,7 @@ export function ChordFilmstrip({
           </button>
         )
       })}
+      <div className="w-[calc(50%-6rem)] shrink-0" aria-hidden="true" />
     </div>
   )
 }
