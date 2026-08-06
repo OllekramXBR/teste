@@ -134,3 +134,42 @@ class TestEnforcement:
     def test_an_unrecognised_value_does_not_lock_anyone_out(self, monkeypatch):
         monkeypatch.setattr(auth, "AUTH_MODE", "yes-please")
         assert auth.enabled() is False
+
+
+class TestProfile:
+    def test_the_display_name_can_be_set(self, db):
+        user = auth.create_user("marcelo", "senha muito boa")
+        assert auth.set_display_name(user["id"], "Marcelo Rocha")["displayName"] == "Marcelo Rocha"
+
+    def test_a_password_change_needs_the_old_one(self, db):
+        user = auth.create_user("marcelo", "senha muito boa")
+        with pytest.raises(auth.AuthError):
+            auth.change_password(user["id"], "senha errada", "senha nova boa")
+
+    def test_after_changing_only_the_new_password_works(self, db):
+        user = auth.create_user("marcelo", "senha muito boa")
+        auth.change_password(user["id"], "senha muito boa", "senha nova boa")
+        assert auth.authenticate("marcelo", "senha nova boa")["id"] == user["id"]
+        with pytest.raises(auth.AuthError):
+            auth.authenticate("marcelo", "senha muito boa")
+
+    def test_changing_the_password_drops_every_session(self, db):
+        # If the change was made because somebody else got in, leaving their
+        # session alive would defeat the point of changing it.
+        user = auth.create_user("marcelo", "senha muito boa")
+        tablet = auth.start_session(user["id"])
+        laptop = auth.start_session(user["id"])
+        auth.change_password(user["id"], "senha muito boa", "senha nova boa")
+        assert auth.user_for_token(tablet) is None
+        assert auth.user_for_token(laptop) is None
+
+    def test_a_short_replacement_is_refused_before_anything_changes(self, db):
+        user = auth.create_user("marcelo", "senha muito boa")
+        with pytest.raises(auth.AuthError):
+            auth.change_password(user["id"], "senha muito boa", "curta")
+        assert auth.authenticate("marcelo", "senha muito boa")["id"] == user["id"]
+
+    def test_listing_users_never_exposes_a_hash(self, db):
+        auth.create_user("marcelo", "senha muito boa")
+        listed = auth.list_users()
+        assert set(listed[0]) == {"id", "username", "displayName"}

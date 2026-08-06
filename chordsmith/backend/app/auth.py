@@ -162,6 +162,62 @@ def end_session(token: str | None) -> None:
         connection.execute("DELETE FROM sessions WHERE token = ?", (token,))
 
 
+def change_password(user_id: str, current: str, replacement: str) -> None:
+    """Change a password, proving the old one first.
+
+    The proof matters even though the session already identifies the user: a
+    borrowed unlocked tablet is exactly how someone else's account gets taken
+    over, and on stage the tablet is unlocked and out of reach of its owner.
+    """
+    if len(replacement) < 8:
+        raise AuthError("A nova senha precisa de ao menos 8 caracteres")
+
+    with connect() as connection:
+        row = connection.execute(
+            "SELECT password_hash FROM users WHERE id = ?", (user_id,)
+        ).fetchone()
+    if not row or not verify_password(current, row["password_hash"]):
+        raise AuthError("Senha atual incorreta")
+
+    with _write_lock, connect() as connection:
+        connection.execute(
+            "UPDATE users SET password_hash = ? WHERE id = ?",
+            (hash_password(replacement), user_id),
+        )
+        # Every other session is dropped. If the password was changed because
+        # somebody else had got in, leaving their session alive would make the
+        # change pointless.
+        connection.execute("DELETE FROM sessions WHERE user_id = ?", (user_id,))
+
+
+def set_display_name(user_id: str, display_name: str) -> dict[str, Any]:
+    with _write_lock, connect() as connection:
+        connection.execute(
+            "UPDATE users SET display_name = ? WHERE id = ?", (display_name.strip()[:80], user_id)
+        )
+    with connect() as connection:
+        row = connection.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
+    if not row:
+        raise AuthError("Usuário não encontrado")
+    return {"id": row["id"], "username": row["username"], "displayName": row["display_name"]}
+
+
+def list_users() -> list[dict[str, Any]]:
+    """Everyone with an account, for showing who owns what.
+
+    Names only — no hashes, no session tokens, nothing that is a secret. This is
+    used to label a song in a shared library, not to administer anything.
+    """
+    with connect() as connection:
+        rows = connection.execute(
+            "SELECT id, username, display_name FROM users ORDER BY username"
+        ).fetchall()
+    return [
+        {"id": row["id"], "username": row["username"], "displayName": row["display_name"]}
+        for row in rows
+    ]
+
+
 def current_user_id(request) -> str | None:
     """Who is signed in, whether or not accounts are being enforced.
 
