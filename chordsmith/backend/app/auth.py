@@ -162,6 +162,25 @@ def end_session(token: str | None) -> None:
         connection.execute("DELETE FROM sessions WHERE token = ?", (token,))
 
 
+def current_user_id(request) -> str | None:
+    """Who is signed in, whether or not accounts are being enforced.
+
+    Used when something is created, so that a song uploaded by a signed-in user
+    is theirs even while the server is still letting everyone in.
+    """
+    user = user_for_token(request.cookies.get(SESSION_COOKIE))
+    return user["id"] if user else None
+
+
+def viewer_id(request) -> str | None:
+    """Whose library to show, or ``None`` to show everything.
+
+    ``None`` when accounts are not enforced, which keeps the app behaving
+    exactly as it did before they existed.
+    """
+    return current_user_id(request) if enabled() else None
+
+
 def count_users() -> int:
     with connect() as connection:
         return int(connection.execute("SELECT COUNT(*) AS n FROM users").fetchone()["n"])

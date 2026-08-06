@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
 
-from .. import storage
+from .. import auth, storage
 
 router = APIRouter(prefix="/api/setlists", tags=["setlists"])
 
@@ -26,13 +26,15 @@ class SetlistOrder(BaseModel):
 
 
 @router.get("")
-def list_setlists() -> dict:
-    return {"setlists": storage.list_setlists()}
+def list_setlists(request: Request) -> dict:
+    return {"setlists": storage.list_setlists(viewer_id=auth.viewer_id(request))}
 
 
 @router.post("", status_code=201)
-def create_setlist(payload: SetlistCreate) -> dict:
-    return storage.create_setlist(payload.name.strip(), payload.notes.strip())
+def create_setlist(payload: SetlistCreate, request: Request) -> dict:
+    return storage.create_setlist(
+        payload.name.strip(), payload.notes.strip(), owner_id=auth.current_user_id(request)
+    )
 
 
 @router.get("/{setlist_id}")

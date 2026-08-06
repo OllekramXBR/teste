@@ -13,7 +13,7 @@ from fastapi import APIRouter, File, Form, HTTPException, Query, Request, Upload
 from fastapi.responses import FileResponse, Response, StreamingResponse
 from pydantic import BaseModel, Field
 
-from .. import jobs, library, storage, transcode
+from .. import auth, jobs, library, storage, transcode
 # `cifra` only pulls in the theory primitives, not librosa, so importing it at
 # module level does not put the numba import back on the API's startup path.
 from ..analysis import cifra, stems, variants
@@ -40,15 +40,21 @@ def _title_from_filename(filename: str) -> str:
 
 @router.get("")
 def list_songs(
+    request: Request,
     limit: int = Query(100, ge=1, le=500),
     offset: int = Query(0, ge=0),
     search: str = Query("", max_length=120),
 ) -> dict:
-    return {"songs": storage.list_songs(limit=limit, offset=offset, search=search)}
+    return {
+        "songs": storage.list_songs(
+            limit=limit, offset=offset, search=search, viewer_id=auth.viewer_id(request)
+        )
+    }
 
 
 @router.post("", status_code=201)
 async def upload_song(
+    request: Request,
     file: UploadFile = File(...),
     title: str = Form(""),
     artist: str = Form(""),
@@ -110,6 +116,7 @@ async def upload_song(
         original_name=original_name,
         content_type=file.content_type or mimetypes.guess_type(original_name)[0] or "audio/mpeg",
         size_bytes=size,
+        owner_id=auth.current_user_id(request),
     )
     jobs.enqueue(song_id, stored_name)
     return song
@@ -122,7 +129,7 @@ class ImportRequest(BaseModel):
 
 
 @router.post("/import", status_code=201)
-def import_from_library(request: ImportRequest) -> dict:
+def import_from_library(payload: ImportRequest, request: Request) -> dict:
     """Import a file that is already on the server.
 
     Copied rather than referenced. A song whose audio can disappear because
@@ -130,7 +137,7 @@ def import_from_library(request: ImportRequest) -> dict:
     lyric and the stems would all outlive the thing they describe.
     """
     try:
-        source = library.audio_file(request.path)
+        source = library.audio_file(payload.path)
     except library.LibraryError as error:
         raise HTTPException(status_code=400, detail=str(error)) from error
 
@@ -154,12 +161,13 @@ def import_from_library(request: ImportRequest) -> dict:
 
     song = storage.create_song(
         song_id=song_id,
-        title=request.title.strip() or _title_from_filename(source.name),
-        artist=request.artist.strip(),
+        title=payload.title.strip() or _title_from_filename(source.name),
+        artist=payload.artist.strip(),
         filename=destination.name,
         original_name=source.name,
         content_type=mimetypes.guess_type(source.name)[0] or "audio/mpeg",
         size_bytes=destination.stat().st_size,
+        owner_id=auth.current_user_id(request),
     )
     jobs.enqueue(song_id, destination.name)
     return song
@@ -181,6 +189,18 @@ def delete_song(song_id: str) -> Response:
     (AUDIO_DIR / filename).unlink(missing_ok=True)
     stems.delete_stems(song_id)
     return Response(status_code=204)
+
+
+class SharingRequest(BaseModel):
+    shared: bool
+
+
+@router.put("/{song_id}/sharing")
+def set_sharing(song_id: str, payload: SharingRequest) -> dict:
+    """Whether other people on this server see this song in their library."""
+    if not storage.set_song_sharing(song_id, payload.shared):
+        raise HTTPException(status_code=404, detail="Song not found")
+    return storage.get_song(song_id, include_analysis=False)  # type: ignore[return-value]
 
 
 @router.post("/{song_id}/reanalyze")
