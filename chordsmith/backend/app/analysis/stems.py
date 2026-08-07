@@ -173,10 +173,7 @@ def _run_separator(
         raise
 
     if process.returncode != 0:
-        detail = [line for line in tail if line.strip()]
-        raise RuntimeError(
-            f"{model} failed: {detail[-1] if detail else 'no output from the separator'}"
-        )
+        raise RuntimeError(f"{model} failed: {_explain(tail)}")
 
     written = [
         str(path) for path in sorted(output_dir.iterdir()) if path.name not in before
@@ -184,6 +181,32 @@ def _run_separator(
     if not written:
         raise RuntimeError(f"{model} wrote no files")
     return written
+
+
+def _explain(tail: list[str]) -> str:
+    """Turn the separator's last output into something worth storing.
+
+    This used to keep the final line and nothing else, which cost a real
+    diagnosis: twenty-five separations failed with the separator's own
+    "Separation produced no output files — see errors above" and the errors
+    above had already been thrown away. The last line of a failure is almost
+    never the reason for it.
+
+    Progress redraws are dropped — a bar frozen at 82% says when it stopped, not
+    why — and what is left is read newest-first for a line that names a cause.
+    """
+    real = [line for line in tail if line.strip() and not PERCENT.search(line)]
+    if not real:
+        return "no output from the separator"
+
+    causes = ("error", "exception", "traceback", "memory", "killed", "no such", "not found")
+    for line in reversed(real):
+        lowered = line.lower()
+        if any(word in lowered for word in causes) and "see errors above" not in lowered:
+            return line[:400]
+    # Nothing self-identifies as the cause, so hand back the closing lines
+    # rather than one of them and let a person read the sequence.
+    return " | ".join(real[-4:])[:400]
 
 
 def _pick(outputs: list[str], keyword: str) -> Path | None:

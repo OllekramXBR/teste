@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import * as api from '../lib/api'
 import type { Song } from '../lib/api'
 import { formatTime } from '../components/Transport'
+import { QueuePanel } from '../components/QueuePanel'
 import { LibraryBrowser } from '../components/LibraryBrowser'
 import { Page, PageHeader } from '../components/Page'
 import { br } from '../lib/brazilian'
@@ -226,6 +227,8 @@ export function LibraryPage() {
       <LibraryBrowser
         onImported={(song) => setSongs((previous) => [song, ...(previous ?? [])])}
       />
+
+      <QueuePanel songs={songs ?? []} onQueued={() => void refresh(search)} />
 
       <div className="flex items-center gap-2">
         <input

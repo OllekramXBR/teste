@@ -332,7 +332,7 @@ def requeue_incomplete() -> int:
     return count
 
 
-def retry_failed(kind: str = "both") -> dict[str, int]:
+def retry_failed(kind: str = "both", quality: str | None = None) -> dict[str, int]:
     """Queue everything a restart abandoned, and anything else that failed.
 
     A separation that died because the process went away is not a song the
@@ -354,7 +354,7 @@ def retry_failed(kind: str = "both") -> dict[str, int]:
             queued["lyrics"] += 1
         if kind in ("both", "stems") and song["stemsStatus"] == "failed":
             if not stem_module.available_stems(song["id"]):
-                enqueue_stems(song["id"], stored[0])
+                enqueue_stems(song["id"], stored[0], quality=quality)
                 queued["stems"] += 1
     logger.info("requeued %d lyrics and %d separations", queued["lyrics"], queued["stems"])
     return queued

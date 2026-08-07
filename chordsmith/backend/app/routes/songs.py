@@ -346,14 +346,17 @@ def separate_everything() -> dict:
 
 
 @router.post("/retry-failed", status_code=202)
-def retry_failed(kind: str = Query("both", pattern="^(both|lyrics|stems)$")) -> dict:
+def retry_failed(
+    kind: str = Query("both", pattern="^(both|lyrics|stems)$"),
+    quality: str | None = Query(None, pattern="^(fast|best)$"),
+) -> dict:
     """Try again on everything that failed.
 
     Most of what fails is not a song the models cannot handle — it is work that
     was interrupted. Requeueing is cheap to ask for and the queue is served one
     at a time, so this cannot stampede the machine.
     """
-    return jobs.retry_failed(kind)
+    return jobs.retry_failed(kind, quality)
 
 
 @router.post("/{song_id}/stems", status_code=202)

@@ -493,6 +493,15 @@ export interface SongProgress {
   waiting: Partial<Record<'stems' | 'lyrics' | 'tracks' | 'variant', number>>
 }
 
+export function retryFailed(
+  kind: 'both' | 'lyrics' | 'stems' = 'both',
+  quality?: 'fast' | 'best',
+): Promise<{ lyrics: number; stems: number }> {
+  const query = new URLSearchParams({ kind })
+  if (quality) query.set('quality', quality)
+  return request(`/api/songs/retry-failed?${query}`, { method: 'POST' })
+}
+
 export function getSongProgress(id: string): Promise<SongProgress> {
   return request(`/api/songs/${id}/progress`)
 }
