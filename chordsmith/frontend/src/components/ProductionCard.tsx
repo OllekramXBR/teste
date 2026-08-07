@@ -1,11 +1,13 @@
 import { Link } from 'react-router-dom'
 
-import type { JobStatus, Song, Stem } from '../lib/api'
+import { elapsedLabel, jobOf } from '../hooks/useJobProgress'
+import type { JobStatus, RunningJob, Song, SongProgress, Stem } from '../lib/api'
 
 interface Props {
   song: Song
   stems: Stem[]
   busy: string | null
+  progress: SongProgress
   onTranscribe: () => void
   onSeparate: () => void
 }
@@ -27,7 +29,14 @@ const LYRIC_LABELS: Record<JobStatus, string> = {
  * upload — the user asks for them when they want them, and the card is honest
  * about the wait rather than showing a spinner that implies otherwise.
  */
-export function ProductionCard({ song, stems, busy, onTranscribe, onSeparate }: Props) {
+export function ProductionCard({
+  song,
+  stems,
+  busy,
+  progress,
+  onTranscribe,
+  onSeparate,
+}: Props) {
   const canPerform = stems.length > 0 && song.lyricsStatus === 'ready'
 
   return (
@@ -46,6 +55,8 @@ export function ProductionCard({ song, stems, busy, onTranscribe, onSeparate }: 
         action={song.lyricsStatus === 'ready' ? 'Refazer' : 'Transcrever'}
         hint="Alguns minutos. Melhora muito depois de separar as pistas."
         busy={busy === 'lyrics'}
+        job={jobOf(progress, 'lyrics')}
+        queuePosition={progress.waiting.lyrics}
         onClick={onTranscribe}
       />
 
@@ -57,6 +68,8 @@ export function ProductionCard({ song, stems, busy, onTranscribe, onSeparate }: 
         action={stems.length ? 'Refazer' : 'Separar'}
         hint="Vários minutos. Separa a voz principal dos backing vocals e da banda."
         busy={busy === 'stems'}
+        job={jobOf(progress, 'stems')}
+        queuePosition={progress.waiting.stems}
         onClick={onSeparate}
       />
 
@@ -101,6 +114,8 @@ function Row({
   action,
   hint,
   busy,
+  job,
+  queuePosition,
   onClick,
 }: {
   title: string
@@ -110,6 +125,8 @@ function Row({
   action: string
   hint: string
   busy: boolean
+  job?: RunningJob | null
+  queuePosition?: number
   onClick: () => void
 }) {
   const running = tone === 'pending' || tone === 'transcribing' || tone === 'separating' || busy
@@ -137,7 +154,54 @@ function Row({
           {running ? '…' : action}
         </button>
       </div>
-      {detail && <p className="mt-1 truncate text-[11px] text-ink-faint">{detail}</p>}
+      {job ? (
+        <JobBar job={job} />
+      ) : queuePosition ? (
+        <p className="mt-1.5 text-[11px] text-ink-faint">
+          {queuePosition === 1
+            ? 'Na fila — é a próxima.'
+            : `Na fila — ${queuePosition - 1} ${queuePosition === 2 ? 'música' : 'músicas'} na frente.`}
+        </p>
+      ) : (
+        detail && <p className="mt-1 truncate text-[11px] text-ink-faint">{detail}</p>
+      )}
+    </div>
+  )
+}
+
+/**
+ * The bar itself.
+ *
+ * Deliberately never claims to know how long is left. The separator reports how
+ * much of the audio it has been through, which is not the same as time, and a
+ * countdown that keeps growing reads as a lie where an honest "há 6 min" does
+ * not. When the stage cannot report a percentage the bar goes indeterminate
+ * rather than sitting at zero.
+ */
+function JobBar({ job }: { job: RunningJob }) {
+  const percent = job.overall === null ? null : Math.round(job.overall * 100)
+  return (
+    <div className="mt-2">
+      <div className="flex items-baseline justify-between gap-2 text-[11px] text-ink-faint">
+        <span className="truncate">
+          {job.steps > 1 && `${job.step}/${job.steps} · `}
+          {job.stage || 'processando'}
+        </span>
+        <span className="shrink-0 tabular-nums">
+          {percent !== null && `${percent}% · `}
+          há {elapsedLabel(job.elapsedSeconds)}
+        </span>
+      </div>
+      <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-canvas">
+        {percent === null ? (
+          <div className="h-full w-1/3 animate-[slide_1.4s_ease-in-out_infinite] rounded-full bg-accent/60" />
+        ) : (
+          <div
+            className="h-full rounded-full bg-accent transition-[width] duration-700 ease-out"
+            style={{ width: `${Math.max(percent, 2)}%` }}
+          />
+        )}
+      </div>
     </div>
   )
 }

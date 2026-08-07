@@ -23,11 +23,14 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import shutil
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Callable
 
+from .. import progress
 from ..config import (
     SEPARATION_TIMEOUT,
     SEPARATOR_BIN,
@@ -55,6 +58,14 @@ STEM_LABELS_PT = {
 # writes, and which of our stems it becomes.
 BASE_OUTPUTS = {"drums": "drums", "bass": "bass", "other": "other"}
 
+# The separator reports itself through tqdm, which writes "  47%|####…". The
+# last match on a piece wins, since one redraw can carry several numbers.
+PERCENT = re.compile(r"(\d{1,3})%")
+
+# A tqdm redraw ends in a carriage return, a real log line in a newline, and
+# either one means: that piece is complete, parse it.
+LINE_BREAK = re.compile("[\\r\\n]+")
+
 
 @dataclass
 class StemFile:
@@ -70,7 +81,13 @@ class StemFile:
         }
 
 
-def _run_separator(source: Path, model: str, output_dir: Path, names: dict[str, str]) -> list[str]:
+def _run_separator(
+    source: Path,
+    model: str,
+    output_dir: Path,
+    names: dict[str, str],
+    on_progress: Callable[[float], None] | None = None,
+) -> list[str]:
     """Run one separation pass in the separator's own interpreter.
 
     A subprocess rather than an import, and the reason is not style. The
@@ -102,11 +119,61 @@ def _run_separator(source: Path, model: str, output_dir: Path, names: dict[str, 
     ]
 
     before = {path.name for path in output_dir.iterdir()} if output_dir.exists() else set()
-    result = subprocess.run(
-        command, capture_output=True, text=True, timeout=SEPARATION_TIMEOUT
+
+    # Streamed rather than captured whole, so the percentage the separator
+    # prints reaches the progress bar while it still means something. Captured
+    # output only arrives when the process ends, which is precisely when nobody
+    # needs to know how far along it was.
+    #
+    # Bytes, not text, and read with ``read1``. All three of the obvious ways to
+    # read this pipe block until the end, for different reasons:
+    #
+    #   * ``for line in stdout`` waits for a newline, and tqdm redraws its bar
+    #     with a carriage return and no newline.
+    #   * ``read(n)`` on a text stream waits until it has *n* characters, and a
+    #     redraw is about thirty.
+    #
+    # ``read1`` returns whatever has arrived. Measured with a stand-in that
+    # writes like tqdm: with the other two, five updates spread over 0.75s all
+    # surfaced in the same instant at the end.
+    #
+    # Default buffering, not ``bufsize=0``: unbuffered hands back a raw FileIO,
+    # which has no ``read1`` at all.
+    tail: list[str] = []
+    process = subprocess.Popen(
+        command,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
     )
-    if result.returncode != 0:
-        detail = (result.stderr or result.stdout or "").strip().splitlines()
+    try:
+        assert process.stdout is not None
+        buffer = ""
+        while True:
+            raw = process.stdout.read1(4096)
+            if not raw:
+                break
+            buffer += raw.decode("utf-8", errors="replace")
+            pieces = LINE_BREAK.split(buffer)
+            buffer = pieces.pop()  # whatever is left is still being written
+            for piece in pieces:
+                piece = piece.strip()
+                if not piece:
+                    continue
+                tail.append(piece)
+                del tail[:-40]  # only the end matters, and only if it fails
+                if on_progress:
+                    found = PERCENT.findall(piece)
+                    if found:
+                        on_progress(int(found[-1]) / 100)
+        if buffer.strip():
+            tail.append(buffer.strip())
+        process.wait(timeout=SEPARATION_TIMEOUT)
+    except subprocess.TimeoutExpired:
+        process.kill()
+        raise
+
+    if process.returncode != 0:
+        detail = [line for line in tail if line.strip()]
         raise RuntimeError(
             f"{model} failed: {detail[-1] if detail else 'no output from the separator'}"
         )
@@ -149,11 +216,13 @@ def separate(path: str | Path, song_id: str, quality: str | None = None) -> list
     mix_model, karaoke_model = stem_models(quality)
 
     logger.info("separating %s: stage 1 (%s)", song_id, mix_model)
+    progress.stage(song_id, "stems", "separando voz, bateria, baixo e harmonia", step=1)
     base = _run_separator(
         source,
         mix_model,
         work,
         {"Vocals": "mixed-vocals", "Drums": "drums", "Bass": "bass", "Other": "other"},
+        on_progress=lambda fraction: progress.advance(song_id, "stems", fraction),
     )
 
     vocals = _pick(base, "vocals")
@@ -163,8 +232,13 @@ def separate(path: str | Path, song_id: str, quality: str | None = None) -> list
         )
 
     logger.info("separating %s: stage 2 (%s)", song_id, karaoke_model)
+    progress.stage(song_id, "stems", "separando a voz principal dos backings", step=2)
     split = _run_separator(
-        vocals, karaoke_model, work, {"Vocals": "lead", "Instrumental": "backing"}
+        vocals,
+        karaoke_model,
+        work,
+        {"Vocals": "lead", "Instrumental": "backing"},
+        on_progress=lambda fraction: progress.advance(song_id, "stems", fraction),
     )
 
     # On a karaoke model the "vocals" output is the lead and the "instrumental"

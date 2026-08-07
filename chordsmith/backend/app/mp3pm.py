@@ -17,6 +17,7 @@ from __future__ import annotations
 import html
 import logging
 import re
+import time
 import unicodedata
 import urllib.error
 import urllib.request
@@ -39,12 +40,22 @@ REQUEST_TIMEOUT = 30
 # mix or an inflated stream, small enough that a wedged download cannot fill
 # the data volume.
 MAX_DOWNLOAD_BYTES = 150 * 1024 * 1024
+# mp3.pm serves fifty results a page; a second page nearly always closes the
+# gaps a query leaves behind (a misspelling, an artist that ships two masters).
+# Three is the polite ceiling — we are a guest, and each page is another fetch.
+SEARCH_PAGES = 2
+# A small pause between page fetches, so a search does not hammer the site the
+# way a loop over its own subdomains would.
+PAGE_DELAY_SECONDS = 0.4
 
 # Each result block begins with the <li> and carries its own attributes, so the
 # page is split on the opening tag and every chunk parsed on its own.
 _ITEM_OPEN = '<li class="cplayer-sound-item"'
 _ID_PATTERN = re.compile(r'data-sound-id="(\d+)"')
 _DOWNLOAD_URL_PATTERN = re.compile(r'data-download-url="([^"]+)"')
+# The listen URL is the same file served as a stream, which is what the search
+# preview plays in the browser before anything is downloaded.
+_LISTEN_URL_PATTERN = re.compile(r'data-sound-url="([^"]+)"')
 _AUTHOR_PATTERN = re.compile(r'cplayer-data-sound-author">([^<]*)</i>', re.IGNORECASE)
 _TITLE_PATTERN = re.compile(r'cplayer-data-sound-title">([^<]*)</b>', re.IGNORECASE)
 _TIME_PATTERN = re.compile(r'cplayer-data-sound-time">([^<]*)</em>', re.IGNORECASE)
@@ -58,13 +69,14 @@ class Mp3pmError(RuntimeError):
 
 @dataclass
 class Track:
-    """One search result, with everything needed to download it."""
+    """One search result, with everything needed to preview or download it."""
 
     sound_id: str
     title: str
     artist: str
     duration: int  # seconds
     download_url: str
+    listen_url: str = ""
 
     def to_dict(self) -> dict:
         return {
@@ -73,6 +85,7 @@ class Track:
             "artist": self.artist,
             "duration": self.duration,
             "downloadUrl": self.download_url,
+            "listenUrl": self.listen_url,
         }
 
 
@@ -114,6 +127,7 @@ def _parse_page(page: str) -> list[Track]:
         if not id_match or not url_match:
             continue
 
+        listen_match = _LISTEN_URL_PATTERN.search(chunk)
         title_match = _TITLE_PATTERN.search(chunk)
         author_match = _AUTHOR_PATTERN.search(chunk)
         time_match = _TIME_PATTERN.search(chunk)
@@ -129,31 +143,63 @@ def _parse_page(page: str) -> list[Track]:
                 artist=artist,
                 duration=duration,
                 download_url=url_match.group(1),
+                listen_url=listen_match.group(1) if listen_match else "",
             )
         )
     return tracks
 
 
-def search(query: str, limit: int = 20) -> list[Track]:
+def _dedupe(tracks: list[Track]) -> list[Track]:
+    """Drop repeats of the same recording across pages.
+
+    The id is what mp3.pm itself uses to tell recordings apart, so it is the
+    dedupe key: a page boundary must not show the same track twice, while two
+    genuinely different masters of the same song (a live take and the studio
+    one, say) keep their separate rows.
+    """
+    seen: set[str] = set()
+    unique: list[Track] = []
+    for track in tracks:
+        if track.sound_id in seen:
+            continue
+        seen.add(track.sound_id)
+        unique.append(track)
+    return unique
+
+
+def search(query: str, limit: int = 20, pages: int = SEARCH_PAGES) -> list[Track]:
     """The top results for a query, as served by mp3.pm.
 
     An empty query or one that normalises to nothing returns no results. mp3.pm
     answers 404 when nothing matches, which is a valid outcome rather than an
-    error, so that alone yields an empty list.
+    error, so that alone yields an empty list. Each page is fetched separately
+    with a pause between them, and results are deduplicated before being cut to
+    the limit.
     """
     slug = _slug(query)
     if not slug:
         return []
 
-    url = f"https://s-{slug}.{SEARCH_HOST}/"
-    try:
-        page = _fetch(url)
-    except urllib.error.HTTPError as error:
-        if error.code == 404:
-            logger.info("mp3.pm has nothing for %r", query)
-            return []
-        raise Mp3pmError(f"mp3.pm answered HTTP {error.code}") from error
-    return _parse_page(page)[:limit]
+    page_count = min(max(pages, 1), 5)
+    raw: list[Track] = []
+    for number in range(1, page_count + 1):
+        path = f"/page/{number}/" if number > 1 else "/"
+        url = f"https://s-{slug}.{SEARCH_HOST}{path}"
+        try:
+            page = _fetch(url)
+        except urllib.error.HTTPError as error:
+            if error.code == 404:
+                if number > 1:
+                    # A query can match page one and run out after it.
+                    break
+                logger.info("mp3.pm has nothing for %r", query)
+                return []
+            raise Mp3pmError(f"mp3.pm answered HTTP {error.code}") from error
+        raw.extend(_parse_page(page))
+        if number < page_count:
+            time.sleep(PAGE_DELAY_SECONDS)
+
+    return _dedupe(raw)[:limit]
 
 
 def find(query: str, sound_id: str) -> Track | None:
@@ -178,13 +224,36 @@ def _safe_filename(track: Track) -> str:
     return name or "track"
 
 
+def _is_mp3_header(chunk: bytes) -> bool:
+    """Whether the start of a stream is a real MPEG audio file.
+
+    An ID3 tag announces most files outright; the rest start with the frame
+    sync that begins every MPEG audio frame. Anything else — an HTML error
+    page, a CAPTCHA, a plain-text redirect — is refused rather than saved, so a
+    wedged upstream cannot drop junk into a library that expects audio.
+    """
+    if chunk[:3] == b"ID3":
+        return True
+    if len(chunk) < 2:
+        return False
+    # 11 bits of sync: 0xFF in the first byte, then 111xxxxx. The version and
+    # layer nibbles each have a reserved value (version 01, layer 00) that a
+    # real frame never carries.
+    return (
+        chunk[0] == 0xFF
+        and (chunk[1] & 0xE0) == 0xE0
+        and (chunk[1] & 0x18) != 0x08
+        and (chunk[1] & 0x06) != 0x00
+    )
+
+
 def download(track: Track, destination: Path | None = None) -> Path:
     """Stream ``track``'s MP3 into the music folder.
 
     Returns the path of the saved file. The name comes from the artist and the
     title, so the file already reads well in a share someone browses by hand.
-    A partial or empty download is removed rather than left to confuse the
-    library later.
+    A partial, empty, or non-audio download is removed rather than left to
+    confuse the library later.
     """
     folder = destination or MUSIC_DIR
     folder.mkdir(parents=True, exist_ok=True)
@@ -194,7 +263,16 @@ def download(track: Track, destination: Path | None = None) -> Path:
     try:
         with urllib.request.urlopen(request, timeout=REQUEST_TIMEOUT) as response:
             with target.open("wb") as handle:
-                copied = 0
+                first = response.read(CHUNK_SIZE)
+                if not _is_mp3_header(first):
+                    raise Mp3pmError(
+                        "the download did not return an MP3 file "
+                        f"(Content-Type: {response.headers.get_content_type() or 'unknown'})"
+                    )
+                copied = len(first)
+                if copied > MAX_DOWNLOAD_BYTES:
+                    raise Mp3pmError("the download exceeds the size limit")
+                handle.write(first)
                 while True:
                     chunk = response.read(CHUNK_SIZE)
                     if not chunk:

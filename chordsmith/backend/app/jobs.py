@@ -13,7 +13,7 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-from . import storage
+from . import progress, storage
 from .config import ANALYSIS_WORKERS, AUDIO_DIR, AUTO_LYRICS, AUTO_STEMS
 
 logger = logging.getLogger(__name__)
@@ -83,6 +83,8 @@ def _run_lyrics(song_id: str, path: Path, model_name: str | None) -> None:
 
     try:
         storage.set_lyrics_status(song_id, "transcribing")
+        progress.start(song_id, "lyrics")
+        progress.stage(song_id, "lyrics", "ouvindo a voz")
         started = time.perf_counter()
         result = transcribe_file(path, model_name=model_name)
         result["transcribeSeconds"] = round(time.perf_counter() - started, 2)
@@ -96,6 +98,8 @@ def _run_lyrics(song_id: str, path: Path, model_name: str | None) -> None:
     except Exception as exc:  # noqa: BLE001 - surfaced to the client verbatim
         logger.exception("transcription failed for %s", song_id)
         storage.set_lyrics_status(song_id, "failed", error=str(exc))
+    finally:
+        progress.finish(song_id, "lyrics")
 
 
 def _continue_after_analysis(song_id: str, path: Path) -> None:
@@ -136,6 +140,8 @@ def _run_stems(song_id: str, path: Path, quality: str | None = None) -> None:
 
     try:
         storage.set_stems_status(song_id, "separating")
+        # Two model passes, which is what the bar divides itself into.
+        progress.start(song_id, "stems", steps=2)
         started = time.perf_counter()
         written = separate(path, song_id, quality=quality)
         storage.set_stems_status(song_id, "ready")
@@ -157,6 +163,8 @@ def _run_stems(song_id: str, path: Path, quality: str | None = None) -> None:
     except Exception as exc:  # noqa: BLE001 - surfaced to the client verbatim
         logger.exception("separation failed for %s", song_id)
         storage.set_stems_status(song_id, "failed", error=str(exc))
+    finally:
+        progress.finish(song_id, "stems")
 
 
 def enqueue_stems(song_id: str, filename: str, quality: str | None = None) -> None:
@@ -166,6 +174,7 @@ def enqueue_stems(song_id: str, filename: str, quality: str | None = None) -> No
     which is exactly why it is asked for rather than done on upload.
     """
     storage.set_stems_status(song_id, "pending")
+    progress.enqueued(song_id, "stems")
     get_heavy_executor().submit(_run_stems, song_id, AUDIO_DIR / filename, quality)
 
 
@@ -177,6 +186,8 @@ def _run_multitrack(song_id: str) -> None:
 
     try:
         started = time.perf_counter()
+        progress.start(song_id, "tracks")
+        progress.stage(song_id, "tracks", "transcrevendo cada pista")
         tracks = transcribe_song(song_id)
         payload = [
             {
@@ -210,6 +221,8 @@ def _run_multitrack(song_id: str) -> None:
         )
     except Exception:  # noqa: BLE001 - reported through the missing cache file
         logger.exception("multitrack transcription failed for %s", song_id)
+    finally:
+        progress.finish(song_id, "tracks")
 
 
 def _run_variant(song_id: str, semitones: int, rate: float) -> None:
@@ -279,6 +292,7 @@ def enqueue_lyrics(song_id: str, filename: str, model_name: str | None = None) -
     without it. The user asks for lyrics when they want them.
     """
     storage.set_lyrics_status(song_id, "pending")
+    progress.enqueued(song_id, "lyrics")
     get_executor().submit(_run_lyrics, song_id, AUDIO_DIR / filename, model_name)
 
 
@@ -295,14 +309,55 @@ def requeue_incomplete() -> int:
             continue
         enqueue(song_id, stored[0])
         count += 1
-    # A transcription killed mid-flight is not requeued — it costs minutes and
-    # the user may not want it repeated on every restart — but it must not stay
-    # stuck showing a spinner either.
+    # Transcription and separation used to be marked failed here instead of
+    # being picked up again, on the reasoning that they cost minutes and should
+    # not repeat unasked. That reasoning belonged to a version where a person
+    # clicked to start them. They now run automatically, and the consequence was
+    # measurable: 40 songs sat marked "Interrupted by a restart" with no stems
+    # and 38 with no lyrics, because every restart — and with --reload, every
+    # save — emptied the queue instead of resuming it. Work nobody asked to
+    # cancel is work to finish.
     for song_id in storage.stale_lyrics_ids():
-        storage.set_lyrics_status(song_id, "failed", error="Interrupted by a restart")
+        stored = storage.get_song_file(song_id)
+        if not stored or not (AUDIO_DIR / stored[0]).exists():
+            storage.set_lyrics_status(song_id, "failed", error="Audio file is missing")
+            continue
+        enqueue_lyrics(song_id, stored[0])
     for song_id in storage.stale_stems_ids():
-        storage.set_stems_status(song_id, "failed", error="Interrupted by a restart")
+        stored = storage.get_song_file(song_id)
+        if not stored or not (AUDIO_DIR / stored[0]).exists():
+            storage.set_stems_status(song_id, "failed", error="Audio file is missing")
+            continue
+        enqueue_stems(song_id, stored[0])
     return count
+
+
+def retry_failed(kind: str = "both") -> dict[str, int]:
+    """Queue everything a restart abandoned, and anything else that failed.
+
+    A separation that died because the process went away is not a song the
+    models cannot handle; it is a song they never finished trying. Kept separate
+    from the startup path so it can also be pointed at the backlog that built up
+    before restarts started resuming properly.
+    """
+    queued = {"lyrics": 0, "stems": 0}
+    from .analysis import stems as stem_module
+
+    for song in storage.list_songs(limit=1000):
+        if song["status"] != "ready":
+            continue
+        stored = storage.get_song_file(song["id"])
+        if not stored or not (AUDIO_DIR / stored[0]).exists():
+            continue
+        if kind in ("both", "lyrics") and song["lyricsStatus"] == "failed":
+            enqueue_lyrics(song["id"], stored[0])
+            queued["lyrics"] += 1
+        if kind in ("both", "stems") and song["stemsStatus"] == "failed":
+            if not stem_module.available_stems(song["id"]):
+                enqueue_stems(song["id"], stored[0])
+                queued["stems"] += 1
+    logger.info("requeued %d lyrics and %d separations", queued["lyrics"], queued["stems"])
+    return queued
 
 
 def warm_up() -> None:

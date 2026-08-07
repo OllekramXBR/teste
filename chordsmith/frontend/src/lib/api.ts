@@ -322,6 +322,8 @@ export interface Mp3pmTrack {
   /** Seconds. */
   duration: number
   downloadUrl: string
+  /** A stream of the same file, for previewing before anything is downloaded. */
+  listenUrl: string
 }
 
 export function searchMp3pm(query: string): Promise<{ results: Mp3pmTrack[] }> {
@@ -471,6 +473,35 @@ export function separateAll(): Promise<{ queued: number; songs: string[] }> {
 
 export function separateStems(id: string): Promise<Song> {
   return request(`/api/songs/${id}/stems`, { method: 'POST' })
+}
+
+export interface RunningJob {
+  songId: string
+  kind: 'stems' | 'lyrics' | 'tracks' | 'variant'
+  stage: string
+  step: number
+  steps: number
+  fraction: number | null
+  /** 0–1 across the whole job, not just the current stage. */
+  overall: number | null
+  elapsedSeconds: number
+}
+
+export interface SongProgress {
+  running: RunningJob[]
+  /** Position in each queue, 1 meaning next. */
+  waiting: Partial<Record<'stems' | 'lyrics' | 'tracks' | 'variant', number>>
+}
+
+export function getSongProgress(id: string): Promise<SongProgress> {
+  return request(`/api/songs/${id}/progress`)
+}
+
+export function getLibraryProgress(): Promise<{
+  running: RunningJob[]
+  queued: Partial<Record<string, number>>
+}> {
+  return request('/api/songs/progress')
 }
 
 export function getStems(id: string): Promise<{

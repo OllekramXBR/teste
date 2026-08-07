@@ -29,6 +29,16 @@ def client(tmp_path_factory, monkeypatch_session):
     importlib.reload(main)
 
     with TestClient(main.app) as test_client:
+        # The API refuses everything without a session, so the suite needs an
+        # account like any other caller. Registering one rather than reaching
+        # past the middleware on purpose: the sign-in path is now part of what
+        # every endpoint depends on, and a test client that bypassed it would
+        # stop noticing the day that path breaks.
+        registered = test_client.post(
+            "/api/auth/register",
+            json={"username": "suite", "password": "suite-password", "displayName": "Suite"},
+        )
+        assert registered.status_code == 201, registered.text
         yield test_client
 
 

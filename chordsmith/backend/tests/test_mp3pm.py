@@ -20,6 +20,7 @@ from app.routes import mp3pm as mp3pm_routes
 SAMPLE_PAGE = """
 <h2 class="mtitle">what do you mean</h2><ul class="mp3list">
 <li class="cplayer-sound-item" data-sound-id="44032646"
+  data-sound-url="https://cs1.mp3.pm/listen/44032646/abc.mp3"
   data-download-url="https://cs1.mp3.pm/download/44032646/abc.mp3">
   <div class="mp3list-btns">
     <a href="javascript:void(0);" class="mp3list-btn-play cplayer-ui-play" title="play">(play)</a>
@@ -46,7 +47,10 @@ SAMPLE_PAGE = """
 class FakeResponse:
     """A minimal urllib response: context manager, read() up to a size."""
 
-    headers = SimpleNamespace(get_content_charset=lambda: None)
+    headers = SimpleNamespace(
+        get_content_charset=lambda: None,
+        get_content_type=lambda: "audio/mpeg",
+    )
 
     def __init__(self, body: bytes):
         self.body = body
@@ -67,9 +71,36 @@ class FakeResponse:
         return chunk
 
 
+@pytest.fixture(autouse=True)
+def no_page_delay(monkeypatch):
+    """A search can span pages; the politeness pause is irrelevant in tests."""
+    monkeypatch.setattr(mp3pm.time, "sleep", lambda _seconds: None)
+
+
+def page_fetch(*responses):
+    """A ``_fetch`` stand-in serving one response per page URL.
+
+    Page one is the bare subdomain; later pages carry a ``/page/N/`` path, so
+    each URL is matched to the response at its index. Any remaining page is
+    treated as 404, which is how the real site signals "no more results".
+    """
+    calls: list[str] = []
+
+    def _fetch(url: str) -> str:
+        calls.append(url)
+        page_numbers = [candidate for candidate in url.split("/") if candidate.isdigit()]
+        number = int(page_numbers[-1]) if page_numbers else 1
+        if number - 1 < len(responses):
+            return responses[number - 1]
+        raise urllib.error.HTTPError(url, 404, "Not Found", None, None)
+
+    _fetch.calls = calls  # type: ignore[attr-defined]
+    return _fetch
+
+
 class TestParsing:
     def test_results_are_extracted(self, monkeypatch):
-        monkeypatch.setattr(mp3pm, "_fetch", lambda url: SAMPLE_PAGE)
+        monkeypatch.setattr(mp3pm, "_fetch", page_fetch(SAMPLE_PAGE))
         tracks = mp3pm.search("what do you mean")
         assert len(tracks) == 2
 
@@ -79,12 +110,13 @@ class TestParsing:
         assert first.title == "What Do You Mean?"
         assert first.duration == 6 * 60 + 47
         assert first.download_url.startswith("https://cs1.mp3.pm/download/")
+        assert first.listen_url == "https://cs1.mp3.pm/listen/44032646/abc.mp3"
 
     def test_hours_are_accounted_for(self):
         assert mp3pm._parse_duration("1:02:03") == 3723
 
     def test_limit_is_respected(self, monkeypatch):
-        monkeypatch.setattr(mp3pm, "_fetch", lambda url: SAMPLE_PAGE)
+        monkeypatch.setattr(mp3pm, "_fetch", page_fetch(SAMPLE_PAGE))
         assert len(mp3pm.search("what do you mean", limit=1)) == 1
 
     def test_no_results_answers_404_with_an_empty_list(self, monkeypatch):
@@ -115,11 +147,39 @@ class TestParsing:
         assert mp3pm.search("   ---   ") == []
 
     def test_find_locates_by_id(self, monkeypatch):
-        monkeypatch.setattr(mp3pm, "_fetch", lambda url: SAMPLE_PAGE)
+        monkeypatch.setattr(mp3pm, "_fetch", page_fetch(SAMPLE_PAGE))
         found = mp3pm.find("what do you mean", "44980019")
         assert found is not None
         assert found.duration == 3723
         assert mp3pm.find("what do you mean", "00000000") is None
+
+
+class TestPagination:
+    def test_second_page_is_fetched(self, monkeypatch):
+        fetch = page_fetch(SAMPLE_PAGE, SAMPLE_PAGE)
+        monkeypatch.setattr(mp3pm, "_fetch", fetch)
+        tracks = mp3pm.search("what do you mean")
+        # Both pages carried the same two recordings, so dedupe collapses the
+        # repeats instead of showing the top of page one twice.
+        assert len(tracks) == 2
+        assert sorted(track.sound_id for track in tracks) == ["44032646", "44980019"]
+        assert any(url.endswith("/page/2/") for url in fetch.calls)
+
+    def test_distinct_recordings_from_both_pages_are_kept(self, monkeypatch):
+        later = SAMPLE_PAGE.replace('data-sound-id="44980019"', 'data-sound-id="77777777"')
+        monkeypatch.setattr(mp3pm, "_fetch", page_fetch(SAMPLE_PAGE, later))
+        tracks = mp3pm.search("what do you mean")
+        assert sorted(track.sound_id for track in tracks) == ["44032646", "44980019", "77777777"]
+
+    def test_second_page_404_ends_the_search(self, monkeypatch):
+        monkeypatch.setattr(mp3pm, "_fetch", page_fetch(SAMPLE_PAGE))
+        assert len(mp3pm.search("what do you mean")) == 2
+
+    def test_page_cap_is_honoured(self, monkeypatch):
+        fetch = page_fetch(SAMPLE_PAGE)
+        monkeypatch.setattr(mp3pm, "_fetch", fetch)
+        mp3pm.search("what do you mean", pages=3)
+        assert not any(url.endswith("/page/3/") for url in fetch.calls)
 
 
 class TestSlug:
@@ -152,6 +212,25 @@ class TestDownload:
         saved = mp3pm.download(track, destination=tmp_path)
         assert saved == tmp_path / "ZDS - What Do You Mean.mp3"
         assert saved.read_bytes() == b"ID3\x00\x00fake-mp3-bytes"
+
+    def test_accepts_a_raw_mpeg_frame_without_an_id3_tag(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(
+            "urllib.request.urlopen",
+            lambda request, timeout: FakeResponse(b"\xff\xfb\x90\x00bytes"),
+        )
+        track = mp3pm.Track("1", "Song", "Artist", 0, "https://cs1.mp3.pm/d/1/x.mp3")
+        saved = mp3pm.download(track, destination=tmp_path)
+        assert saved.read_bytes() == b"\xff\xfb\x90\x00bytes"
+
+    def test_refuses_html_that_is_not_audio(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(
+            "urllib.request.urlopen",
+            lambda request, timeout: FakeResponse(b"<html><body>404 not found</body></html>"),
+        )
+        track = mp3pm.Track("1", "Song", "Artist", 0, "https://cs1.mp3.pm/d/1/x.mp3")
+        with pytest.raises(mp3pm.Mp3pmError):
+            mp3pm.download(track, destination=tmp_path)
+        assert list(tmp_path.iterdir()) == []
 
     def test_removes_a_partial_file_on_failure(self, tmp_path, monkeypatch):
         def explode(request, timeout):
@@ -191,6 +270,7 @@ def test_search_route_returns_results(router_client, monkeypatch):
             "artist": "ZDS",
             "duration": 407,
             "downloadUrl": "https://cs1.mp3.pm/d/44032646/a.mp3",
+            "listenUrl": "",
         }
     ]
 

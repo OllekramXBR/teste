@@ -38,6 +38,11 @@ export function LibraryBrowser({ onImported }: Props) {
   const [webBusy, setWebBusy] = useState<string | null>(null)
   const [webImported, setWebImported] = useState<Set<string>>(new Set())
   const [webError, setWebError] = useState<string | null>(null)
+  // One shared player for the whole result list, so previewing a track cannot
+  // leave half a dozen streams playing at once.
+  const [preview, setPreview] = useState<string | null>(null)
+  const [hideOffStage, setHideOffStage] = useState(false)
+  const audioRef = useRef<HTMLAudioElement | null>(null)
 
   const run = useCallback(async (term: string) => {
     const ticket = ++requestRef.current
@@ -86,6 +91,8 @@ export function LibraryBrowser({ onImported }: Props) {
     setWebResults([])
     setWebSearched(false)
     setWebError(null)
+    setPreview(null)
+    if (audioRef.current) audioRef.current.removeAttribute('src')
   }, [query])
 
   const bring = async (track: LibraryTrack) => {
@@ -128,6 +135,27 @@ export function LibraryBrowser({ onImported }: Props) {
       setWebBusy(null)
     }
   }
+
+  const togglePreview = (track: Mp3pmTrack) => {
+    if (!audioRef.current) return
+    if (preview === track.soundId) {
+      audioRef.current.pause()
+      audioRef.current.removeAttribute('src')
+      setPreview(null)
+    } else {
+      audioRef.current.src = track.listenUrl
+      setPreview(track.soundId)
+      void audioRef.current.play().catch(() => setPreview(null))
+    }
+  }
+
+  // A page of fifty results is mostly the same song several times over — a
+  // live take, a radio edit, a karaoke mix. The off-stage versions are still
+  // listed, but hidden by default so the studio recording reads first.
+  const OFF_STAGE = /\b(live|ao vivo|remix|karaoke|karaokê|instrumental|acoustic|acústico|edit|extended|mashup|sped up|slowed|speed up)\b/i
+  const visibleWeb = hideOffStage
+    ? webResults.filter((track) => !OFF_STAGE.test(`${track.artist} ${track.title}`))
+    : webResults
 
   if (enabled === false) return null
 
@@ -176,6 +204,12 @@ export function LibraryBrowser({ onImported }: Props) {
         </p>
       )}
 
+      {hideOffStage && webResults.length > 0 && visibleWeb.length === 0 && (
+        <p className="px-4 pb-4 text-center text-xs text-ink-faint">
+          Só vieram versões ao vivo ou remixes — desmarque o filtro para vê-las.
+        </p>
+      )}
+
       {!query.trim() && (
         <p className="px-4 py-6 text-center text-xs text-ink-faint">
           Digite parte do artista ou do título. Acentos são opcionais.
@@ -208,11 +242,23 @@ export function LibraryBrowser({ onImported }: Props) {
 
       {webResults.length > 0 && (
         <>
-          <div className="border-t border-line px-4 py-2 text-[11px] text-ink-faint">
-            mp3.pm — baixar e analisar como no servidor
+          <div className="flex items-center justify-between gap-2 border-t border-line px-4 py-2 text-[11px] text-ink-faint">
+            <span>
+              mp3.pm — baixar e analisar como no servidor · {visibleWeb.length}{' '}
+              {visibleWeb.length === 1 ? 'faixa' : 'faixas'}
+            </span>
+            <label className="flex shrink-0 cursor-pointer items-center gap-1.5">
+              <input
+                type="checkbox"
+                checked={hideOffStage}
+                onChange={(event) => setHideOffStage(event.target.checked)}
+                className="accent-[var(--color-accent)]"
+              />
+              esconder ao vivo e remixes
+            </label>
           </div>
           <ul className="max-h-96 divide-y divide-[var(--color-line)] overflow-y-auto ">
-            {webResults.map((track) => (
+            {visibleWeb.map((track) => (
               <li key={track.soundId} className="flex items-center gap-3 px-4 py-2.5">
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm">{track.title}</p>
@@ -221,6 +267,16 @@ export function LibraryBrowser({ onImported }: Props) {
                     {track.duration > 0 ? ` · ${formatTime(track.duration)}` : ''}
                   </p>
                 </div>
+                {track.listenUrl ? (
+                  <button
+                    type="button"
+                    onClick={() => togglePreview(track)}
+                    aria-pressed={preview === track.soundId}
+                    className="shrink-0 rounded-full border border-line px-3 py-1 text-xs font-medium transition hover:border-accent hover:text-accent "
+                  >
+                    {preview === track.soundId ? 'parar' : 'ouvir'}
+                  </button>
+                ) : null}
                 <button
                   type="button"
                   onClick={() => void bringWeb(track)}
@@ -236,6 +292,13 @@ export function LibraryBrowser({ onImported }: Props) {
               </li>
             ))}
           </ul>
+          <audio
+            ref={audioRef}
+            preload="none"
+            onEnded={() => setPreview(null)}
+            onError={() => setPreview(null)}
+            className="hidden"
+          />
         </>
       )}
     </section>

@@ -15,7 +15,7 @@ from fastapi import APIRouter, File, Form, HTTPException, Query, Request, Upload
 from fastapi.responses import FileResponse, Response, StreamingResponse
 from pydantic import BaseModel, Field
 
-from .. import auth, covers, fingerprint, jobs, library, storage, transcode
+from .. import auth, covers, fingerprint, jobs, library, progress, storage, transcode
 # `cifra` only pulls in the theory primitives, not librosa, so importing it at
 # module level does not put the numba import back on the API's startup path.
 from ..analysis import cifra, stems, variants
@@ -203,6 +203,18 @@ def import_from_library(payload: ImportRequest, request: Request) -> dict:
     return song
 
 
+@router.get("/progress")
+def library_progress() -> dict:
+    """Everything running or waiting, for a library that wants its own backlog."""
+    return progress.snapshot()
+
+
+@router.get("/{song_id}/progress")
+def song_progress(song_id: str) -> dict:
+    """How far along this song's long jobs are, and where it sits in the queue."""
+    return progress.for_song(song_id)
+
+
 @router.get("/{song_id}")
 def get_song(song_id: str) -> dict:
     song = storage.get_song(song_id)
@@ -333,6 +345,17 @@ def separate_everything() -> dict:
     return {"queued": len(queued), "songs": queued}
 
 
+@router.post("/retry-failed", status_code=202)
+def retry_failed(kind: str = Query("both", pattern="^(both|lyrics|stems)$")) -> dict:
+    """Try again on everything that failed.
+
+    Most of what fails is not a song the models cannot handle — it is work that
+    was interrupted. Requeueing is cheap to ask for and the queue is served one
+    at a time, so this cannot stampede the machine.
+    """
+    return jobs.retry_failed(kind)
+
+
 @router.post("/{song_id}/stems", status_code=202)
 def separate_stems(
     song_id: str,
@@ -356,6 +379,7 @@ def list_stems(song_id: str) -> dict:
     return {
         "status": song["stemsStatus"],
         "error": song["stemsError"],
+        "progress": progress.for_song(song_id),
         "stems": [
             {**stem.to_dict(), "url": f"/api/songs/{song_id}/stems/{stem.name}"}
             for stem in stems.available_stems(song_id)

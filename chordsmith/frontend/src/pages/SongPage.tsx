@@ -14,6 +14,7 @@ import { KaraokeView } from '../components/KaraokeView'
 import { KeyChooser } from '../components/KeyChooser'
 import { LyricEditor } from '../components/LyricEditor'
 import { ProductionCard } from '../components/ProductionCard'
+import { useJobProgress } from '../hooks/useJobProgress'
 import { StaffNotation } from '../components/StaffNotation'
 import { ChordToneLegend, FretDiagram } from '../components/FretDiagram'
 import { PianoDiagram } from '../components/PianoDiagram'
@@ -119,6 +120,14 @@ export function SongPage() {
   const engine = engineRef.current
 
   const analysis = song?.analysis ?? null
+  // Only while something is actually running, so an idle page is silent.
+  const jobsRunning = Boolean(
+    song &&
+      ['pending', 'analyzing', 'transcribing', 'separating'].some((state) =>
+        [song.status, song.lyricsStatus, song.stemsStatus].includes(state as typeof song.status),
+      ),
+  )
+  const progress = useJobProgress(songId, jobsRunning)
   const audioUrl = song ? song.audioUrl : null
   const player = usePlayer(audioUrl)
 
@@ -893,6 +902,7 @@ export function SongPage() {
 
         <aside className="space-y-4">
           <ProductionCard
+            progress={progress}
             song={song}
             stems={stems}
             busy={busy}
