@@ -339,7 +339,7 @@ export function importMp3pm(
   return request('/api/mp3pm/import', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ query, soundId, title, artist }),
+    body: JSON.stringify({ query, sound_id: soundId, title, artist }),
   })
 }
 
