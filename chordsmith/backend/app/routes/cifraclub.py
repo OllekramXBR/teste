@@ -135,3 +135,27 @@ def compare_chart(song_id: str) -> dict:
     result["detectedKey"] = detected_key
     result["webKey"] = chart["key"]
     return result
+
+
+@song_router.post("/{song_id}/cifraclub/correct")
+def correct_chart(song_id: str) -> dict:
+    """Rewrite the detected analysis with the imported chart as the authority.
+
+    The chart's tom and chord letters replace the detected ones; the beats,
+    bars, timing and confidence stay from the audio. The reader asks for this
+    once the comparison shows the chart is the version they want to play. The
+    updated song is returned so the page can redraw itself against it.
+    """
+    song = storage.get_song(song_id)
+    if not song:
+        raise HTTPException(status_code=404, detail="Song not found")
+    analysis = song.get("analysis")
+    if not analysis:
+        raise HTTPException(status_code=409, detail="This song has not been analysed yet")
+    chart = storage.get_cifra(song_id)
+    if not chart:
+        raise HTTPException(status_code=404, detail="No web chart imported for this song")
+
+    corrected = cifraclub.correct(analysis, chart["chords"], chart["key"])
+    storage.save_analysis(song_id, corrected)
+    return storage.get_song(song_id)  # type: ignore[return-value]

@@ -885,7 +885,10 @@ export function SongPage() {
 
           {view === 'cifra' && (
             <div className="space-y-4">
-              <WebChartPanel songId={song.id} />
+              <WebChartPanel
+                songId={song.id}
+                onCorrected={(updated) => setSong(updated)}
+              />
               <div className="glass rounded-xl p-5">
                 <div className="mb-3 flex items-center justify-between gap-2">
                   <h3 className="text-sm font-semibold">Cifra da análise</h3>

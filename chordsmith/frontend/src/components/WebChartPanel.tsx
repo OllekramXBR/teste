@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import * as api from '../lib/api'
-import type { CifraclubResult, ChartComparison, WebChart } from '../lib/api'
+import type { CifraclubResult, ChartComparison, Song, WebChart } from '../lib/api'
 
 interface Props {
   songId: string
+  /** Called with the updated song once the analysis has been corrected by the cifra. */
+  onCorrected: (song: Song) => void
 }
 
 const VERDICT_CLASS: Record<string, string> = {
@@ -24,7 +26,7 @@ const VERDICT_CLASS: Record<string, string> = {
  * about the comparison marks. The chart is cached on the server, so opening
  * the panel again never re-fetches the site.
  */
-export function WebChartPanel({ songId }: Props) {
+export function WebChartPanel({ songId, onCorrected }: Props) {
   const [chart, setChart] = useState<WebChart | null>(null)
   const [chartMissing, setChartMissing] = useState(false)
   const [comparison, setComparison] = useState<ChartComparison | null>(null)
@@ -34,6 +36,8 @@ export function WebChartPanel({ songId }: Props) {
   const [searched, setSearched] = useState(false)
   const [importing, setImporting] = useState<number | null>(null)
   const [comparing, setComparing] = useState(false)
+  const [correcting, setCorrecting] = useState(false)
+  const [corrected, setCorrected] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const requestRef = useRef(0)
 
@@ -87,6 +91,7 @@ export function WebChartPanel({ songId }: Props) {
         setResults([])
         setQuery('')
         setComparison(null)
+        setCorrected(false)
       } catch (failure) {
         if (ticket !== requestRef.current) return
         setError(failure instanceof Error ? failure.message : 'Falhou ao importar a cifra')
@@ -123,11 +128,35 @@ export function WebChartPanel({ songId }: Props) {
       setChart(null)
       setChartMissing(true)
       setComparison(null)
+      setCorrected(false)
     } catch (failure) {
       if (ticket !== requestRef.current) return
       setError(failure instanceof Error ? failure.message : 'Falhou ao remover a cifra')
     }
   }, [chart, songId])
+
+  const applyCorrection = useCallback(async () => {
+    if (!chart) return
+    setCorrecting(true)
+    setError(null)
+    const ticket = ++requestRef.current
+    try {
+      const updated = await api.correctWebChart(songId)
+      if (ticket !== requestRef.current) return
+      onCorrected(updated)
+      setCorrected(true)
+      setComparison(null)
+      // The analysis changed under the comparison: run it again on the spot.
+      const result = await api.compareWebChart(songId)
+      if (ticket !== requestRef.current) return
+      setComparison(result)
+    } catch (failure) {
+      if (ticket !== requestRef.current) return
+      setError(failure instanceof Error ? failure.message : 'Falhou ao corrigir pela cifra')
+    } finally {
+      if (ticket === requestRef.current) setCorrecting(false)
+    }
+  }, [chart, songId, onCorrected])
 
   return (
     <section className="rounded-xl border border-line bg-panel p-4 ">
@@ -242,6 +271,21 @@ export function WebChartPanel({ songId }: Props) {
           ) : (
             <Comparison chart={chart} comparison={comparison} />
           )}
+
+          {corrected && (
+            <p className="mt-3 rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-[11px] text-emerald-700 dark:text-emerald-300">
+              A análise foi corrigida: o tom e os acordes agora seguem a cifra.
+            </p>
+          )}
+
+          <button
+            type="button"
+            onClick={() => void applyCorrection()}
+            disabled={correcting}
+            className="mt-3 w-full rounded-lg border border-rose-400 px-3 py-2 text-xs font-semibold text-rose-500 transition hover:bg-rose-500/10 disabled:opacity-40 "
+          >
+            {correcting ? 'Corrigindo…' : 'Corrigir tom e acordes pela cifra'}
+          </button>
         </div>
       )}
     </section>

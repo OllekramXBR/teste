@@ -202,6 +202,72 @@ def test_compare_per_bar():
     assert all(bar["verdict"] == "match" for bar in result["perBar"])
 
 
+def test_parse_key():
+    assert cifraclub._parse_key("G") == (7, "major")
+    assert cifraclub._parse_key("Em") == (4, "minor")
+    assert cifraclub._parse_key("Bbm") == (10, "minor")
+    assert cifraclub._parse_key("F#") == (6, "major")
+    assert cifraclub._parse_key("") is None
+    assert cifraclub._parse_key("ZZ9") is None
+    assert cifraclub._parse_key(None) is None
+
+
+def test_correct_replaces_letters_and_key():
+    analysis = _progression_analysis()
+    corrected = cifraclub.correct(analysis, ["G7M", "D", "Em", "C"], "G")
+
+    # The chart's tom wins, marked as authoritative.
+    assert corrected["key"]["tonic"] == 7
+    assert corrected["key"]["mode"] == "major"
+    assert corrected["key"]["name"] == "G major"
+    assert corrected["key"]["confidence"] == 1.0
+    assert corrected["useFlats"] is False
+
+    # The first detected span took the chart's chord, letters and quality.
+    assert corrected["chords"][0]["root"] == 7
+    assert corrected["chords"][0]["quality"] == "maj7"
+    assert corrected["chords"][0]["label"] == "Gmaj7"
+    assert corrected["chords"][0]["notes"] == [7, 11, 2, 6]
+
+    # Timing survives the rewrite.
+    assert corrected["chords"][0]["start"] == 0.0
+    assert corrected["chords"][0]["end"] == 2.4
+
+    # Every beat inside the corrected span carries the corrected letter.
+    assert all(beat["label"] == "Gmaj7" for beat in corrected["beats"][:4])
+    assert corrected["beats"][0]["root"] == 7
+    assert corrected["uniqueChords"] == ["C", "D", "Em", "Gmaj7"]
+
+
+def test_correct_uses_chart_as_truth_when_roots_differ():
+    analysis = _progression_analysis()
+    corrected = cifraclub.correct(analysis, ["A", "B", "C#m", "F"], "A")
+    assert corrected["key"]["name"] == "A major"
+    assert [chord["label"] for chord in corrected["chords"]] == ["A", "B", "C#m", "F"]
+    assert corrected["beats"][0]["label"] == "A"
+
+
+def test_correct_keeps_detected_key_when_chart_has_none():
+    analysis = _progression_analysis()
+    analysis["key"] = {"tonic": 2, "mode": "minor", "name": "D minor", "confidence": 0.42}
+    corrected = cifraclub.correct(analysis, ["G", "D", "Em", "C"], "")
+    assert corrected["key"]["tonic"] == 2
+    assert corrected["key"]["mode"] == "minor"
+    assert corrected["key"]["confidence"] == 0.42
+    # The chord letters still follow the chart when it offers no tom.
+    assert corrected["chords"][0]["label"] == "G"
+
+
+def test_correct_does_not_touch_unmatched_spans():
+    analysis = _progression_analysis()
+    # A chart that never mentions the last two chords leaves them as heard.
+    corrected = cifraclub.correct(analysis, ["G", "D"], "G")
+    assert corrected["chords"][0]["label"] == "G"
+    assert corrected["chords"][1]["label"] == "D"
+    assert corrected["chords"][2]["label"] == "Em"
+    assert corrected["chords"][3]["label"] == "C"
+
+
 def test_storage_cifra_roundtrip(monkeypatch, tmp_path):
     monkeypatch.setattr(storage, "DATABASE_PATH", tmp_path / "test.db")
     storage.init_db()

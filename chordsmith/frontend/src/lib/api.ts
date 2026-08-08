@@ -453,6 +453,14 @@ export function compareWebChart(id: string): Promise<ChartComparison> {
   return request(`/api/songs/${id}/cifraclub/compare`)
 }
 
+/**
+ * Rewrite the analysis so the tom and the heard chord letters follow the
+ * imported cifra, keeping the timing of the audio. Returns the updated song.
+ */
+export function correctWebChart(id: string): Promise<Song> {
+  return request(`/api/songs/${id}/cifraclub/correct`, { method: 'POST' })
+}
+
 export interface AuthUser {
   id: string
   username: string

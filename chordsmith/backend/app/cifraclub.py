@@ -22,6 +22,7 @@ fails.
 
 from __future__ import annotations
 
+import copy
 import json
 import logging
 import re
@@ -570,6 +571,107 @@ VERDICT_NO_CHORD = "noChord"
 _VERDICTS = (VERDICT_MATCH, VERDICT_PARTIAL, VERDICT_DIFF, VERDICT_MISSING, VERDICT_UNKNOWN)
 
 
+def _detected_spans(analysis: dict) -> list[dict]:
+    """The detected chord spans as a comparable list, keeping their origin.
+
+    Only spans with a readable root take part in the alignment; the no-chord
+    spans are transparent to it. ``originalIndex`` keeps the tie back to the
+    analysis they came from, so a corrected analysis can be rebuilt in place.
+    """
+    from .analysis import cifra, theory
+
+    spans: list[dict] = []
+    for index, span in enumerate(analysis.get("chords", [])):
+        chord = theory.parse_label(str(span.get("label", "")))
+        if chord is None or chord.root is None:
+            continue
+        spans.append(
+            {
+                "originalIndex": index,
+                "start": float(span.get("start", 0.0)),
+                "end": float(span.get("end", 0.0)),
+                "startBeat": span.get("startBeat"),
+                "endBeat": span.get("endBeat"),
+                "label": span.get("label", ""),
+                "root": chord.root,
+                "quality": chord.quality,
+                "reduced": theory.Chord(chord.root, cifra.simplify_quality(chord.quality)),
+            }
+        )
+    return spans
+
+
+def _align_web(spans: list[dict], web: list[dict | None]) -> dict[int, int]:
+    """Which web chord each detected span lines up with.
+
+    A global sequence alignment (Needleman-Wunsch) over the reduced roots and
+    qualities, so an extra chord or a dropped one shifts the neighbours instead
+    of mispairing everything after it. Returns ``{span index: web index}``,
+    with only the web chords that could be read taking part.
+    """
+    from .analysis import cifra, theory
+
+    det = [span["reduced"] for span in spans]
+    valid = [
+        (index, theory.Chord(norm["root"], cifra.simplify_quality(norm["quality"])))
+        for index, norm in enumerate(web)
+        if norm is not None
+    ]
+
+    aligned: dict[int, int] = {}
+    if not det or not valid:
+        return aligned
+    rows, cols = len(det), len(valid)
+    dp = [[0] * (cols + 1) for _ in range(rows + 1)]
+    for i in range(1, rows + 1):
+        dp[i][0] = -i
+    for j in range(1, cols + 1):
+        dp[0][j] = -j
+    for i in range(1, rows + 1):
+        di = det[i - 1]
+        for j in range(1, cols + 1):
+            wj = valid[j - 1][1]
+            if di.root == wj.root:
+                diagonal = 2 if di.quality == wj.quality else 0
+            else:
+                diagonal = -2
+            dp[i][j] = max(dp[i - 1][j - 1] + diagonal, dp[i - 1][j] - 1, dp[i][j - 1] - 1)
+    i, j = rows, cols
+    while i > 0 and j > 0:
+        di = det[i - 1]
+        wj = valid[j - 1][1]
+        if di.root == wj.root:
+            diagonal = 2 if di.quality == wj.quality else 0
+        else:
+            diagonal = -2
+        if dp[i][j] == dp[i - 1][j - 1] + diagonal:
+            aligned[i - 1] = valid[j - 1][0]
+            i -= 1
+            j -= 1
+        elif dp[i][j] == dp[i - 1][j] - 1:
+            i -= 1
+        else:
+            j -= 1
+    return aligned
+
+
+def _parse_key(label: str | None) -> tuple[int, str] | None:
+    """The chart's ``tom`` (``"G"``, ``"Em"``, ``"Bbm"``...) as ``(tonic, mode)``."""
+    from .analysis import theory
+
+    label = (label or "").strip()
+    if not label:
+        return None
+    match = _ROOT_PATTERN.match(label)
+    if not match:
+        return None
+    tonic = theory.NAME_TO_PC.get(match.group(1).lower())
+    if tonic is None:
+        return None
+    mode = "minor" if match.group(2).strip().lower().startswith("m") else "major"
+    return tonic, mode
+
+
 def compare(analysis: dict, web_chords: list[str]) -> dict:
     """Judge the web chart against the detected audio analysis.
 
@@ -595,64 +697,9 @@ def compare(analysis: dict, web_chords: list[str]) -> dict:
 
     use_flats = bool(analysis.get("useFlats"))
 
-    spans: list[dict] = []
-    for span in analysis.get("chords", []):
-        chord = theory.parse_label(str(span.get("label", "")))
-        if chord is None or chord.root is None:
-            continue
-        spans.append(
-            {
-                "start": float(span.get("start", 0.0)),
-                "end": float(span.get("end", 0.0)),
-                "startBeat": span.get("startBeat"),
-                "endBeat": span.get("endBeat"),
-                "label": span.get("label", ""),
-                "reduced": theory.Chord(chord.root, cifra.simplify_quality(chord.quality)),
-            }
-        )
-
+    spans = _detected_spans(analysis)
     web = [normalize_label(label) for label in web_chords]
-    det = [span["reduced"] for span in spans]
-    valid = [
-        (index, theory.Chord(norm["root"], cifra.simplify_quality(norm["quality"])))
-        for index, norm in enumerate(web)
-        if norm is not None
-    ]
-
-    # Which detected span each web chord aligns to, by Needleman-Wunsch.
-    aligned: dict[int, int] = {}
-    if det and valid:
-        rows, cols = len(det), len(valid)
-        dp = [[0] * (cols + 1) for _ in range(rows + 1)]
-        for i in range(1, rows + 1):
-            dp[i][0] = -i
-        for j in range(1, cols + 1):
-            dp[0][j] = -j
-        for i in range(1, rows + 1):
-            di = det[i - 1]
-            for j in range(1, cols + 1):
-                wj = valid[j - 1][1]
-                if di.root == wj.root:
-                    diagonal = 2 if di.quality == wj.quality else 0
-                else:
-                    diagonal = -2
-                dp[i][j] = max(dp[i - 1][j - 1] + diagonal, dp[i - 1][j] - 1, dp[i][j - 1] - 1)
-        i, j = rows, cols
-        while i > 0 and j > 0:
-            di = det[i - 1]
-            wj = valid[j - 1][1]
-            if di.root == wj.root:
-                diagonal = 2 if di.quality == wj.quality else 0
-            else:
-                diagonal = -2
-            if dp[i][j] == dp[i - 1][j - 1] + diagonal:
-                aligned[i - 1] = valid[j - 1][0]
-                i -= 1
-                j -= 1
-            elif dp[i][j] == dp[i - 1][j] - 1:
-                i -= 1
-            else:
-                j -= 1
+    aligned = _align_web(spans, web)
 
     verdicts: list[dict] = []
     for index, span in enumerate(spans):
@@ -716,3 +763,81 @@ def compare(analysis: dict, web_chords: list[str]) -> dict:
     stats["detected"] = len(spans)
 
     return {"verdicts": verdicts, "perBar": per_bar, "stats": stats}
+
+
+def correct(analysis: dict, web_chords: list[str], web_key: str = "") -> dict:
+    """Rewrite the detected analysis with the chart as the authority.
+
+    The detected chord letters become the chart's: every span the alignment
+    ties to a written chord takes that chord's root and quality, and the tom
+    becomes the chart's key. Everything that describes *when* — beats, bars,
+    timing and confidence — comes from the audio and is kept. Returns a new
+    analysis dict; the caller persists it.
+    """
+    from .analysis import theory
+
+    web = [normalize_label(label) for label in web_chords]
+    spans = _detected_spans(analysis)
+    aligned = _align_web(spans, web)
+
+    by_original: dict[int, theory.Chord] = {}
+    for span_index, web_index in aligned.items():
+        norm = web[web_index]
+        if norm is None:
+            continue
+        by_original[spans[span_index]["originalIndex"]] = theory.Chord(norm["root"], norm["quality"])
+
+    parsed_key = _parse_key(web_key)
+    if parsed_key is not None:
+        key_tonic, key_mode = parsed_key
+        key_confidence = 1.0
+    else:
+        existing = analysis.get("key") or {}
+        key_tonic = int(existing.get("tonic", 0))
+        key_mode = existing.get("mode", "major")
+        key_confidence = float(existing.get("confidence", 0.0))
+
+    corrected = copy.deepcopy(analysis)
+    use_flats = theory.key_uses_flats(key_tonic, key_mode)
+    corrected["useFlats"] = use_flats
+    corrected["key"] = {
+        "tonic": key_tonic,
+        "mode": key_mode,
+        "name": theory.key_name(key_tonic, key_mode),
+        "confidence": round(key_confidence, 3),
+    }
+
+    spans_out: list[dict] = []
+    for index, span in enumerate(corrected["chords"]):
+        chord = by_original.get(index)
+        if chord is None:
+            parsed = theory.parse_label(str(span.get("label", "")))
+            chord = parsed if parsed is not None else theory.NO_CHORD
+        span = dict(span)
+        span["root"] = chord.root
+        span["quality"] = chord.quality
+        span["label"] = chord.label(use_flats)
+        span["notes"] = list(chord.pitch_classes())
+        spans_out.append(span)
+    corrected["chords"] = spans_out
+
+    beats_out: list[dict] = []
+    for beat in corrected["beats"]:
+        rewritten = dict(beat)
+        for span in spans_out:
+            start, end = span.get("startBeat"), span.get("endBeat")
+            if start is None or end is None:
+                continue
+            if int(start) <= int(rewritten["index"]) <= int(end):
+                rewritten["root"] = span["root"]
+                rewritten["quality"] = span["quality"]
+                rewritten["label"] = span["label"]
+                rewritten["notes"] = span["notes"]
+                break
+        beats_out.append(rewritten)
+    corrected["beats"] = beats_out
+
+    corrected["uniqueChords"] = sorted(
+        {span["label"] for span in corrected["chords"] if span.get("root") is not None}
+    )
+    return corrected
