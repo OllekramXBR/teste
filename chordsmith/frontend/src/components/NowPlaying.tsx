@@ -20,6 +20,9 @@ interface Props {
   instrument: Instrument['id'] | 'piano'
   useFlats: boolean
   shapeVariant: number
+  /** Beat position inside the current bar, 1-based; undefined before play. */
+  beatInBar?: number
+  beatsPerBar?: number
   onCycleShape: () => void
   onOpenPopover: (label: string) => void
   onSeek: (time: number) => void
@@ -42,6 +45,8 @@ export function NowPlaying({
   instrument,
   useFlats,
   shapeVariant,
+  beatInBar,
+  beatsPerBar = 4,
   onCycleShape,
   onOpenPopover,
   onSeek,
@@ -104,8 +109,27 @@ export function NowPlaying({
             animates: the pop is the "look up now" signal. */}
         <div key={activeIndex} className="animate-chord-pop flex min-w-0 items-center gap-6">
           <div className="min-w-0">
-            <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-ink-faint">
+            <p className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.22em] text-ink-faint">
               {isUpcoming ? 'Começa com' : 'Agora'}
+              {/* The bar pulse: one dot per beat, the sounding one lit. A
+                  player keeping time glances here instead of counting. */}
+              {beatInBar !== undefined && !isUpcoming && (
+                <span className="flex items-center gap-1" aria-hidden="true">
+                  {Array.from({ length: beatsPerBar }, (_, index) => (
+                    <span
+                      key={index}
+                      className={[
+                        'h-1.5 w-1.5 rounded-full transition-all duration-100',
+                        index + 1 === beatInBar
+                          ? index === 0
+                            ? 'scale-125 bg-flame'
+                            : 'scale-125 bg-accent'
+                          : 'bg-line',
+                      ].join(' ')}
+                    />
+                  ))}
+                </span>
+              )}
             </p>
             <button
               type="button"

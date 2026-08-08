@@ -689,6 +689,10 @@ export function SongPage() {
             instrument={settings.instrument}
             useFlats={analysis.useFlats}
             shapeVariant={shapeVariant}
+            beatInBar={
+              player.playing ? analysis.beats[activeBeatIndex]?.beatInBar : undefined
+            }
+            beatsPerBar={analysis.beatsPerBar}
             onCycleShape={() => setShapeVariant((previous) => (previous + 1) % 4)}
             onOpenPopover={setPopoverChord}
             onSeek={handleSeek}
@@ -936,7 +940,19 @@ export function SongPage() {
                 )
               })}
             </div>
-              <p className="mt-3 text-[11px] text-ink-faint">
+              <Link
+                to={`/dicionario?tom=${mod12(analysis.key.tonic + settings.transpose)}&modo=${analysis.key.mode}`}
+                className="mt-3 inline-block text-xs font-medium text-accent transition hover:brightness-125"
+              >
+                Ver o campo harmônico de{' '}
+                {keyNamePt(
+                  mod12(analysis.key.tonic + settings.transpose),
+                  analysis.key.mode,
+                  analysis.useFlats,
+                )}{' '}
+                →
+              </Link>
+              <p className="mt-2 text-[11px] text-ink-faint">
                 Confiança do tom {Math.round(analysis.key.confidence * 100)}% · analisada em{' '}
                 {analysis.analysisSeconds}s
               </p>
