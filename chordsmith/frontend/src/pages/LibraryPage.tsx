@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import * as api from '../lib/api'
 import type { Song } from '../lib/api'
@@ -7,9 +7,49 @@ import { QueuePanel } from '../components/QueuePanel'
 import { LibraryBrowser } from '../components/LibraryBrowser'
 import { Page, PageHeader } from '../components/Page'
 import { br } from '../lib/brazilian'
+import { getFingerings, INSTRUMENTS } from '../lib/fretboard'
+import { parseLabel } from '../lib/theory'
 
 const POLL_INTERVAL_MS = 2000
 const LAYOUT_KEY = 'metatron.libraryLayout.v1'
+
+/**
+ * Whether a chord comes out in open position on a guitar — no barre, nothing
+ * past the fourth fret — using the same search that draws the diagrams, so
+ * this badge can never disagree with them. Cached per label: the library
+ * repeats the same handful of chords across every song.
+ */
+const openShapeCache = new Map<string, boolean>()
+function isOpenShape(label: string): boolean {
+  const cached = openShapeCache.get(label)
+  if (cached !== undefined) return cached
+  const parsed = parseLabel(label)
+  let open = false
+  if (parsed) {
+    const [best] = getFingerings(parsed.root, parsed.quality, INSTRUMENTS.guitar, 1)
+    open = Boolean(best && best.barre === 0 && best.baseFret <= 4)
+  }
+  openShapeCache.set(label, open)
+  return open
+}
+
+function isEasySong(song: Song): boolean {
+  return Boolean(song.chords?.length && song.chords.every(isOpenShape))
+}
+
+/** "G major" from the API → a pill label "G"; "E minor" → "Em". */
+function keyPill(keyName: string): string {
+  const match = keyName.match(/^([A-G][#b]?)\s+(major|minor)$/)
+  if (!match) return keyName
+  return match[2] === 'minor' ? `${match[1]}m` : match[1]
+}
+
+/** The same name spelt out in Portuguese for the song line. */
+function keyNamePt(keyName: string): string {
+  const match = keyName.match(/^([A-G][#b]?)\s+(major|minor)$/)
+  if (!match) return keyName
+  return `${match[1]} ${match[2] === 'minor' ? 'menor' : 'maior'}`
+}
 
 function StatusBadge({ status }: { status: Song['status'] }) {
   const styles: Record<Song['status'], string> = {
@@ -183,11 +223,36 @@ export function LibraryPage() {
   const [songs, setSongs] = useState<Song[] | null>(null)
   const [search, setSearch] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [keyFilter, setKeyFilter] = useState<string | null>(null)
+  const [easyOnly, setEasyOnly] = useState(false)
   // Remembered, because it is a preference about how somebody reads, not a
   // thing they want to re-choose on every visit.
   const [layout, setLayout] = useState<'list' | 'grid'>(
     () => (localStorage.getItem(LAYOUT_KEY) as 'list' | 'grid') || 'list',
   )
+
+  // The keys actually present, with counts — a picker of twelve keys where
+  // nine are empty is a picker of disappointments.
+  const keyOptions = useMemo(() => {
+    const counts = new Map<string, number>()
+    for (const song of songs ?? []) {
+      if (song.keyName && song.status === 'ready') {
+        counts.set(song.keyName, (counts.get(song.keyName) ?? 0) + 1)
+      }
+    }
+    return [...counts.entries()]
+      .map(([keyName, count]) => ({ keyName, pill: keyPill(keyName), count }))
+      .sort((a, b) => b.count - a.count)
+  }, [songs])
+
+  const visible = useMemo(() => {
+    if (!songs) return null
+    return songs.filter(
+      (song) =>
+        (keyFilter === null || song.keyName === keyFilter) &&
+        (!easyOnly || isEasySong(song)),
+    )
+  }, [songs, keyFilter, easyOnly])
 
   useEffect(() => {
     localStorage.setItem(LAYOUT_KEY, layout)
@@ -257,17 +322,70 @@ export function LibraryPage() {
         </div>
       </div>
 
+      {/* Filters a player actually uses: which key, and "can I already play
+          this" — every chord in open position, no barre. */}
+      {(songs?.length ?? 0) > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5 text-xs">
+          {keyOptions.length > 1 && (
+            <button
+              type="button"
+              onClick={() => setKeyFilter(null)}
+              className={`rounded-full px-3 py-1 font-semibold transition ${
+                keyFilter === null
+                  ? 'bg-accent text-canvas'
+                  : 'border border-line text-ink-soft hover:border-accent hover:text-accent'
+              }`}
+            >
+              todos os tons
+            </button>
+          )}
+          {keyOptions.length > 1 &&
+            keyOptions.map((option) => (
+            <button
+              key={option.keyName}
+              type="button"
+              onClick={() =>
+                setKeyFilter((previous) => (previous === option.keyName ? null : option.keyName))
+              }
+              className={`rounded-full px-3 py-1 font-semibold transition ${
+                keyFilter === option.keyName
+                  ? 'bg-accent text-canvas'
+                  : 'border border-line text-ink-soft hover:border-accent hover:text-accent'
+              }`}
+            >
+              {option.pill}
+              <span className="ml-1 opacity-60">{option.count}</span>
+            </button>
+          ))}
+          <button
+            type="button"
+            onClick={() => setEasyOnly((previous) => !previous)}
+            aria-pressed={easyOnly}
+            title="Só músicas em que todo acorde sai em posição aberta, sem pestana"
+            className={`ml-auto rounded-full px-3 py-1 font-semibold transition ${
+              easyOnly
+                ? 'bg-emerald-500 text-white'
+                : 'border border-line text-ink-soft hover:border-emerald-500 hover:text-emerald-500'
+            }`}
+          >
+            fáceis no violão
+          </button>
+        </div>
+      )}
+
       {error && <p className="text-sm text-rose-500">{error}</p>}
 
-      {songs === null ? (
+      {visible === null ? (
         <p className="text-center text-sm text-ink-soft">Carregando a biblioteca…</p>
-      ) : songs.length === 0 ? (
+      ) : visible.length === 0 ? (
         <p className="py-10 text-center text-sm text-ink-soft">
-          {search ? 'Nada corresponde a essa busca.' : 'Biblioteca vazia — suba uma faixa acima.'}
+          {search || keyFilter || easyOnly
+            ? 'Nada corresponde a esses filtros.'
+            : 'Biblioteca vazia — suba uma faixa acima.'}
         </p>
       ) : layout === 'grid' ? (
         <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-          {songs.map((song) => (
+          {visible.map((song) => (
             <li key={song.id}>
               <Link to={`/song/${song.id}`} className="group block">
                 <div className="aspect-square overflow-hidden rounded-lg bg-canvas">
@@ -276,7 +394,7 @@ export function LibraryPage() {
                 <p className="mt-2 truncate text-sm font-medium tracking-tight">{song.title}</p>
                 <p className="truncate text-xs text-ink-soft">
                   {song.artist || 'Sem artista'}
-                  {song.keyName && ` · ${song.keyName}`}
+                  {song.keyName && ` · ${keyNamePt(song.keyName)}`}
                 </p>
                 {song.chords?.length ? (
                   <p className="truncate font-mono text-xs text-accent">
@@ -289,7 +407,7 @@ export function LibraryPage() {
         </ul>
       ) : (
         <ul className="divide-y divide-[var(--color-line)] overflow-hidden rounded-xl border border-line ">
-          {songs.map((song) => (
+          {visible.map((song) => (
             <li key={song.id}>
               <Link
                 to={`/song/${song.id}`}
@@ -304,10 +422,15 @@ export function LibraryPage() {
                         stage tonight, so it belongs in the list, not one click in. */}
                     {song.lyricsStatus === 'ready' && <Chip>letra</Chip>}
                     {song.stemsStatus === 'ready' && <Chip>pistas</Chip>}
+                    {isEasySong(song) && (
+                      <span className="shrink-0 rounded-full bg-emerald-100 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300">
+                        fácil
+                      </span>
+                    )}
                   </div>
                   <p className="truncate text-xs text-ink-soft">
                     {song.artist || 'Sem artista'}
-                    {song.keyName && ` · ${song.keyName}`}
+                    {song.keyName && ` · ${keyNamePt(song.keyName)}`}
                     {song.bpm ? ` · ${Math.round(song.bpm)} BPM` : ''}
                     {song.duration ? ` · ${formatTime(song.duration)}` : ''}
                   </p>
