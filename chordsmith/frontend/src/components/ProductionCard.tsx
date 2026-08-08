@@ -49,7 +49,17 @@ export function ProductionCard({
         tone={song.lyricsStatus}
         detail={
           song.lyricsStatus === 'ready' && song.lyrics
-            ? `${song.lyrics.wordCount} palavras · ${song.lyrics.model}`
+            ? [
+                `${song.lyrics.wordCount} palavras · ${song.lyrics.model}`,
+                song.lyrics.source === 'lead' ? 'da voz separada' : null,
+                // The one-line upgrade path: the lyric came from the mix but
+                // the stems exist now, so a redo is strictly better.
+                song.lyrics.source === 'mix' && stems.length
+                  ? 'refaça para usar a voz separada'
+                  : null,
+              ]
+                .filter(Boolean)
+                .join(' · ')
             : song.lyricsError
         }
         action={song.lyricsStatus === 'ready' ? 'Refazer' : 'Transcrever'}

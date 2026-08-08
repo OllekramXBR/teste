@@ -100,6 +100,10 @@ export interface Lyrics {
   transcribeSeconds?: number
   /** True once a person has corrected it; the model no longer overwrites it. */
   edited?: boolean
+  /** What the recogniser listened to: the separated vocal or the full mix. */
+  source?: 'lead' | 'mix'
+  /** True when the imported web chart's lyric seeded the decoder. */
+  promptedByChart?: boolean
 }
 
 /** Stems are produced together, so one status covers the whole set. */

@@ -79,19 +79,48 @@ def _run_analysis(song_id: str, path: Path) -> None:
 
 
 def _run_lyrics(song_id: str, path: Path, model_name: str | None) -> None:
+    from .analysis import stems as stem_module
     from .analysis.lyrics import transcribe_file
 
     try:
         storage.set_lyrics_status(song_id, "transcribing")
         progress.start(song_id, "lyrics")
-        progress.stage(song_id, "lyrics", "ouvindo a voz")
+
+        # The recogniser hears the lead vocal alone whenever the song has been
+        # separated: a mix hands Whisper the guitars along with the voice, and
+        # the guitars win. Falling back to the mix keeps the button working on
+        # songs that were never separated.
+        lead = stem_module.stem_path(song_id, "lead")
+        source = lead or path
+        progress.stage(
+            song_id, "lyrics", "ouvindo a voz separada" if lead else "ouvindo a mistura"
+        )
+
+        # If a web chart was imported, its opening lines seed the decoder with
+        # the song's actual vocabulary — names and slang it would otherwise
+        # bend into commoner words.
+        prompt: str | None = None
+        chart = storage.get_cifra(song_id)
+        if chart:
+            verses = [
+                line["text"].strip()
+                for line in chart.get("lines", [])
+                if line.get("kind") == "verse" and line.get("text", "").strip()
+            ]
+            if verses:
+                prompt = " ".join(verses)[:600]
+
         started = time.perf_counter()
-        result = transcribe_file(path, model_name=model_name)
+        result = transcribe_file(source, model_name=model_name, initial_prompt=prompt)
         result["transcribeSeconds"] = round(time.perf_counter() - started, 2)
+        result["source"] = "lead" if lead else "mix"
+        result["promptedByChart"] = bool(prompt)
         storage.save_lyrics(song_id, result)
         logger.info(
-            "transcribed %s: %d words in %.1fs",
+            "transcribed %s from %s%s: %d words in %.1fs",
             song_id,
+            "lead stem" if lead else "mix",
+            " with chart prompt" if prompt else "",
             result.get("wordCount", 0),
             result["transcribeSeconds"],
         )

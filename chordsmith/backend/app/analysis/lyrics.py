@@ -14,10 +14,11 @@ in the project instead of two.
 a cifra needs to know which syllable a chord change lands on, and that is a
 word-level question.
 
-What this does **not** do is separate the vocal from the band. There is no
-source separation in this project, so a dense mix is transcribed with the
-guitars still in it, and the result degrades accordingly. Sparse arrangements —
-voice and one instrument — are where this is worth reading.
+Separation happens above this module: the lyrics job hands in the separated
+lead vocal whenever the song has stems, and the full mix only as a fallback.
+This function just transcribes whatever audio it is given — the choice of
+*what* to listen to is the caller's, and it is the choice that decides most of
+the accuracy.
 """
 
 from __future__ import annotations
@@ -102,12 +103,18 @@ def transcribe(
     *,
     language: str | None = None,
     model_name: str | None = None,
+    initial_prompt: str | None = None,
 ) -> dict:
     """Transcribe sung audio into words with times.
 
     ``model_name`` is accepted so a caller can compare sizes without restarting
     the process; leaving it unset uses the configured default and the cached
     model.
+
+    ``initial_prompt`` seeds the decoder's context — when the song's written
+    lyric is known (an imported web chart), passing its opening lines teaches
+    the model the vocabulary before it hears a note: names, slang and elisions
+    it would otherwise mishear into more common words.
     """
     audio = to_asr_audio(y, sr)
     if audio.size < ASR_SR:  # under a second: nothing to hear
@@ -142,6 +149,7 @@ def transcribe(
         vad_filter=True,
         vad_parameters={"min_silence_duration_ms": 700},
         condition_on_previous_text=False,
+        initial_prompt=initial_prompt or None,
     )
 
     words: list[dict] = []

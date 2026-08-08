@@ -803,6 +803,9 @@ export function SongPage() {
                   <span className="text-xs text-ink-soft">
                     {song.lyrics.wordCount} palavras
                     {song.lyrics.edited ? ' · corrigida à mão' : ` · ${song.lyrics.model}`}
+                    {!song.lyrics.edited &&
+                      (song.lyrics.source === 'lead' ? ' · da voz separada' : '')}
+                    {!song.lyrics.edited && song.lyrics.promptedByChart && ' · guiada pela cifra'}
                   </span>
                   <button
                     type="button"
