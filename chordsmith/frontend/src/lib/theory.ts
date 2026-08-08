@@ -124,6 +124,42 @@ export function intervalNames(quality: string): string[] {
   return (QUALITIES[quality] ?? QUALITIES['']).map((interval) => names[interval] ?? `${interval}`)
 }
 
+/**
+ * Harmonic function of a chord inside a key: rest, path or tension.
+ * Null when the chord is borrowed from outside the field — which is not an
+ * error, just a chord with a different story.
+ */
+export type HarmonicFunction = 'T' | 'SD' | 'D'
+
+const MAJOR_FUNCTIONS: Record<number, HarmonicFunction> = {
+  0: 'T',
+  2: 'SD',
+  4: 'T',
+  5: 'SD',
+  7: 'D',
+  9: 'T',
+  11: 'D',
+}
+
+const MINOR_FUNCTIONS: Record<number, HarmonicFunction> = {
+  0: 'T',
+  2: 'SD',
+  3: 'T',
+  5: 'SD',
+  7: 'D',
+  8: 'T',
+  10: 'D',
+}
+
+export function chordFunction(
+  root: number,
+  tonic: number,
+  mode: string,
+): HarmonicFunction | null {
+  const step = mod12(root - tonic)
+  return (mode === 'minor' ? MINOR_FUNCTIONS : MAJOR_FUNCTIONS)[step] ?? null
+}
+
 /** Roman-numeral position of a chord within a key, or null when it is borrowed. */
 export function romanNumeral(root: number, quality: string, tonic: number, mode: string): string | null {
   const steps = mode === 'minor' ? [0, 2, 3, 5, 7, 8, 10] : [0, 2, 4, 5, 7, 9, 11]

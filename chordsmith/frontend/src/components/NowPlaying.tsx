@@ -23,6 +23,8 @@ interface Props {
   /** Beat position inside the current bar, 1-based; undefined before play. */
   beatInBar?: number
   beatsPerBar?: number
+  /** True while the trainer holds the tape for the next chord. */
+  trainingPaused?: boolean
   onCycleShape: () => void
   onOpenPopover: (label: string) => void
   onSeek: (time: number) => void
@@ -47,6 +49,7 @@ export function NowPlaying({
   shapeVariant,
   beatInBar,
   beatsPerBar = 4,
+  trainingPaused = false,
   onCycleShape,
   onOpenPopover,
   onSeek,
@@ -234,6 +237,13 @@ export function NowPlaying({
           </button>
         )}
       </div>
+
+      {trainingPaused && next && (
+        <p className="relative mt-3 rounded-lg border border-flame/40 bg-flame-soft px-3 py-2 text-center text-xs font-medium text-ink">
+          Treino: monte <span className="font-bold">{br(next.label, useFlats)}</span> com calma —
+          espaço (ou play) continua.
+        </p>
+      )}
 
       {/* Time draining toward the next change — the nod that says "ready". */}
       <div className="relative mt-4 h-1 overflow-hidden rounded-full bg-line/50">

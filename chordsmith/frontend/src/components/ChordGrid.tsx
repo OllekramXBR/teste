@@ -1,7 +1,13 @@
 import { useEffect, useMemo, useRef } from 'react'
 import type { BeatEvent } from '../lib/api'
 import { simplify as simplifyLabel } from '../lib/brazilian'
-import { capoShape, transposeLabel } from '../lib/theory'
+import {
+  capoShape,
+  chordFunction,
+  mod12,
+  transposeLabel,
+  type HarmonicFunction,
+} from '../lib/theory'
 
 export interface Bar {
   number: number
@@ -19,10 +25,20 @@ interface ChordGridProps {
   useFlats: boolean
   /** Collapse decoder extensions to the triad a hand actually makes. */
   simplify?: boolean
+  /** Key of the song (sounding), for the harmonic-function stripes. */
+  keyTonic?: number
+  keyMode?: string
   loopBars: { start: number; end: number } | null
   onSeek: (time: number) => void
   onBarSelect: (barNumber: number, extend: boolean) => void
   autoScroll: boolean
+}
+
+/** Stripe colour for each harmonic function; borrowed chords get the line. */
+const FUNC_STRIPE: Record<HarmonicFunction, string> = {
+  T: 'bg-accent',
+  SD: 'bg-flame',
+  D: 'bg-rose-400',
 }
 
 /** Group the flat beat list into bars, keeping any pickup beats in bar 1. */
@@ -65,6 +81,8 @@ export function ChordGrid({
   capo,
   useFlats,
   simplify = false,
+  keyTonic,
+  keyMode,
   loopBars,
   onSeek,
   onBarSelect,
@@ -96,11 +114,32 @@ export function ChordGrid({
     return <p className="p-8 text-center text-ink-soft">Nenhum acorde detectado nesta faixa.</p>
   }
 
+  const showFunctions = keyTonic !== undefined && keyMode !== undefined
+  // Functions are read against the *sounding* key: transpose moves both the
+  // chord and the tonic, so the stripe never changes when the song is moved.
+  const soundingTonic = showFunctions ? mod12(keyTonic! + transpose) : 0
+
   return (
     <div
       ref={containerRef}
       className="max-h-[58vh] overflow-y-auto rounded-xl bg-canvas p-3"
     >
+      {showFunctions && (
+        <p className="mb-2 flex items-center justify-end gap-3 text-[10px] text-ink-faint">
+          <span className="flex items-center gap-1">
+            <span className="h-1 w-4 rounded bg-accent" /> repouso
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="h-1 w-4 rounded bg-flame" /> caminho
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="h-1 w-4 rounded bg-rose-400" /> tensão
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="h-1 w-4 rounded border border-dashed border-line" /> fora do campo
+          </span>
+        </p>
+      )}
       <div
         className="grid gap-2"
         style={{ gridTemplateColumns: `repeat(auto-fill, minmax(${beatsPerBar * 52}px, 1fr))` }}
@@ -133,6 +172,11 @@ export function ChordGrid({
                   const isRepeat =
                     previous !== undefined && previous.label === beat.label && previous.bar === beat.bar
                   const isCurrent = beat.index === activeBeat
+                  // Stripe on the first beat of each chord: its role in the key.
+                  const func =
+                    showFunctions && !isRepeat && beat.root !== null
+                      ? chordFunction(mod12(beat.root + transpose), soundingTonic, keyMode!)
+                      : undefined
                   return (
                     <button
                       key={beat.index}
@@ -158,7 +202,26 @@ export function ChordGrid({
                       }
                     >
                       <span>{isRepeat ? '·' : label || '–'}</span>
-                      {beat.downbeat && !isCurrent && (
+                      {func !== undefined && !isCurrent && (
+                        <span
+                          className={[
+                            'mt-0.5 h-0.5 w-4 rounded',
+                            func === null
+                              ? 'border border-dashed border-line'
+                              : FUNC_STRIPE[func],
+                          ].join(' ')}
+                          title={
+                            func === null
+                              ? 'fora do campo harmônico'
+                              : func === 'T'
+                                ? 'tônica — repouso'
+                                : func === 'SD'
+                                  ? 'subdominante — caminho'
+                                  : 'dominante — tensão'
+                          }
+                        />
+                      )}
+                      {func === undefined && beat.downbeat && !isCurrent && (
                         <span className="mt-0.5 h-0.5 w-3 rounded bg-accent/60" />
                       )}
                     </button>

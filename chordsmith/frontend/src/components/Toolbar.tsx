@@ -15,6 +15,8 @@ export interface ToolbarSettings {
   simplify: boolean
   /** Bars of metronome before playback starts; 0 is off. */
   countIn: number
+  /** Training wheels: pause just before each chord change until resumed. */
+  pauseOnChange: boolean
 }
 
 interface ToolbarProps {
@@ -245,6 +247,15 @@ export function Toolbar({
             label="Rolagem automática"
           />
           <span className="text-[10px] text-ink-faint">a grade segue a música</span>
+        </Control>
+
+        <Control label="Treino">
+          <Switch
+            checked={settings.pauseOnChange}
+            onToggle={() => onChange({ pauseOnChange: !settings.pauseOnChange })}
+            label="Pausar nas trocas de acorde"
+          />
+          <span className="text-[10px] text-ink-faint">pausa antes de cada troca</span>
         </Control>
       </Group>
 

@@ -62,6 +62,7 @@ const DEFAULT_SETTINGS: ToolbarSettings = {
   autoScroll: true,
   simplify: true,
   countIn: 0,
+  pauseOnChange: false,
 }
 
 function loadSettings(): ToolbarSettings {
@@ -343,6 +344,46 @@ export function SongPage() {
 
   const activeBeatIndex = findActiveBeat(analysis, player.currentTime)
 
+  // Training mode: freeze the tape just before each chord change, so the
+  // hands get to arrive before the song does. One pause per upcoming card —
+  // the ref remembers which change we already paused for, otherwise resuming
+  // would immediately pause again on the same boundary.
+  const pausedForCardRef = useRef<number>(-1)
+  const trainingWindow = 0.45
+  const upcomingCardIndex = useMemo(() => {
+    if (!chordCards.length) return -1
+    for (let index = chordCards.length - 1; index >= 0; index -= 1) {
+      if (player.currentTime >= chordCards[index].start) return index + 1
+    }
+    return 0
+  }, [chordCards, player.currentTime])
+
+  useEffect(() => {
+    if (!settings.pauseOnChange) {
+      pausedForCardRef.current = -1
+      return
+    }
+    if (!player.playing) return
+    const next = chordCards[upcomingCardIndex]
+    if (!next) return
+    if (
+      next.start - player.currentTime <= trainingWindow &&
+      next.start - player.currentTime > 0 &&
+      pausedForCardRef.current !== upcomingCardIndex
+    ) {
+      pausedForCardRef.current = upcomingCardIndex
+      player.pause()
+    }
+  }, [settings.pauseOnChange, player, player.currentTime, player.playing, chordCards, upcomingCardIndex])
+
+  // Paused by the trainer (not by the user), waiting for the next chord.
+  const trainingPaused =
+    settings.pauseOnChange &&
+    !player.playing &&
+    pausedForCardRef.current === upcomingCardIndex &&
+    upcomingCardIndex >= 0 &&
+    upcomingCardIndex < chordCards.length
+
   const handleSettings = useCallback((patch: Partial<ToolbarSettings>) => {
     setSettings((previous) => ({ ...previous, ...patch }))
   }, [])
@@ -405,6 +446,9 @@ export function SongPage() {
     (time: number) => {
       player.seek(time)
       engine.reset()
+      // A seek is a new take: the trainer should pause again even at a
+      // boundary it has already paused for.
+      pausedForCardRef.current = -1
     },
     [player, engine],
   )
@@ -693,6 +737,7 @@ export function SongPage() {
               player.playing ? analysis.beats[activeBeatIndex]?.beatInBar : undefined
             }
             beatsPerBar={analysis.beatsPerBar}
+            trainingPaused={trainingPaused}
             onCycleShape={() => setShapeVariant((previous) => (previous + 1) % 4)}
             onOpenPopover={setPopoverChord}
             onSeek={handleSeek}
@@ -861,6 +906,8 @@ export function SongPage() {
               capo={settings.capo}
               useFlats={analysis.useFlats}
               simplify={settings.simplify}
+              keyTonic={analysis.key.tonic}
+              keyMode={analysis.key.mode}
               loopBars={loopBars}
               onSeek={handleSeek}
               onBarSelect={handleBarSelect}
