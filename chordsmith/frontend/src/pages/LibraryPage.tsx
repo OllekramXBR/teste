@@ -145,7 +145,7 @@ function Uploader({ onUploaded }: { onUploaded: (song: Song) => void }) {
           const song = await api.uploadSong(file, { artist }, setProgress)
           onUploaded(song)
         } catch (uploadError) {
-          setError(uploadError instanceof Error ? uploadError.message : 'Upload failed')
+          setError(uploadError instanceof Error ? uploadError.message : 'O envio falhou')
         } finally {
           setProgress(null)
         }
@@ -264,7 +264,7 @@ export function LibraryPage() {
       setSongs(fetched)
       setError(null)
     } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : 'Could not reach the API')
+      setError(loadError instanceof Error ? loadError.message : 'Não consegui falar com o servidor')
     }
   }, [])
 

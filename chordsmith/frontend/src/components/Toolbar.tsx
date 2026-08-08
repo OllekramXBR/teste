@@ -27,6 +27,8 @@ interface ToolbarProps {
   useFlats: boolean
   loopBars: { start: number; end: number } | null
   onClearLoop: () => void
+  /** Loop the four bars around the playhead — one tap, no bar hunting. */
+  onQuickLoop: () => void
 }
 
 const RATES = [0.5, 0.65, 0.75, 0.9, 1, 1.15, 1.25]
@@ -165,6 +167,7 @@ export function Toolbar({
   useFlats,
   loopBars,
   onClearLoop,
+  onQuickLoop,
 }: ToolbarProps) {
   const soundingKey = noteName(keyTonic + settings.transpose, useFlats)
 
@@ -314,10 +317,16 @@ export function Toolbar({
               compassos {loopBars.start}–{loopBars.end} · limpar
             </button>
           ) : (
-            <span className="max-w-36 text-[11px] leading-tight text-ink-faint">
-              clique no número de um compasso na grade
-            </span>
+            <button
+              type="button"
+              onClick={onQuickLoop}
+              title="Repete os quatro compassos em volta de onde a música está; na grade, o número de cada compasso marca início e fim"
+              className="h-7 rounded border border-line px-3 text-xs font-semibold text-ink-soft transition-colors hover:border-flame hover:text-flame"
+            >
+              repetir estes 4
+            </button>
           )}
+          <span className="text-[10px] text-ink-faint">ou clique nos números da grade</span>
         </Control>
       </Group>
     </div>

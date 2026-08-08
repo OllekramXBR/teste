@@ -172,6 +172,23 @@ export function PerformancePage() {
       }))
   }, [song, transpose])
 
+  // The beat under the playhead, for the bar-pulse dots in the strip.
+  const activeStageBeat = useMemo(() => {
+    const beats = song?.analysis?.beats
+    if (!beats?.length) return null
+    let low = 0
+    let high = beats.length - 1
+    let found = -1
+    while (low <= high) {
+      const middle = (low + high) >> 1
+      if (beats[middle].time <= player.currentTime) {
+        found = middle
+        low = middle + 1
+      } else high = middle - 1
+    }
+    return found >= 0 ? beats[found] : null
+  }, [song, player.currentTime])
+
   // Deduplicated chord run for the stage strip: what sounds now, what's next.
   const stageCards = useMemo(() => {
     const out: { label: string; start: number }[] = []
@@ -301,6 +318,23 @@ export function PerformancePage() {
           The singer's guitarist glances here; the singer never has to. */}
       {stageCards.length > 0 && (
         <div className="flex items-baseline justify-center gap-8 px-6 pb-1 pt-0.5">
+          {player.playing && activeStageBeat && song.analysis && (
+            <span className="flex items-center gap-1 self-center" aria-hidden="true">
+              {Array.from({ length: song.analysis.beatsPerBar }, (_, index) => (
+                <span
+                  key={index}
+                  className={[
+                    'h-1.5 w-1.5 rounded-full transition-all duration-100',
+                    index + 1 === activeStageBeat.beatInBar
+                      ? index === 0
+                        ? 'scale-125 bg-amber-400'
+                        : 'scale-125 bg-violet-400'
+                      : 'bg-slate-700',
+                  ].join(' ')}
+                />
+              ))}
+            </span>
+          )}
           <p className="flex items-baseline gap-3">
             <span className="text-[10px] font-bold uppercase tracking-[0.22em] text-slate-500">
               agora

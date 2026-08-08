@@ -159,7 +159,7 @@ export function SongPage() {
         if (running) timer = window.setTimeout(poll, POLL_INTERVAL_MS)
       } catch (error) {
         if (cancelled) return
-        setLoadError(error instanceof Error ? error.message : 'Could not load this song')
+        setLoadError(error instanceof Error ? error.message : 'Não consegui abrir esta música')
       }
     }
 
@@ -397,6 +397,15 @@ export function SongPage() {
     })
   }, [])
 
+  // One tap: loop the four bars around wherever the song is right now.
+  const handleQuickLoop = useCallback(() => {
+    if (!analysis) return
+    const currentBar = analysis.beats[findActiveBeat(analysis, player.currentTime)]?.bar ?? 1
+    const lastBar = analysis.beats[analysis.beats.length - 1]?.bar ?? currentBar
+    const start = Math.max(1, currentBar)
+    setLoopBars({ start, end: Math.min(lastBar, start + 3) })
+  }, [analysis, player])
+
   /**
    * Play, after counting the band in.
    *
@@ -454,7 +463,7 @@ export function SongPage() {
   )
 
   const handleDelete = useCallback(async () => {
-    if (!song || !window.confirm(`Delete "${song.title}" and its analysis?`)) return
+    if (!song || !window.confirm(`Apagar "${song.title}" e a análise dela?`)) return
     await api.deleteSong(song.id)
     navigate('/')
   }, [song, navigate])
@@ -714,6 +723,7 @@ export function SongPage() {
             useFlats={analysis.useFlats}
             loopBars={loopBars}
             onClearLoop={() => setLoopBars(null)}
+            onQuickLoop={handleQuickLoop}
           />
           </div>
           {settings.transpose !== 0 && (
