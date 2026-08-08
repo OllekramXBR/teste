@@ -173,9 +173,11 @@ def test_compare_verdicts():
     assert [v["verdict"] for v in matched["verdicts"]] == ["match"] * 4
     assert matched["stats"]["match"] == 4
 
-    # An extension collapses to its triad, so G7M counts as G.
+    # The letters are compared, not the reduced chords: G7M is not a plain G,
+    # so it is "próximo" (same root, different letter) rather than "casa".
     collapsed = cifraclub.compare(analysis, ["G7M", "D", "Em", "C"])
-    assert collapsed["verdicts"][0]["verdict"] == "match"
+    assert collapsed["verdicts"][0]["verdict"] == "partial"
+    assert collapsed["verdicts"][0]["web"] == "G7M"
 
     # Same root, different chord quality: partial.
     partial = cifraclub.compare(analysis, ["Gm", "D", "Em", "C"])

@@ -708,11 +708,12 @@ def compare(analysis: dict, web_chords: list[str]) -> dict:
         if web_norm is None:
             verdict = VERDICT_MISSING
         else:
-            w = theory.Chord(web_norm["root"], cifra.simplify_quality(web_norm["quality"]))
-            d = span["reduced"]
-            if w.root == d.root and w.quality == d.quality:
+            # Compare the written letters, not the reduced chords: a G where
+            # the chart writes G7M shares the root but not the letter, so it
+            # is "próximo" rather than "casa".
+            if web_norm["root"] == span["root"] and web_norm["quality"] == span["quality"]:
                 verdict = VERDICT_MATCH
-            elif w.root == d.root:
+            elif web_norm["root"] == span["root"]:
                 verdict = VERDICT_PARTIAL
             else:
                 verdict = VERDICT_DIFF
