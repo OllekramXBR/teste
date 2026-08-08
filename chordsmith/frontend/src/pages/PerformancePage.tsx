@@ -172,6 +172,30 @@ export function PerformancePage() {
       }))
   }, [song, transpose])
 
+  // Deduplicated chord run for the stage strip: what sounds now, what's next.
+  const stageCards = useMemo(() => {
+    const out: { label: string; start: number }[] = []
+    for (const chord of chords) {
+      const last = out[out.length - 1]
+      if (last && last.label === chord.label) continue
+      out.push(chord)
+    }
+    return out
+  }, [chords])
+
+  const stageActive = useMemo(() => {
+    for (let index = stageCards.length - 1; index >= 0; index -= 1) {
+      if (player.currentTime >= stageCards[index].start) return index
+    }
+    return -1
+  }, [stageCards, player.currentTime])
+
+  const stageNow = stageActive >= 0 ? stageCards[stageActive] : null
+  const stageNext = stageCards[stageActive + 1] ?? (stageActive < 0 ? stageCards[0] : null)
+  const stageCountdown = stageNext
+    ? Math.max(0, Math.ceil(stageNext.start - player.currentTime))
+    : null
+
   const onKeyDown = useCallback(
     (event: KeyboardEvent) => {
       if ((event.target as HTMLElement | null)?.tagName === 'INPUT') return
@@ -270,6 +294,31 @@ export function PerformancePage() {
             onMute={player.toggleMute}
             onSolo={player.toggleSolo}
           />
+        </div>
+      )}
+
+      {/* The chord strip: readable from the mic stand, out of the lyric's way.
+          The singer's guitarist glances here; the singer never has to. */}
+      {stageCards.length > 0 && (
+        <div className="flex items-baseline justify-center gap-8 px-6 pb-1 pt-0.5">
+          <p className="flex items-baseline gap-3">
+            <span className="text-[10px] font-bold uppercase tracking-[0.22em] text-slate-500">
+              agora
+            </span>
+            <span className="text-3xl font-extrabold leading-none text-amber-400">
+              {stageNow?.label ?? '—'}
+            </span>
+          </p>
+          {stageNext && (
+            <p className="flex items-baseline gap-3 opacity-80">
+              <span className="text-[10px] font-bold uppercase tracking-[0.22em] text-slate-500">
+                próximo{stageCountdown !== null && stageCountdown <= 30 ? ` em ${stageCountdown}s` : ''}
+              </span>
+              <span className="text-2xl font-bold leading-none text-slate-200">
+                {stageNext.label}
+              </span>
+            </p>
+          )}
         </div>
       )}
 
