@@ -274,7 +274,7 @@ export function WebChartPanel({ songId, onCorrected }: Props) {
 
           {corrected && (
             <p className="mt-3 rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-[11px] text-emerald-700 dark:text-emerald-300">
-              A análise foi corrigida: o tom e os acordes agora seguem a cifra.
+              A análise foi corrigida: o tom, os acordes e a letra agora seguem a cifra.
             </p>
           )}
 
@@ -284,7 +284,7 @@ export function WebChartPanel({ songId, onCorrected }: Props) {
             disabled={correcting}
             className="mt-3 w-full rounded-lg border border-rose-400 px-3 py-2 text-xs font-semibold text-rose-500 transition hover:bg-rose-500/10 disabled:opacity-40 "
           >
-            {correcting ? 'Corrigindo…' : 'Corrigir tom e acordes pela cifra'}
+            {correcting ? 'Corrigindo…' : 'Corrigir tom, acordes e letra pela cifra'}
           </button>
         </div>
       )}

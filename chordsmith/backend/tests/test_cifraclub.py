@@ -115,6 +115,116 @@ def test_parse_pre_text_keeps_chord_columns():
     assert lines[0]["chords"] == [{"name": "C7M", "col": 8}, {"name": "Am7", "col": 13}]
 
 
+def test_chart_lyric_lines_strips_chords_and_sections():
+    chart = cifraclub.parse_chart(_flight_page(_chart_flight()))
+    # The intro line is nothing but chords and a section tag, so it vanishes;
+    # the tab line is skipped entirely; only the sung words survive.
+    assert cifraclub.chart_lyric_lines(chart) == ["Água é a vida"]
+
+
+def test_chart_lyric_lines_keeps_words_around_inline_chords():
+    lines = [
+        {"kind": "verse", "text": "Cifra G com palavras", "chords": [{"name": "G", "col": 6}]},
+        {"kind": "verse", "text": "[Refrão] C e mais", "chords": [{"name": "C", "col": 9}]},
+        {"kind": "verse", "text": "Sem acorde", "chords": []},
+        {"kind": "tab", "text": "E|---3---", "chords": [{"name": "D5", "col": 3}]},
+    ]
+    assert cifraclub.chart_lyric_lines({"lines": lines}) == [
+        "Cifra com palavras",
+        "e mais",
+        "Sem acorde",
+    ]
+
+
+def _previous_lyrics() -> dict:
+    return {
+        "language": "pt",
+        "languageProbability": 0.9,
+        "model": "base",
+        "audioSeconds": 4.8,
+        "segments": [
+            {"start": 0.0, "end": 2.4, "text": "ouço a água"},
+            {"start": 2.4, "end": 4.8, "text": "vida que passa"},
+        ],
+        "words": [
+            {"text": "ouço", "start": 0.0, "end": 1.2, "probability": 0.8},
+            {"text": "a", "start": 1.2, "end": 1.8, "probability": 0.8},
+            {"text": "água", "start": 1.8, "end": 2.4, "probability": 0.8},
+            {"text": "vida", "start": 2.4, "end": 3.6, "probability": 0.8},
+            {"text": "que", "start": 3.6, "end": 4.2, "probability": 0.8},
+            {"text": "passa", "start": 4.2, "end": 4.8, "probability": 0.8},
+        ],
+        "wordCount": 6,
+        "source": "mix",
+    }
+
+
+def test_correct_lyrics_line_for_line_keeps_timing():
+    chart = {
+        "lines": [
+            {"kind": "verse", "text": "Água é a vida", "chords": []},
+            {"kind": "verse", "text": "Corre pro mar", "chords": []},
+        ]
+    }
+    corrected = cifraclub.correct_lyrics(chart, _previous_lyrics())
+    assert corrected is not None
+    # One segment per chart line, so each line keeps the segment's own timing.
+    assert corrected["segments"] == [
+        {"start": 0.0, "end": 2.4, "text": "Água é a vida"},
+        {"start": 2.4, "end": 4.8, "text": "Corre pro mar"},
+    ]
+    assert [word["text"] for word in corrected["words"]] == [
+        "Água", "é", "a", "vida", "Corre", "pro", "mar",
+    ]
+    assert corrected["wordCount"] == 7
+    assert corrected["edited"] is True
+    assert corrected["correctedByChart"] is True
+    # Everything that describes the source survives the rebuild.
+    assert corrected["model"] == "base"
+    assert corrected["source"] == "mix"
+
+
+def test_correct_lyrics_lays_uneven_counts_across_the_sung_span():
+    chart = {
+        "lines": [
+            {"kind": "verse", "text": "Água é a vida", "chords": []},
+            {"kind": "verse", "text": "Corre pro mar", "chords": []},
+            {"kind": "verse", "text": "Sobe", "chords": []},
+        ]
+    }
+    corrected = cifraclub.correct_lyrics(chart, _previous_lyrics())
+    assert corrected is not None
+    segments = corrected["segments"]
+    assert [segment["text"] for segment in segments] == ["Água é a vida", "Corre pro mar", "Sobe"]
+    assert segments[0]["start"] == 0.0
+    assert segments[-1]["end"] == 4.8
+    assert [segment["start"] for segment in segments[1:]] == [
+        segments[0]["end"],
+        segments[1]["end"],
+    ]
+    assert corrected["wordCount"] == 8
+    assert corrected["edited"] is True
+    assert corrected["correctedByChart"] is True
+
+
+def test_correct_lyrics_returns_none_without_anchor():
+    chart = {"lines": [{"kind": "verse", "text": "Sem timing", "chords": []}]}
+    # No transcription yet: there is nothing to give the correction a skeleton.
+    assert cifraclub.correct_lyrics(chart, None) is None
+    assert cifraclub.correct_lyrics(chart, {"segments": []}) is None
+    # A chart with nothing to sing (only chords and tabs) also yields nothing.
+    chord_only = {
+        "lines": [
+            {
+                "kind": "verse",
+                "text": "G   D",
+                "chords": [{"name": "G", "col": 0}, {"name": "D", "col": 4}],
+            }
+        ]
+    }
+    assert cifraclub.correct_lyrics(chord_only, _previous_lyrics()) is None
+
+
 def test_normalize_label():
     cases = {
         "C7M": ("C", "maj7"),

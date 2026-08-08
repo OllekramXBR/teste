@@ -842,3 +842,83 @@ def correct(analysis: dict, web_chords: list[str], web_key: str = "") -> dict:
         {span["label"] for span in corrected["chords"] if span.get("root") is not None}
     )
     return corrected
+
+
+def chart_lyric_lines(chart: dict) -> list[str]:
+    """The sung words of a web chart, chords and section tags stripped.
+
+    The chart keeps the chord names inline at the columns the site spaced them
+    into, so each chord is removed exactly where ``col`` says it sits; section
+    markers like ``[Intro]`` are dropped and the leftover whitespace collapses.
+    The result is what a person would actually sing.
+    """
+    lines: list[str] = []
+    for line in chart.get("lines", []):
+        if line.get("kind") != "verse":
+            continue
+        text = line.get("text", "")
+        for chord in line.get("chords", []):
+            col = chord.get("col")
+            name = chord.get("name", "")
+            if isinstance(col, int) and name:
+                text = text[:col] + " " * len(name) + text[col + len(name) :]
+        text = re.sub(r"\[[^\]]*\]", " ", text)
+        text = " ".join(text.split())
+        if text:
+            lines.append(text)
+    return lines
+
+
+def correct_lyrics(chart: dict, previous: dict | None) -> dict | None:
+    """The chart's sung words rebuilt over the transcription's timing.
+
+    Returns ``None`` when the chart carries no lyric text, or when there is no
+    transcription to give the correction a timing skeleton. When the
+    transcription has exactly one segment per chart line, each line keeps the
+    segment's own start and end — phrase timing survives the swap word for
+    word. When the counts disagree, the lines are laid across the sung span in
+    proportion to how long each one reads, because that is the next-best guess
+    for where a line of a given length starts singing.
+    """
+    from .analysis import lyrics as lyrics_module
+
+    chart_lines = chart_lyric_lines(chart)
+    if not chart_lines:
+        return None
+    previous = dict(previous or {})
+    segments = previous.get("segments") or []
+    if not segments:
+        return None
+
+    if len(segments) == len(chart_lines):
+        rebuilt_segments = [
+            {
+                "start": float(segment.get("start", 0.0)),
+                "end": float(segment.get("end", 0.0)),
+                "text": text,
+            }
+            for segment, text in zip(segments, chart_lines)
+        ]
+    else:
+        begin = min(float(segment.get("start", 0.0)) for segment in segments)
+        finish = max(float(segment.get("end", 0.0)) for segment in segments)
+        if finish <= begin:
+            finish = begin + 1.0
+        span = finish - begin
+        # A line's words take roughly as long as they are long, so weight by
+        # character count with a floor that gives short lines a beat of their
+        # own.
+        weights = [len("".join(line.split())) + 1 for line in chart_lines]
+        total = sum(weights) or 1
+        cursor = begin
+        rebuilt_segments = []
+        for line, weight in zip(chart_lines, weights):
+            end = cursor + span * (weight / total)
+            rebuilt_segments.append(
+                {"start": round(cursor, 3), "end": round(end, 3), "text": line}
+            )
+            cursor = end
+
+    corrected = lyrics_module.rebuild_from_segments(rebuilt_segments, previous)
+    corrected["correctedByChart"] = True
+    return corrected

@@ -104,6 +104,8 @@ export interface Lyrics {
   source?: 'lead' | 'mix'
   /** True when the imported web chart's lyric seeded the decoder. */
   promptedByChart?: boolean
+  /** True when the imported web chart's lyric lines replaced the words. */
+  correctedByChart?: boolean
 }
 
 /** Stems are produced together, so one status covers the whole set. */
@@ -458,8 +460,9 @@ export function compareWebChart(id: string): Promise<ChartComparison> {
 }
 
 /**
- * Rewrite the analysis so the tom and the heard chord letters follow the
- * imported cifra, keeping the timing of the audio. Returns the updated song.
+ * Rewrite the analysis so the tom, the heard chord letters and the lyric lines
+ * follow the imported cifra, keeping the timing of the audio. Returns the
+ * updated song.
  */
 export function correctWebChart(id: string): Promise<Song> {
   return request(`/api/songs/${id}/cifraclub/correct`, { method: 'POST' })

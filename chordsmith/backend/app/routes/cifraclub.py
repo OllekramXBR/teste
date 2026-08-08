@@ -141,10 +141,13 @@ def compare_chart(song_id: str) -> dict:
 def correct_chart(song_id: str) -> dict:
     """Rewrite the detected analysis with the imported chart as the authority.
 
-    The chart's tom and chord letters replace the detected ones; the beats,
-    bars, timing and confidence stay from the audio. The reader asks for this
-    once the comparison shows the chart is the version they want to play. The
-    updated song is returned so the page can redraw itself against it.
+    The chart's tom and chord letters replace the detected ones, and its lyric
+    lines replace the transcribed words. Everything that describes *when* —
+    beats, bars, timing and confidence, and the segments' starts and ends when
+    the transcription line count matches the chart's — stays from the audio.
+    The reader asks for this once the comparison shows the chart is the
+    version they want to play. The updated song is returned so the page can
+    redraw itself against it.
     """
     song = storage.get_song(song_id)
     if not song:
@@ -158,4 +161,8 @@ def correct_chart(song_id: str) -> dict:
 
     corrected = cifraclub.correct(analysis, chart["chords"], chart["key"])
     storage.save_analysis(song_id, corrected)
+
+    corrected_lyrics = cifraclub.correct_lyrics(chart, storage.get_lyrics(song_id))
+    if corrected_lyrics is not None:
+        storage.save_lyrics(song_id, corrected_lyrics)
     return storage.get_song(song_id)  # type: ignore[return-value]
