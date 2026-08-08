@@ -42,11 +42,11 @@ export default function App() {
   return (
     <div className="min-h-screen bg-canvas text-ink antialiased ">
       {!bare && (
-        <nav className="sticky top-0 z-20 border-b border-line/80 bg-panel/80 backdrop-blur-md print:hidden ">
+        <nav className="glass sticky top-0 z-20 border-x-0 border-t-0 print:hidden">
           <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-3">
             <Link
               to="/"
-              className="flex items-center gap-2.5 text-[15px] font-semibold tracking-tight"
+              className="flex items-center gap-2.5 text-[15px] font-bold tracking-tight"
             >
               <Wordmark />
               Metatron
@@ -175,14 +175,14 @@ function ThemeButton({ choice, onCycle }: { choice: ThemeChoice; onCycle: () => 
   )
 }
 
+/** Four equaliser bars, always gently dancing: the logo is listening. */
 function Wordmark() {
   return (
-    <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true">
-      <rect x="1" y="3.5" width="18" height="1.6" rx="0.8" className="fill-slate-400" />
-      <rect x="1" y="9.2" width="18" height="1.6" rx="0.8" className="fill-slate-400" />
-      <rect x="1" y="14.9" width="18" height="1.6" rx="0.8" className="fill-slate-400" />
-      <circle cx="6.5" cy="4.3" r="2.4" className="fill-accent" />
-      <circle cx="13.5" cy="10" r="2.4" className="fill-accent" />
-    </svg>
+    <span className="eq" aria-hidden="true">
+      <i />
+      <i />
+      <i />
+      <i />
+    </span>
   )
 }

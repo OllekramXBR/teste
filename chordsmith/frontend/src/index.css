@@ -1,5 +1,29 @@
 @import 'tailwindcss';
 
+/* Sora, self-hosted: the display voice of the app. Variable weight, so one
+ * file covers everything from labels to the neon chord. No network fonts —
+ * this app lives on a home server and must look the same offline. */
+@font-face {
+  font-family: 'Sora';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('/fonts/sora-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC,
+    U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215,
+    U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Sora';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('/fonts/sora-latin-ext.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304,
+    U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB,
+    U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
 /* Dark mode is a class on <html>, and *only* a class.
  *
  * It used to also trigger on the OS preference. That is what broke the page:
@@ -10,24 +34,27 @@
  * from then on it is the single source of truth. */
 @custom-variant dark (&:where(.dark, .dark *));
 
-/* Semantic colours, so a component asks for "the muted text colour" rather
- * than for slate-500 and hopes. Every one of these is defined twice — once
- * here for light, once under .dark — which is what makes a theme switch a
- * change of values instead of a hunt through every file. */
+/* The look is "night stage": a deep blue-violet room, one electric-violet
+ * light and one warm amber one. Light theme is the same room with the house
+ * lights on — same hues, calm surfaces. Every colour is a semantic token so
+ * a theme switch is a change of values, not a hunt through every file. */
 @theme {
-  --color-canvas: oklch(0.985 0.002 264);
-  --color-panel: oklch(1 0 0);
-  --color-line: oklch(0.91 0.005 264);
-  --color-ink: oklch(0.22 0.01 264);
-  --color-ink-soft: oklch(0.46 0.012 264);
-  --color-ink-faint: oklch(0.6 0.012 264);
-  --color-accent: oklch(0.52 0.19 264);
-  --color-accent-soft: oklch(0.955 0.025 264);
-  --color-accent-ink: oklch(0.42 0.18 264);
+  --color-canvas: oklch(0.97 0.008 290);
+  --color-panel: oklch(0.995 0.002 290);
+  --color-line: oklch(0.9 0.015 290);
+  --color-ink: oklch(0.24 0.03 290);
+  --color-ink-soft: oklch(0.45 0.03 290);
+  --color-ink-faint: oklch(0.58 0.025 290);
+  --color-accent: oklch(0.51 0.23 295);
+  --color-accent-soft: oklch(0.94 0.04 295);
+  --color-accent-ink: oklch(0.44 0.21 295);
+  /* The warm light: root notes, the playhead, anything "hot right now". */
+  --color-flame: oklch(0.72 0.15 65);
+  --color-flame-soft: oklch(0.95 0.04 75);
 
   --font-sans:
-    'Inter var', 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto,
-    'Helvetica Neue', Arial, sans-serif;
+    'Sora', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue',
+    Arial, sans-serif;
   /* Chord charts are columnar: a chord above a syllable only lines up if the
      letters and digits share one advance width. */
   --font-mono: ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
@@ -35,8 +62,13 @@
   /* A chord change is the one event the player is waiting for, so it gets a
      motion cue; everything else stays still. Both curves settle fast — this
      plays while someone is trying to read the label. */
-  --animate-chord-pop: chord-pop 320ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-chord-pop: chord-pop 340ms cubic-bezier(0.16, 1, 0.3, 1) both;
   --animate-count-pulse: count-pulse 700ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  /* The glow behind the current chord, breathing slower than any tempo so it
+     reads as light, not as a metronome that disagrees with the song. */
+  --animate-breathe: breathe 5s ease-in-out infinite;
+  /* Cards introducing themselves on page load, one after another. */
+  --animate-fade-up: fade-up 480ms cubic-bezier(0.16, 1, 0.3, 1) both;
 
   @keyframes chord-pop {
     from {
@@ -63,113 +95,245 @@
       transform: scale(1);
     }
   }
+
+  @keyframes breathe {
+    0%,
+    100% {
+      opacity: 0.55;
+      transform: scale(0.96);
+    }
+    50% {
+      opacity: 1;
+      transform: scale(1.05);
+    }
+  }
+
+  @keyframes fade-up {
+    from {
+      opacity: 0;
+      transform: translateY(14px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
 }
 
-/* Dark is not the light palette inverted. The canvas lifts off pure black so
- * that panels can sit above it without a border doing all the work, and the
- * text stops short of pure white because white on near-black glares — the
- * complaint that started this. */
+/* Night: not inverted day. The canvas is a deep violet room, panels are a
+ * shade above it, and both lights get brighter because they are now the only
+ * light in the picture. */
 .dark {
-  --color-canvas: oklch(0.19 0.012 264);
-  --color-panel: oklch(0.235 0.014 264);
-  --color-line: oklch(0.32 0.014 264);
-  --color-ink: oklch(0.94 0.005 264);
-  --color-ink-soft: oklch(0.76 0.012 264);
-  --color-ink-faint: oklch(0.62 0.012 264);
-  --color-accent: oklch(0.75 0.14 264);
-  --color-accent-soft: oklch(0.3 0.05 264);
-  --color-accent-ink: oklch(0.82 0.13 264);
+  --color-canvas: oklch(0.16 0.028 292);
+  --color-panel: oklch(0.205 0.03 292);
+  --color-line: oklch(0.31 0.035 292);
+  --color-ink: oklch(0.95 0.008 292);
+  --color-ink-soft: oklch(0.74 0.02 292);
+  --color-ink-faint: oklch(0.58 0.02 292);
+  --color-accent: oklch(0.74 0.17 295);
+  --color-accent-soft: oklch(0.3 0.07 295);
+  --color-accent-ink: oklch(0.82 0.14 295);
+  --color-flame: oklch(0.8 0.15 70);
+  --color-flame-soft: oklch(0.3 0.06 70);
 }
 
-html,
-body,
-#root {
+/* The stage sign: chord letters lit as a gradient from the violet light into
+ * the amber one, with a soft throw of light behind them. Falls back to plain
+ * accent where background-clip is missing. */
+@utility text-neon {
+  color: var(--color-accent);
+  background-image: linear-gradient(115deg, var(--color-accent) 30%, var(--color-flame) 90%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 0 22px color-mix(in oklab, var(--color-accent) 38%, transparent));
+}
+
+/* One surface treatment for everything that floats: translucent panel, real
+ * blur, hairline. The blur is what separates a layered room from flat 2000s
+ * boxes, so it is a token of its own rather than four utilities repeated. */
+@utility glass {
+  background-color: color-mix(in oklab, var(--color-panel) 78%, transparent);
+  backdrop-filter: blur(14px) saturate(1.15);
+  -webkit-backdrop-filter: blur(14px) saturate(1.15);
+  border: 1px solid color-mix(in oklab, var(--color-line) 70%, transparent);
+  box-shadow: 0 4px 22px color-mix(in oklab, var(--color-ink) 6%, transparent);
+}
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    /* Set here rather than per page: a body that does not carry the theme shows
+       the browser's white behind anything that does not fill the viewport. */
+    background-color: var(--color-canvas);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-size: 15px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* The room has light in it: two fixed glows on the canvas, violet high left
+   * and amber low right. Cheap (two radial gradients, painted once) and it is
+   * most of what makes the dark theme feel like a place instead of a value. */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: -2;
+    pointer-events: none;
+    background:
+      radial-gradient(
+        42rem 30rem at 12% -8%,
+        color-mix(in oklab, var(--color-accent) 13%, transparent),
+        transparent 70%
+      ),
+      radial-gradient(
+        36rem 26rem at 108% 112%,
+        color-mix(in oklab, var(--color-flame) 10%, transparent),
+        transparent 70%
+      );
+  }
+
+  /* Grain, so large flat regions have tooth. Kept faint enough to disappear on
+   * a phone at arm's length and still kill the airbrushed look up close. */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    opacity: 0.05;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  /* Headings are the one place where the default line height is wrong: at 26px
+     and up, 1.55 reads as two separate lines rather than one title. */
+  h1,
+  h2,
+  h3 {
+    line-height: 1.2;
+    letter-spacing: -0.015em;
+  }
+
+  /* Numbers that change every frame — a clock, a BPM, a fret — must not reflow
+     the layout under them. */
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+
+  input,
+  select,
+  textarea,
+  button {
+    font: inherit;
+    color: inherit;
+  }
+
+  ::placeholder {
+    color: var(--color-ink-faint);
+  }
+
+  ::selection {
+    background: color-mix(in oklab, var(--color-accent) 30%, transparent);
+  }
+
+  /* Range inputs are this app's main continuous control, and the default look
+     differs wildly between browsers — unfinished in all of them. */
+  input[type='range'] {
+    appearance: none;
+    background: transparent;
+    cursor: pointer;
+  }
+
+  input[type='range']::-webkit-slider-runnable-track {
+    height: 4px;
+    border-radius: 999px;
+    background: var(--color-line);
+  }
+
+  input[type='range']::-webkit-slider-thumb {
+    appearance: none;
+    margin-top: -5px;
+    height: 14px;
+    width: 14px;
+    border-radius: 999px;
+    background: currentColor;
+    box-shadow: 0 1px 6px color-mix(in oklab, currentColor 55%, transparent);
+  }
+
+  input[type='range']::-moz-range-track {
+    height: 4px;
+    border-radius: 999px;
+    background: var(--color-line);
+  }
+
+  input[type='range']::-moz-range-thumb {
+    height: 14px;
+    width: 14px;
+    border: none;
+    border-radius: 999px;
+    background: currentColor;
+  }
+
+  /* Visible on purpose, and only for the keyboard: this gets used on a stage,
+     where tabbing to the transport beats hunting for it with a mouse. */
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+}
+
+/* The wordmark's equaliser bars: always dancing, gently. The one animated
+   pixel on every page — the app is about hearing music in what you already
+   have, and the logo is listening. */
+.eq {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 2.5px;
+  height: 16px;
+}
+.eq > i {
+  width: 3px;
+  border-radius: 2px;
+  background: linear-gradient(to top, var(--color-accent), var(--color-flame));
+  animation: eq-dance 1.35s ease-in-out infinite;
+  transform-origin: bottom;
+}
+.eq > i:nth-child(1) {
+  height: 60%;
+  animation-delay: -0.9s;
+}
+.eq > i:nth-child(2) {
   height: 100%;
+  animation-delay: -0.45s;
 }
-
-body {
-  /* Set here rather than per page: a body that does not carry the theme shows
-     the browser's white behind anything that does not fill the viewport. */
-  background-color: var(--color-canvas);
-  color: var(--color-ink);
-  font-family: var(--font-sans);
-  font-size: 15px;
-  line-height: 1.55;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  text-rendering: optimizeLegibility;
+.eq > i:nth-child(3) {
+  height: 45%;
+  animation-delay: -1.15s;
 }
-
-/* Headings are the one place where the default line height is wrong: at 26px
-   and up, 1.55 reads as two separate lines rather than one title. */
-h1,
-h2,
-h3 {
-  line-height: 1.2;
-  letter-spacing: -0.011em;
+.eq > i:nth-child(4) {
+  height: 80%;
+  animation-delay: -0.2s;
 }
-
-/* Numbers that change every frame — a clock, a BPM, a fret — must not reflow
-   the layout under them. */
-.tabular-nums {
-  font-variant-numeric: tabular-nums;
-}
-
-input,
-select,
-textarea,
-button {
-  font: inherit;
-  color: inherit;
-}
-
-::placeholder {
-  color: var(--color-ink-faint);
-}
-
-/* Range inputs are this app's main continuous control, and the default look
-   differs wildly between browsers — unfinished in all of them. */
-input[type='range'] {
-  appearance: none;
-  background: transparent;
-  cursor: pointer;
-}
-
-input[type='range']::-webkit-slider-runnable-track {
-  height: 4px;
-  border-radius: 999px;
-  background: var(--color-line);
-}
-
-input[type='range']::-webkit-slider-thumb {
-  appearance: none;
-  margin-top: -5px;
-  height: 14px;
-  width: 14px;
-  border-radius: 999px;
-  background: currentColor;
-  box-shadow: 0 1px 3px rgb(0 0 0 / 0.35);
-}
-
-input[type='range']::-moz-range-track {
-  height: 4px;
-  border-radius: 999px;
-  background: var(--color-line);
-}
-
-input[type='range']::-moz-range-thumb {
-  height: 14px;
-  width: 14px;
-  border: none;
-  border-radius: 999px;
-  background: currentColor;
-}
-
-/* Visible on purpose, and only for the keyboard: this gets used on a stage,
-   where tabbing to the transport beats hunting for it with a mouse. */
-:focus-visible {
-  outline: 2px solid var(--color-accent);
-  outline-offset: 2px;
+@keyframes eq-dance {
+  0%,
+  100% {
+    transform: scaleY(0.55);
+  }
+  40% {
+    transform: scaleY(1);
+  }
+  70% {
+    transform: scaleY(0.75);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -190,6 +354,11 @@ input[type='range']::-moz-range-thumb {
   body {
     background: #fff !important;
     color: #000 !important;
+  }
+
+  body::before,
+  body::after {
+    display: none !important;
   }
 
   .chord-sheet {

@@ -102,7 +102,7 @@ export function TabStaff({ lead, bars, currentTime, onSeek, autoScroll }: TabSta
               className={[
                 'relative rounded-lg border p-2 transition-colors',
                 isActive
-                  ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-950/40'
+                  ? 'border-accent bg-accent-soft'
                   : 'border-line bg-panel',
                 isSolo ? 'ring-2 ring-fuchsia-400/70' : '',
               ].join(' ')}
@@ -110,7 +110,7 @@ export function TabStaff({ lead, bars, currentTime, onSeek, autoScroll }: TabSta
               <div className="mb-1 flex items-center justify-between">
                 <span className="text-[9px] font-semibold text-ink-faint">{bar.number}</span>
                 {isSolo && (
-                  <span className="rounded bg-fuchsia-500 px-1 text-[8px] font-bold uppercase text-white">
+                  <span className="rounded bg-flame px-1 text-[8px] font-bold uppercase text-canvas">
                     solo
                   </span>
                 )}
@@ -176,7 +176,7 @@ export function TabStaff({ lead, bars, currentTime, onSeek, autoScroll }: TabSta
                         }`}
                         className={`absolute -translate-x-1/2 -translate-y-1/2 rounded px-0.5 text-[10px] font-bold leading-tight tabular-nums ${
                           sounding
-                            ? 'z-10 bg-indigo-600 text-white'
+                            ? 'z-10 bg-accent text-canvas'
                             : 'bg-canvas text-ink'
                         }`}
                         style={{
@@ -225,7 +225,7 @@ export function LeadSummary({
             title={`${section.noteCount} notes, ${section.notesPerBar} per bar, ${section.lowName}–${section.highName}`}
             className={`rounded px-2 py-1 text-xs font-semibold transition-colors ${
               section.isSolo
-                ? 'bg-fuchsia-500 text-white hover:bg-fuchsia-400'
+                ? 'bg-flame text-canvas hover:brightness-110'
                 : 'bg-canvas text-ink-soft hover:bg-accent-soft'
             }`}
           >

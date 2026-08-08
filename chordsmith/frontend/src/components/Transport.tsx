@@ -42,7 +42,13 @@ export function Transport({
         type="button"
         onClick={onToggle}
         aria-label={playing ? 'Pausar' : 'Tocar'}
-        className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-accent text-white shadow-lg transition hover:opacity-90 active:scale-95"
+        className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-full text-canvas transition active:scale-95"
+        style={{
+          background: 'linear-gradient(135deg, var(--color-accent), var(--color-flame))',
+          boxShadow: playing
+            ? '0 0 24px color-mix(in oklab, var(--color-accent) 55%, transparent)'
+            : '0 4px 14px color-mix(in oklab, var(--color-accent) 35%, transparent)',
+        }}
       >
         {playing ? (
           <svg width="18" height="18" viewBox="0 0 18 18" fill="currentColor">
@@ -72,11 +78,11 @@ export function Transport({
           if (event.key === 'ArrowRight') onSeek(currentTime + 5)
           if (event.key === 'ArrowLeft') onSeek(currentTime - 5)
         }}
-        className="relative h-8 flex-1 cursor-pointer overflow-hidden rounded-lg bg-canvas"
+        className="relative h-8 flex-1 cursor-pointer overflow-hidden rounded-lg bg-canvas/70"
       >
         {loopRegion && duration > 0 && (
           <div
-            className="absolute inset-y-0 bg-amber-300/50"
+            className="absolute inset-y-0 bg-flame/25"
             style={{
               left: `${(loopRegion.start / duration) * 100}%`,
               width: `${((loopRegion.end - loopRegion.start) / duration) * 100}%`,
@@ -87,14 +93,25 @@ export function Transport({
           downbeats.map((beat) => (
             <div
               key={beat.index}
-              className="absolute inset-y-0 w-px bg-slate-400/40"
+              className="absolute inset-y-0 w-px bg-line/70"
               style={{ left: `${(beat.time / duration) * 100}%` }}
             />
           ))}
-        <div className="absolute inset-y-0 left-0 bg-indigo-500/40" style={{ width: `${progress}%` }} />
+        {/* What has already played, lit with the same two lights as the rest
+            of the app; the playhead is the hot edge of that light. */}
         <div
-          className="absolute inset-y-0 w-0.5 bg-indigo-600"
-          style={{ left: `${progress}%` }}
+          className="absolute inset-y-0 left-0 opacity-45"
+          style={{
+            width: `${progress}%`,
+            background: 'linear-gradient(90deg, var(--color-accent), var(--color-flame))',
+          }}
+        />
+        <div
+          className="absolute inset-y-0 w-0.5 bg-flame"
+          style={{
+            left: `${progress}%`,
+            boxShadow: '0 0 10px color-mix(in oklab, var(--color-flame) 80%, transparent)',
+          }}
         />
       </div>
 

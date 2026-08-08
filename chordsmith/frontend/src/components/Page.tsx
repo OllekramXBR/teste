@@ -79,11 +79,7 @@ export function Card({
   padded?: boolean
 }) {
   return (
-    <section
-      className={`rounded-xl border border-line bg-panel  ${
-        padded ? 'p-4' : ''
-      } ${className}`}
-    >
+    <section className={`glass rounded-xl ${padded ? 'p-4' : ''} ${className}`}>
       {children}
     </section>
   )

@@ -144,14 +144,22 @@ export function ChordGrid({
                       className={[
                         'flex h-12 flex-1 flex-col items-center justify-center rounded text-sm font-semibold transition-all duration-200 ease-out',
                         isCurrent
-                          ? 'scale-105 bg-accent text-canvas shadow-lg'
+                          ? 'scale-105 text-canvas shadow-[0_0_16px_color-mix(in_oklab,var(--color-accent)_50%,transparent)]'
                           : 'bg-canvas text-ink hover:bg-accent-soft',
                         isRepeat && !isCurrent ? 'opacity-45' : '',
                       ].join(' ')}
+                      style={
+                        isCurrent
+                          ? {
+                              background:
+                                'linear-gradient(135deg, var(--color-accent), color-mix(in oklab, var(--color-accent) 55%, var(--color-flame)))',
+                            }
+                          : undefined
+                      }
                     >
                       <span>{isRepeat ? '·' : label || '–'}</span>
                       {beat.downbeat && !isCurrent && (
-                        <span className="mt-0.5 h-0.5 w-3 rounded bg-indigo-400/70" />
+                        <span className="mt-0.5 h-0.5 w-3 rounded bg-accent/60" />
                       )}
                     </button>
                   )

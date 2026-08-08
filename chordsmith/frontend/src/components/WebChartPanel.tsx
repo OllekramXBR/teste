@@ -225,7 +225,7 @@ export function WebChartPanel({ songId }: Props) {
             href={`https://www.cifraclub.com.br${chart.pageUrl}`}
             target="_blank"
             rel="noreferrer"
-            className="text-[11px] text-indigo-500 hover:underline"
+            className="text-[11px] text-accent hover:underline"
           >
             ver na Cifra Club →
           </a>

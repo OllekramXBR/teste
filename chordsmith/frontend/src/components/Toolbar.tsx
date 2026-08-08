@@ -135,8 +135,10 @@ function Switch({
       aria-checked={checked}
       aria-label={label}
       onClick={onToggle}
-      className={`h-7 w-12 rounded-full px-1 transition-colors ${
-        checked ? 'bg-accent' : 'bg-line'
+      className={`h-7 w-12 rounded-full px-1 transition-all ${
+        checked
+          ? 'bg-accent shadow-[0_0_10px_color-mix(in_oklab,var(--color-accent)_45%,transparent)]'
+          : 'bg-line'
       }`}
     >
       <span
@@ -165,7 +167,7 @@ export function Toolbar({
   const soundingKey = noteName(keyTonic + settings.transpose, useFlats)
 
   return (
-    <div className="flex flex-wrap items-stretch gap-x-6 gap-y-5 rounded-xl border border-line bg-panel p-4">
+    <div className="glass flex flex-wrap items-stretch gap-x-6 gap-y-5 rounded-xl p-4">
       <Group title="Tom">
         <Control label="Transpor">
           <Stepper

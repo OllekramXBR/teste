@@ -57,7 +57,7 @@ export function StemMixer({ stems, mix, solo, onVolume, onMute, onSolo }: Props)
               type="button"
               title={preset.hint}
               onClick={() => applyPreset(preset.mute)}
-              className="rounded-full border border-line px-3 py-1 text-xs font-medium transition hover:border-indigo-400 hover:text-indigo-600 dark:hover:border-indigo-500 dark:hover:text-indigo-400"
+              className="rounded-full border border-line px-3 py-1 text-xs font-medium transition hover:border-accent hover:text-accent"
             >
               {preset.label}
             </button>
@@ -106,7 +106,7 @@ export function StemMixer({ stems, mix, solo, onVolume, onMute, onSolo }: Props)
                 step={0.01}
                 value={settings.volume}
                 onChange={(event) => onVolume(stem.name, Number(event.target.value))}
-                className="h-1 w-full accent-indigo-600"
+                className="h-1 w-full accent-accent"
                 aria-label={`Volume de ${stem.label}`}
               />
             </li>
@@ -119,7 +119,7 @@ export function StemMixer({ stems, mix, solo, onVolume, onMute, onSolo }: Props)
 
 function toggleClass(active: boolean, tone: 'rose' | 'amber'): string {
   const base =
-    'h-7 w-7 rounded text-xs font-bold transition border focus-visible:outline-2 focus-visible:outline-indigo-500'
+    'h-7 w-7 rounded text-xs font-bold transition border focus-visible:outline-2 focus-visible:outline-accent'
   if (!active) {
     return `${base} border-line text-ink-soft hover:border-slate-400  `
   }

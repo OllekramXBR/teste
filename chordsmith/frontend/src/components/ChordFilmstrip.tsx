@@ -122,7 +122,7 @@ export function ChordFilmstrip({
       // min-w-0 matters: a grid child defaults to min-width:auto, so without it
       // a wide strip pushes its own column open and the whole page scrolls
       // sideways instead of the strip doing it.
-      className="flex min-w-0 max-w-full items-center gap-4 overflow-x-auto overscroll-x-contain rounded-xl border border-line bg-panel py-6"
+      className="glass flex min-w-0 max-w-full items-center gap-4 overflow-x-auto overscroll-x-contain rounded-xl py-6 [mask-image:linear-gradient(90deg,transparent,black_5%,black_95%,transparent)]"
     >
       {/* Spacers rather than percentage padding. A percentage resolves against
           the container's own width, so on a wide screen it became a thousand

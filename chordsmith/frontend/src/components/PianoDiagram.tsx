@@ -35,9 +35,9 @@ export function PianoDiagram({
   const blackHeight = height * 0.62
 
   const keyClass = (pitchClass: number, black: boolean) => {
-    if (mod12(pitchClass) === mod12(root)) return 'fill-amber-400'
-    if (highlighted.has(mod12(pitchClass))) return 'fill-indigo-500'
-    return black ? 'fill-slate-800 dark:fill-slate-900' : 'fill-white dark:fill-slate-200'
+    if (mod12(pitchClass) === mod12(root)) return 'fill-flame'
+    if (highlighted.has(mod12(pitchClass))) return 'fill-accent'
+    return black ? 'fill-ink/90' : 'fill-panel'
   }
 
   return (
@@ -61,7 +61,7 @@ export function PianoDiagram({
               width={whiteWidth - 1}
               height={height}
               rx={2}
-              className={`${keyClass(pitchClass, false)} stroke-slate-300 dark:stroke-slate-600`}
+              className={`${keyClass(pitchClass, false)} stroke-line`}
               strokeWidth={1}
             />
           )

@@ -26,18 +26,14 @@ interface Props {
 }
 
 /**
- * The chord being played and the chord coming next, at singing distance.
+ * The stage: the chord being played, written in light.
  *
- * This panel exists for one person: someone with an instrument in hand and a
- * lyric in their throat, glancing at the screen between phrases. That glance
- * has room for exactly two facts — what am I on, what comes next — so those
- * two facts take the whole width of the page, and everything analytical
- * (which key to sing in, what the decoder was sure of) lives somewhere
- * quieter.
- *
- * The next chord shows a countdown in seconds. Bars would be more musical,
- * but seconds are what a beginner counts in, and the number is doing a
- * beginner's job: saying "get ready" at the right moment.
+ * This panel exists for one person — someone with an instrument in hand and a
+ * lyric in their throat, glancing up between phrases. That glance has room
+ * for exactly two facts, what am I on and what comes next, so those two facts
+ * get the whole width, the biggest type in the app, and the only glow. The
+ * thin bar underneath drains toward the moment the next chord lands, which is
+ * the "get ready" a band mate would give with a nod.
  */
 export function NowPlaying({
   cards,
@@ -78,16 +74,37 @@ export function NowPlaying({
   const soundingLabel =
     current && capo > 0 ? transposeLabel(current.label, capo, useFlats) : null
 
+  // How far through this chord we are, 0..1, draining toward the next change.
+  const progress = useMemo(() => {
+    if (!current || isUpcoming) return 0
+    const end = next ? next.start : current.end
+    const span = end - current.start
+    if (span <= 0) return 1
+    return Math.min(1, Math.max(0, (currentTime - current.start) / span))
+  }, [current, next, currentTime, isUpcoming])
+
   if (!cards.length) return null
 
   return (
-    <section className="rounded-2xl border border-line bg-panel px-5 py-4">
-      <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-4 sm:justify-between">
+    <section className="glass relative overflow-hidden rounded-2xl px-6 pb-5 pt-4">
+      {/* The throw of light behind the letters. It breathes slower than any
+          tempo, so it reads as a lamp and not as a metronome that disagrees
+          with the song. */}
+      <div
+        aria-hidden="true"
+        className="animate-breathe pointer-events-none absolute -left-16 -top-24 h-72 w-96 rounded-full"
+        style={{
+          background:
+            'radial-gradient(closest-side, color-mix(in oklab, var(--color-accent) 22%, transparent), transparent 72%)',
+        }}
+      />
+
+      <div className="relative flex flex-wrap items-center justify-center gap-x-10 gap-y-5 sm:justify-between">
         {/* What is sounding right now. Re-keyed per card so the change itself
             animates: the pop is the "look up now" signal. */}
-        <div key={activeIndex} className="animate-chord-pop flex min-w-0 items-center gap-5">
+        <div key={activeIndex} className="animate-chord-pop flex min-w-0 items-center gap-6">
           <div className="min-w-0">
-            <p className="text-[10px] font-semibold uppercase tracking-widest text-ink-faint">
+            <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-ink-faint">
               {isUpcoming ? 'Começa com' : 'Agora'}
             </p>
             <button
@@ -95,16 +112,16 @@ export function NowPlaying({
               onClick={() => current && onOpenPopover(current.label)}
               disabled={!current}
               title="Ver este acorde em outros instrumentos"
-              className="block truncate text-6xl font-bold leading-none tracking-tight text-accent transition hover:opacity-80 sm:text-7xl"
+              className="text-neon block truncate pb-1 pr-1 text-7xl font-extrabold leading-none tracking-tight transition hover:brightness-110 sm:text-8xl"
             >
               {current ? br(current.label, useFlats) : '—'}
             </button>
-            <p className="mt-1.5 min-h-4 text-xs text-ink-soft">
+            <p className="mt-1 min-h-4 text-xs text-ink-soft">
               {!current && 'Aperte o play e o acorde aparece aqui.'}
               {current && parsed && QUALITY_LABELS[parsed.quality]}
               {current && isHeld && (
                 <span
-                  className="ml-2 rounded-full bg-canvas px-2 py-0.5 text-[10px] text-ink-faint"
+                  className="ml-2 rounded-full border border-line/60 px-2 py-0.5 text-[10px] text-ink-faint"
                   title="Nada foi detectado neste tempo; o último acorde segue valendo"
                 >
                   sustentado
@@ -113,7 +130,8 @@ export function NowPlaying({
             </p>
             {soundingLabel && (
               <p className="mt-1 text-[11px] text-ink-faint">
-                soa como {br(soundingLabel, useFlats)} · capotraste na casa {capo}
+                soa como <span className="text-flame">{br(soundingLabel, useFlats)}</span> ·
+                capotraste na casa {capo}
               </p>
             )}
           </div>
@@ -125,7 +143,7 @@ export function NowPlaying({
                   root={parsed.root}
                   notes={chordPitchClasses(parsed.root, parsed.quality).map(mod12)}
                   useFlats={useFlats}
-                  width={220}
+                  width={230}
                 />
               ) : (
                 <FretDiagram
@@ -134,14 +152,14 @@ export function NowPlaying({
                   instrument={INSTRUMENTS[instrument] ?? INSTRUMENTS.guitar}
                   useFlats={useFlats}
                   variant={shapeVariant}
-                  width={158}
+                  width={164}
                 />
               )}
               {instrument !== 'piano' && (
                 <button
                   type="button"
                   onClick={onCycleShape}
-                  className="text-[11px] text-accent hover:underline"
+                  className="text-[11px] font-medium text-accent transition hover:brightness-125"
                 >
                   outra posição ({shapeVariant + 1}/4)
                 </button>
@@ -150,25 +168,25 @@ export function NowPlaying({
           )}
         </div>
 
-        {/* What comes next, dimmed: readable in the same glance without
+        {/* What comes next, quiet: readable in the same glance without
             competing with the chord that is due right now. */}
         {next && parsedNext && (
           <button
             type="button"
             onClick={() => onSeek(next.start)}
             title="Pular para este acorde"
-            className="group flex shrink-0 items-center gap-4 rounded-xl px-3 py-2 text-left opacity-75 transition hover:bg-canvas hover:opacity-100"
+            className="group flex shrink-0 items-center gap-4 rounded-xl border border-transparent px-4 py-3 text-left opacity-80 transition hover:border-line/60 hover:bg-canvas/50 hover:opacity-100"
           >
             <div>
-              <p className="text-[10px] font-semibold uppercase tracking-widest text-ink-faint">
+              <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-ink-faint">
                 Próximo
                 {secondsToNext !== null && secondsToNext <= 60 && (
-                  <span className="ml-1.5 tabular-nums normal-case tracking-normal">
+                  <span className="ml-1.5 tabular-nums normal-case tracking-normal text-flame">
                     em {secondsToNext}s
                   </span>
                 )}
               </p>
-              <p className="text-4xl font-bold leading-tight tracking-tight text-ink">
+              <p className="text-4xl font-extrabold leading-tight tracking-tight text-ink">
                 {br(next.label, useFlats)}
               </p>
             </div>
@@ -193,8 +211,19 @@ export function NowPlaying({
         )}
       </div>
 
+      {/* Time draining toward the next change — the nod that says "ready". */}
+      <div className="relative mt-4 h-1 overflow-hidden rounded-full bg-line/50">
+        <div
+          className="h-full rounded-full"
+          style={{
+            width: `${progress * 100}%`,
+            background: 'linear-gradient(90deg, var(--color-accent), var(--color-flame))',
+          }}
+        />
+      </div>
+
       {parsed && (
-        <div className="mt-2 border-t border-line/60 pt-2">
+        <div className="relative mt-3">
           <ChordToneLegend quality={parsed.quality} />
         </div>
       )}

@@ -201,7 +201,7 @@ export function PerformancePage() {
           O modo palco toca as pistas separadas, para tirar a voz principal e deixar você cantar.
           Esta música ainda não foi separada.
         </p>
-        <Link to={`/song/${song.id}`} className="text-sm text-indigo-400 hover:underline">
+        <Link to={`/song/${song.id}`} className="text-sm text-accent hover:underline">
           Voltar e separar as pistas
         </Link>
       </Stage>

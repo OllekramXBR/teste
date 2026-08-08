@@ -71,7 +71,7 @@ export function FretDiagram({
           width={boardWidth + 2}
           height={4}
           rx={1}
-          className="fill-slate-300 dark:fill-slate-500"
+          className="fill-line"
         />
       )}
       {!showNut && (
@@ -79,7 +79,7 @@ export function FretDiagram({
           x={padding.left - 8}
           y={y(0.65)}
           textAnchor="end"
-          className="fill-slate-400 text-[9px] font-medium"
+          className="fill-ink-faint text-[9px] font-medium"
         >
           {startFret}
         </text>
@@ -92,7 +92,7 @@ export function FretDiagram({
           y1={y(index)}
           x2={padding.left + boardWidth}
           y2={y(index)}
-          className="stroke-slate-300 dark:stroke-slate-600"
+          className="stroke-line"
           strokeWidth={1}
         />
       ))}
@@ -103,7 +103,7 @@ export function FretDiagram({
           y1={y(0)}
           x2={x(index)}
           y2={y(FRET_COUNT)}
-          className="stroke-slate-300 dark:stroke-slate-600"
+          className="stroke-line"
           strokeWidth={1}
         />
       ))}
@@ -115,7 +115,7 @@ export function FretDiagram({
           width={boardWidth + 10}
           height={12}
           rx={6}
-          className="fill-indigo-500/90"
+          className="fill-accent/90"
         />
       )}
 
@@ -123,7 +123,7 @@ export function FretDiagram({
         const cx = x(stringIndex)
         if (fret < 0) {
           return (
-            <g key={`mark-${stringIndex}`} className="stroke-slate-400" strokeWidth={1.5}>
+            <g key={`mark-${stringIndex}`} className="stroke-ink-faint" strokeWidth={1.5}>
               <line x1={cx - 4} y1={padding.top - 16} x2={cx + 4} y2={padding.top - 8} />
               <line x1={cx - 4} y1={padding.top - 8} x2={cx + 4} y2={padding.top - 16} />
             </g>
@@ -136,7 +136,7 @@ export function FretDiagram({
               cx={cx}
               cy={padding.top - 12}
               r={4}
-              className="fill-none stroke-slate-400"
+              className="fill-none stroke-ink-faint"
               strokeWidth={1.5}
             />
           )
@@ -150,7 +150,7 @@ export function FretDiagram({
             cx={cx}
             cy={y(offset)}
             r={6}
-            className={isRoot ? 'fill-amber-400' : 'fill-indigo-500'}
+            className={isRoot ? 'fill-flame' : 'fill-accent'}
           />
         )
       })}
@@ -161,7 +161,7 @@ export function FretDiagram({
           x={x(index)}
           y={height - 6}
           textAnchor="middle"
-          className="fill-slate-400 text-[9px]"
+          className="fill-ink-faint text-[9px]"
         >
           {name}
         </text>
@@ -175,10 +175,10 @@ export function ChordToneLegend({ quality }: { quality: string }) {
   return (
     <div className="flex flex-wrap items-center gap-2 text-[10px] text-ink-soft">
       <span className="flex items-center gap-1">
-        <span className="inline-block h-2.5 w-2.5 rounded-full bg-amber-400" /> tônica
+        <span className="inline-block h-2.5 w-2.5 rounded-full bg-flame" /> tônica
       </span>
       <span className="flex items-center gap-1">
-        <span className="inline-block h-2.5 w-2.5 rounded-full bg-indigo-500" /> nota do acorde
+        <span className="inline-block h-2.5 w-2.5 rounded-full bg-accent" /> nota do acorde
       </span>
       <span className="text-ink-faint">{intervalNames(quality).join(' · ')}</span>
     </div>

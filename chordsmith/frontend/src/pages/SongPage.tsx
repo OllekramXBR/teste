@@ -562,7 +562,7 @@ export function SongPage() {
         <button
           type="button"
           onClick={handleReanalyze}
-          className="rounded bg-accent px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90"
+          className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-canvas transition hover:brightness-110"
         >
           Tentar de novo
         </button>
@@ -584,7 +584,7 @@ export function SongPage() {
 
   return (
     <div className="mx-auto max-w-6xl space-y-5 px-4 py-6 print:px-0 print:py-0">
-      <div className="print:hidden">
+      <div className="animate-fade-up print:hidden">
         <Link to="/" className="text-xs text-ink-soft transition-colors hover:text-accent">
           ← Biblioteca
         </Link>
@@ -637,17 +637,17 @@ export function SongPage() {
       )}
 
       {countdown > 0 && (
-        <div className="pointer-events-none fixed inset-0 z-40 flex items-center justify-center">
+        <div className="pointer-events-none fixed inset-0 z-40 flex items-center justify-center bg-canvas/40 backdrop-blur-sm">
           <span
             key={countdown}
-            className="animate-count-pulse rounded-3xl bg-slate-950/80 px-12 py-8 text-8xl font-bold tabular-nums text-white"
+            className="text-neon animate-count-pulse rounded-3xl px-12 py-8 text-9xl font-extrabold tabular-nums"
           >
             {countdown}
           </span>
         </div>
       )}
 
-      <div className="print:hidden">
+      <div className="animate-fade-up [animation-delay:.06s] print:hidden">
         <Transport
           playing={player.playing}
           currentTime={player.currentTime}
@@ -661,6 +661,7 @@ export function SongPage() {
 
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_260px] print:hidden">
         <div className="min-w-0 space-y-4">
+          <div className="animate-fade-up [animation-delay:.12s]">
           <Toolbar
             settings={settings}
             onChange={handleSettings}
@@ -670,8 +671,9 @@ export function SongPage() {
             loopBars={loopBars}
             onClearLoop={() => setLoopBars(null)}
           />
+          </div>
           {settings.transpose !== 0 && (
-            <p className="rounded-lg bg-amber-100 px-3 py-2 text-xs text-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
+            <p className="rounded-lg border border-flame/30 bg-flame-soft px-3 py-2 text-xs text-ink">
               A grade está transposta {settings.transpose > 0 ? '+' : ''}
               {settings.transpose} semitons, mas a gravação continua em{' '}
               {keyNamePt(analysis.key.tonic, analysis.key.mode, analysis.useFlats)}. Abaixe o volume
@@ -679,6 +681,7 @@ export function SongPage() {
             </p>
           )}
 
+          <div className="animate-fade-up [animation-delay:.18s]">
           <NowPlaying
             cards={chordCards}
             currentTime={player.currentTime}
@@ -690,16 +693,17 @@ export function SongPage() {
             onOpenPopover={setPopoverChord}
             onSeek={handleSeek}
           />
+          </div>
 
-          <div className="flex items-center gap-1 overflow-x-auto rounded-lg bg-canvas/70 p-1">
+          <div className="glass animate-fade-up flex items-center gap-1 overflow-x-auto rounded-full p-1 [animation-delay:.24s]">
             {(['chords', 'estudo', 'tab', 'letra', 'cifra', 'partitura', 'both'] as View[]).map((option) => (
               <button
                 key={option}
                 type="button"
                 onClick={() => setView(option)}
-                className={`shrink-0 rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
+                className={`shrink-0 rounded-full px-3.5 py-1.5 text-xs font-semibold transition-all ${
                   view === option
-                    ? 'bg-panel text-ink shadow-sm dark:text-white'
+                    ? 'bg-accent text-canvas shadow-[0_0_14px_color-mix(in_oklab,var(--color-accent)_45%,transparent)]'
                     : 'text-ink-soft hover:text-ink'
                 }`}
               >
@@ -735,7 +739,7 @@ export function SongPage() {
           {view === 'letra' &&
             !editingLyrics &&
             (song.lyrics ? (
-              <div className="rounded-xl border border-line bg-panel ">
+              <div className="glass rounded-xl">
                 <div className="flex items-center justify-between gap-2 border-b border-line px-4 py-2.5 ">
                   <span className="text-xs text-ink-soft">
                     {song.lyrics.wordCount} palavras
@@ -801,7 +805,7 @@ export function SongPage() {
                   {tracks.tracks.map((track) => (
                     <section
                       key={track.name}
-                      className="rounded-xl border border-line bg-panel p-4 "
+                      className="glass rounded-xl p-4"
                     >
                       <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-faint">
                         {track.name} · {track.notes.length} notas
@@ -823,7 +827,7 @@ export function SongPage() {
           {view === 'cifra' && (
             <div className="space-y-4">
               <WebChartPanel songId={song.id} />
-              <div className="rounded-xl border border-line bg-panel p-5 ">
+              <div className="glass rounded-xl p-5">
                 <div className="mb-3 flex items-center justify-between gap-2">
                   <h3 className="text-sm font-semibold">Cifra da análise</h3>
                   <a
@@ -886,7 +890,7 @@ export function SongPage() {
           )}
         </div>
 
-        <aside className="space-y-4">
+        <aside className="animate-fade-up space-y-4 [animation-delay:.2s]">
           <ProductionCard
             progress={progress}
             song={song}
@@ -896,7 +900,7 @@ export function SongPage() {
             onSeparate={handleSeparate}
           />
 
-          <details className="group rounded-xl border border-line bg-panel p-4 ">
+          <details className="glass group rounded-xl p-4">
             <summary className="cursor-pointer list-none text-sm font-semibold marker:content-none">
               Acordes desta música
               <span className="float-right text-xs font-normal text-ink-faint group-open:hidden">
@@ -942,7 +946,7 @@ export function SongPage() {
           {/* Deliberately collapsed: choosing a key is something done once per
               song, before playing — not something to stare at while singing.
               The chord panels above are what the session actually reads. */}
-          <details className="rounded-xl border border-line bg-panel p-4">
+          <details className="glass rounded-xl p-4">
             <summary className="cursor-pointer list-none text-sm font-semibold marker:content-none">
               Em que tom cantar
               <span className="float-right text-xs font-normal text-ink-faint">
@@ -965,7 +969,7 @@ export function SongPage() {
             </div>
           </details>
 
-          <details className="rounded-xl border border-line bg-panel p-4 ">
+          <details className="glass rounded-xl p-4">
             <summary className="cursor-pointer list-none text-sm font-semibold marker:content-none">
               Afinador
             </summary>

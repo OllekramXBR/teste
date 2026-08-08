@@ -122,7 +122,7 @@ export function Tuner() {
           className={`rounded px-3 py-1 text-xs font-semibold transition-colors ${
             active
               ? 'bg-rose-500 text-white hover:bg-rose-400'
-              : 'bg-accent text-white hover:opacity-90'
+              : 'bg-accent text-canvas hover:brightness-110'
           }`}
         >
           {active ? 'Parar' : 'Ligar'}
