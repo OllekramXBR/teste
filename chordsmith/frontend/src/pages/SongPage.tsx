@@ -3,25 +3,25 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import * as api from '../lib/api'
 import type { Analysis, Song } from '../lib/api'
 import { AudioEngine, voiceChord, type InstrumentVoice } from '../lib/audioEngine'
-import { INSTRUMENTS } from '../lib/fretboard'
-import { mod12, parseLabel, QUALITY_LABELS, romanNumeral } from '../lib/theory'
+import { keyNamePt, mod12, parseLabel, romanNumeral } from '../lib/theory'
 import { usePlayer } from '../hooks/usePlayer'
-import { ChordFilmstrip } from '../components/ChordFilmstrip'
+import { br } from '../lib/brazilian'
+import { buildChordCards, ChordFilmstrip } from '../components/ChordFilmstrip'
 import { ChordGrid, displayLabel, groupIntoBars } from '../components/ChordGrid'
 import { ChordPopover } from '../components/ChordPopover'
 import { ChordSheet } from '../components/ChordSheet'
 import { KaraokeView } from '../components/KaraokeView'
 import { KeyChooser } from '../components/KeyChooser'
 import { LyricEditor } from '../components/LyricEditor'
+import { NowPlaying } from '../components/NowPlaying'
 import { ProductionCard } from '../components/ProductionCard'
 import { useJobProgress } from '../hooks/useJobProgress'
 import { StaffNotation } from '../components/StaffNotation'
-import { ChordToneLegend, FretDiagram } from '../components/FretDiagram'
-import { PianoDiagram } from '../components/PianoDiagram'
 import { LeadSummary, TabStaff } from '../components/TabStaff'
 import { Toolbar, type ToolbarSettings } from '../components/Toolbar'
 import { Transport } from '../components/Transport'
 import { Tuner } from '../components/Tuner'
+import { WebChartPanel } from '../components/WebChartPanel'
 
 type View = 'chords' | 'estudo' | 'tab' | 'letra' | 'cifra' | 'partitura' | 'both'
 
@@ -194,6 +194,22 @@ export function SongPage() {
 
   const bars = useMemo(() => (analysis ? groupIntoBars(analysis.beats) : []), [analysis])
 
+  // One deduplicated sequence of chord cards, shared by the now-playing panel
+  // and the filmstrip so both agree on what "the current chord" is.
+  const chordCards = useMemo(
+    () =>
+      analysis
+        ? buildChordCards(
+            analysis.chords,
+            settings.transpose,
+            settings.capo,
+            analysis.useFlats,
+            settings.simplify,
+          )
+        : [],
+    [analysis, settings.transpose, settings.capo, settings.simplify],
+  )
+
   /**
    * The tablature, taken from the separated guitar stem when one exists.
    *
@@ -326,7 +342,6 @@ export function SongPage() {
   }, [])
 
   const activeBeatIndex = findActiveBeat(analysis, player.currentTime)
-  const activeBeat = activeBeatIndex >= 0 ? analysis?.beats[activeBeatIndex] : undefined
 
   const handleSettings = useCallback((patch: Partial<ToolbarSettings>) => {
     setSettings((previous) => ({ ...previous, ...patch }))
@@ -530,26 +545,26 @@ export function SongPage() {
     return (
       <Centered>
         <p className="text-rose-500">{loadError}</p>
-        <Link to="/" className="text-sm text-indigo-500 hover:underline">
-          Back to the library
+        <Link to="/" className="text-sm text-accent hover:underline">
+          Voltar para a biblioteca
         </Link>
       </Centered>
     )
   }
 
-  if (!song) return <Centered>Loading…</Centered>
+  if (!song) return <Centered>Carregando…</Centered>
 
   if (song.status === 'failed') {
     return (
       <Centered>
-        <h2 className="text-lg font-semibold">Analysis failed</h2>
+        <h2 className="text-lg font-semibold">A análise falhou</h2>
         <p className="max-w-md text-center text-sm text-ink-soft">{song.error}</p>
         <button
           type="button"
           onClick={handleReanalyze}
-          className="rounded bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500"
+          className="rounded bg-accent px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90"
         >
-          Try again
+          Tentar de novo
         </button>
       </Centered>
     )
@@ -558,84 +573,58 @@ export function SongPage() {
   if (song.status !== 'ready' || !analysis) {
     return (
       <Centered>
-        <div className="h-10 w-10 animate-spin rounded-full border-4 border-line border-t-indigo-600" />
-        <h2 className="text-lg font-semibold">Detecting beats and chords…</h2>
+        <div className="h-10 w-10 animate-spin rounded-full border-4 border-line border-t-accent" />
+        <h2 className="text-lg font-semibold">Detectando batidas e acordes…</h2>
         <p className="text-sm text-ink-soft">
-          {song.title} — this usually takes a few seconds per minute of audio.
+          {song.title} — costuma levar poucos segundos por minuto de áudio.
         </p>
       </Centered>
     )
   }
 
-  // The chord that is *sounding*, which is not always the chord the decoder
-  // labelled this beat with. Long stretches come back as "no chord" — a quiet
-  // passage, a held note, a bar of drums — and the harmony does not stop there,
-  // it just stops being detectable. Showing a dash is honest about the decoder
-  // and useless to a player, so the last chord found is held until another one
-  // arrives, which is what a chart on paper does.
-  const heldBeat = (() => {
-    if (activeBeatIndex < 0) return undefined
-    for (let index = activeBeatIndex; index >= 0; index -= 1) {
-      const beat = analysis.beats[index]
-      if (beat.root !== null && beat.label && beat.label !== 'N') return beat
-    }
-    return undefined
-  })()
-
-  // True when nothing was detected right here and the label is being carried
-  // over, so the panel can say so instead of implying a fresh reading.
-  const chordIsHeld = Boolean(heldBeat && activeBeat && heldBeat.index !== activeBeat.index)
-
-  const displayedChord = heldBeat
-    ? displayLabel(heldBeat.label, settings.transpose, settings.capo, analysis.useFlats, settings.simplify)
-    : ''
-  const parsedChord = parseLabel(displayedChord)
-  const soundingChord = heldBeat
-    ? displayLabel(heldBeat.label, settings.transpose, 0, analysis.useFlats, settings.simplify)
-    : ''
-
   return (
     <div className="mx-auto max-w-6xl space-y-5 px-4 py-6 print:px-0 print:py-0">
       <div className="print:hidden">
-        <Link to="/" className="text-xs text-ink-soft hover:text-indigo-500">
-          ← Library
+        <Link to="/" className="text-xs text-ink-soft transition-colors hover:text-accent">
+          ← Biblioteca
         </Link>
         <div className="mt-2 flex flex-wrap items-end justify-between gap-3">
           <div>
             <h1 className="text-2xl font-bold">{song.title}</h1>
             <p className="text-sm text-ink-soft">
-              {song.artist || 'Unknown artist'} · {analysis.key.name} ·{' '}
+              {song.artist || 'Artista desconhecido'} ·{' '}
+              {keyNamePt(analysis.key.tonic, analysis.key.mode, analysis.useFlats)} ·{' '}
               {Math.round(analysis.bpm)} BPM · {analysis.beatsPerBar}/4 ·{' '}
-              {analysis.chords.length} chord changes
+              {analysis.chords.length} trocas de acorde
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
             <a
               href={api.midiUrl(song.id, settings.transpose)}
-              className="rounded border border-line px-3 py-1.5 text-xs font-semibold hover:bg-canvas dark:hover:bg-slate-700"
+              className="rounded border border-line px-3 py-1.5 text-xs font-semibold transition-colors hover:border-accent hover:text-accent"
             >
-              Download MIDI
+              Baixar MIDI
             </a>
             <button
               type="button"
               onClick={() => window.print()}
-              className="rounded border border-line px-3 py-1.5 text-xs font-semibold hover:bg-canvas dark:hover:bg-slate-700"
+              className="rounded border border-line px-3 py-1.5 text-xs font-semibold transition-colors hover:border-accent hover:text-accent"
             >
-              Chord sheet (PDF)
+              Cifra em PDF
             </button>
             <button
               type="button"
               onClick={handleReanalyze}
-              className="rounded border border-line px-3 py-1.5 text-xs font-semibold hover:bg-canvas dark:hover:bg-slate-700"
+              className="rounded border border-line px-3 py-1.5 text-xs font-semibold transition-colors hover:border-accent hover:text-accent"
             >
-              Re-analyse
+              Reanalisar
             </button>
             <button
               type="button"
               onClick={handleDelete}
-              className="rounded border border-rose-300 px-3 py-1.5 text-xs font-semibold text-rose-600 hover:bg-rose-50 dark:border-rose-700 dark:hover:bg-rose-950/40"
+              className="rounded border border-rose-300 px-3 py-1.5 text-xs font-semibold text-rose-600 transition-colors hover:bg-rose-50 dark:border-rose-700 dark:hover:bg-rose-950/40"
             >
-              Delete
+              Apagar
             </button>
           </div>
         </div>
@@ -649,7 +638,10 @@ export function SongPage() {
 
       {countdown > 0 && (
         <div className="pointer-events-none fixed inset-0 z-40 flex items-center justify-center">
-          <span className="rounded-3xl bg-slate-950/80 px-12 py-8 text-8xl font-bold tabular-nums text-white">
+          <span
+            key={countdown}
+            className="animate-count-pulse rounded-3xl bg-slate-950/80 px-12 py-8 text-8xl font-bold tabular-nums text-white"
+          >
             {countdown}
           </span>
         </div>
@@ -679,15 +671,27 @@ export function SongPage() {
             onClearLoop={() => setLoopBars(null)}
           />
           {settings.transpose !== 0 && (
-            <p className="rounded bg-amber-100 px-3 py-2 text-xs text-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
-              The chart is transposed {settings.transpose > 0 ? '+' : ''}
-              {settings.transpose} semitones, but the recording still plays in{' '}
-              {analysis.key.name}. Turn the song volume down and the chord volume up to hear the
-              transposed harmony.
+            <p className="rounded-lg bg-amber-100 px-3 py-2 text-xs text-amber-900 dark:bg-amber-950/40 dark:text-amber-200">
+              A grade está transposta {settings.transpose > 0 ? '+' : ''}
+              {settings.transpose} semitons, mas a gravação continua em{' '}
+              {keyNamePt(analysis.key.tonic, analysis.key.mode, analysis.useFlats)}. Abaixe o volume
+              da música e suba o dos acordes para ouvir a harmonia transposta.
             </p>
           )}
-          <div className="flex items-center gap-3">
-            <div className="flex flex-1 items-center gap-1 overflow-x-auto rounded-lg bg-canvas/70 p-1 ">
+
+          <NowPlaying
+            cards={chordCards}
+            currentTime={player.currentTime}
+            capo={settings.capo}
+            instrument={settings.instrument}
+            useFlats={analysis.useFlats}
+            shapeVariant={shapeVariant}
+            onCycleShape={() => setShapeVariant((previous) => (previous + 1) % 4)}
+            onOpenPopover={setPopoverChord}
+            onSeek={handleSeek}
+          />
+
+          <div className="flex items-center gap-1 overflow-x-auto rounded-lg bg-canvas/70 p-1">
             {(['chords', 'estudo', 'tab', 'letra', 'cifra', 'partitura', 'both'] as View[]).map((option) => (
               <button
                 key={option}
@@ -702,32 +706,6 @@ export function SongPage() {
                 {VIEW_LABELS[option]}
               </button>
             ))}
-            </div>
-            <button
-              type="button"
-              onClick={() => handleSettings({ simplify: !settings.simplify })}
-              aria-pressed={settings.simplify}
-              title="Reduz sextas, sétimas e suspensos ao acorde que a mão realmente faz"
-              className={`shrink-0 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors ${
-                settings.simplify
-                  ? 'border-accent bg-accent text-white'
-                  : 'border-line text-ink-soft'
-              }`}
-            >
-              Simplificar
-            </button>
-            <button
-              type="button"
-              onClick={() => handleSettings({ countIn: (settings.countIn + 1) % 3 })}
-              title="Compassos de metrônomo antes de a música começar"
-              className={`shrink-0 rounded-lg border px-3 py-1.5 text-xs font-semibold transition-colors ${
-                settings.countIn
-                  ? 'border-accent bg-accent text-white'
-                  : 'border-line text-ink-soft'
-              }`}
-            >
-              {settings.countIn ? `Contagem ${settings.countIn}` : 'Contagem'}
-            </button>
           </div>
 
           {(view === 'estudo' || view === 'both') && (
@@ -776,10 +754,14 @@ export function SongPage() {
                   chords={analysis.chords
                     .filter((chord) => chord.root !== null)
                     .map((chord) => ({
-                      label: displayLabel(
-                        chord.label,
-                        settings.transpose,
-                        settings.capo,
+                      label: br(
+                        displayLabel(
+                          chord.label,
+                          settings.transpose,
+                          settings.capo,
+                          analysis.useFlats,
+                          settings.simplify,
+                        ),
                         analysis.useFlats,
                       ),
                       start: chord.start,
@@ -839,22 +821,26 @@ export function SongPage() {
           )}
 
           {view === 'cifra' && (
-            <div className="rounded-xl border border-line bg-panel p-5 ">
-              <div className="mb-3 flex justify-end">
-                <a
-                  href={api.cifraUrl(song.id, {
-                    transpose: settings.transpose,
-                    capo: settings.capo,
-                    download: true,
-                  })}
-                  className="rounded-full border border-line px-3 py-1 text-xs font-medium transition hover:border-accent hover:text-accent "
-                >
-                  Baixar .txt
-                </a>
+            <div className="space-y-4">
+              <WebChartPanel songId={song.id} />
+              <div className="rounded-xl border border-line bg-panel p-5 ">
+                <div className="mb-3 flex items-center justify-between gap-2">
+                  <h3 className="text-sm font-semibold">Cifra da análise</h3>
+                  <a
+                    href={api.cifraUrl(song.id, {
+                      transpose: settings.transpose,
+                      capo: settings.capo,
+                      download: true,
+                    })}
+                    className="rounded-full border border-line px-3 py-1 text-xs font-medium transition hover:border-accent hover:text-accent "
+                  >
+                    Baixar .txt
+                  </a>
+                </div>
+                <pre className="overflow-x-auto whitespace-pre font-mono text-[13px] leading-6">
+                  {cifra || 'Montando…'}
+                </pre>
               </div>
-              <pre className="overflow-x-auto whitespace-pre font-mono text-[13px] leading-6">
-                {cifra || 'Montando…'}
-              </pre>
             </div>
           )}
 
@@ -910,83 +896,6 @@ export function SongPage() {
             onSeparate={handleSeparate}
           />
 
-          <KeyChooser
-            uniqueChords={analysis.uniqueChords}
-            keyTonic={analysis.key.tonic}
-            keyMode={analysis.key.mode}
-            useFlats={analysis.useFlats}
-            instrument={settings.instrument === 'piano' ? 'guitar' : settings.instrument}
-            transpose={settings.transpose}
-            onTranspose={(semitones) => handleSettings({ transpose: semitones })}
-            onRenderAudio={stems.length ? handleRenderAudio : undefined}
-            renderedKeys={renderedKeys}
-          />
-
-          <div className="rounded-xl border border-line bg-panel p-4 ">
-            <div className="mb-2 flex items-baseline justify-between">
-              <h3 className="text-sm font-semibold">Tocando agora</h3>
-              {parsedChord && (
-                <span className="text-[10px] uppercase tracking-wide text-ink-faint">
-                  {QUALITY_LABELS[parsedChord.quality]}
-                </span>
-              )}
-            </div>
-            <button
-              type="button"
-              onClick={() => displayedChord && setPopoverChord(displayedChord)}
-              disabled={!displayedChord}
-              title="Ver a digitação"
-              className="mb-3 block text-4xl font-bold text-accent transition hover:opacity-80"
-            >
-              {displayedChord || '—'}
-            </button>
-            {chordIsHeld && displayedChord && (
-              <p className="mb-2 text-[11px] text-ink-faint">
-                sustentado — nada foi detectado neste tempo
-              </p>
-            )}
-            {settings.capo > 0 && soundingChord && (
-              <p className="mb-2 text-[11px] text-ink-soft">
-                sounds as {soundingChord} with the capo on fret {settings.capo}
-              </p>
-            )}
-            {parsedChord && (
-              <>
-                {settings.instrument === 'piano' ? (
-                  <PianoDiagram
-                    root={parsedChord.root}
-                    notes={[parsedChord.root, ...(activeBeat?.notes ?? [])].map((note) =>
-                      mod12(note),
-                    )}
-                    useFlats={analysis.useFlats}
-                    width={216}
-                  />
-                ) : (
-                  <div className="flex flex-col items-center gap-2">
-                    <FretDiagram
-                      root={parsedChord.root}
-                      quality={parsedChord.quality}
-                      instrument={INSTRUMENTS[settings.instrument]}
-                      useFlats={analysis.useFlats}
-                      variant={shapeVariant}
-                      width={150}
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShapeVariant((previous) => (previous + 1) % 4)}
-                      className="text-[11px] text-indigo-500 hover:underline"
-                    >
-                      other shape ({shapeVariant + 1}/4)
-                    </button>
-                  </div>
-                )}
-                <div className="mt-2">
-                  <ChordToneLegend quality={parsedChord.quality} />
-                </div>
-              </>
-            )}
-          </div>
-
           <details className="group rounded-xl border border-line bg-panel p-4 ">
             <summary className="cursor-pointer list-none text-sm font-semibold marker:content-none">
               Acordes desta música
@@ -1017,7 +926,7 @@ export function SongPage() {
                     title={numeral ? `${numeral} no tom` : 'fora do tom'}
                     className="rounded bg-canvas px-2 py-1 text-xs font-semibold transition hover:bg-accent-soft "
                   >
-                    {shown}
+                    {br(shown, analysis.useFlats)}
                     {numeral && <span className="ml-1 text-[9px] text-ink-faint">{numeral}</span>}
                   </button>
                 )
@@ -1027,6 +936,32 @@ export function SongPage() {
                 Confiança do tom {Math.round(analysis.key.confidence * 100)}% · analisada em{' '}
                 {analysis.analysisSeconds}s
               </p>
+            </div>
+          </details>
+
+          {/* Deliberately collapsed: choosing a key is something done once per
+              song, before playing — not something to stare at while singing.
+              The chord panels above are what the session actually reads. */}
+          <details className="rounded-xl border border-line bg-panel p-4">
+            <summary className="cursor-pointer list-none text-sm font-semibold marker:content-none">
+              Em que tom cantar
+              <span className="float-right text-xs font-normal text-ink-faint">
+                {settings.transpose > 0 ? `+${settings.transpose}` : settings.transpose || ''}
+              </span>
+            </summary>
+            <div className="mt-3">
+              <KeyChooser
+                frameless
+                uniqueChords={analysis.uniqueChords}
+                keyTonic={analysis.key.tonic}
+                keyMode={analysis.key.mode}
+                useFlats={analysis.useFlats}
+                instrument={settings.instrument === 'piano' ? 'guitar' : settings.instrument}
+                transpose={settings.transpose}
+                onTranspose={(semitones) => handleSettings({ transpose: semitones })}
+                onRenderAudio={stems.length ? handleRenderAudio : undefined}
+                renderedKeys={renderedKeys}
+              />
             </div>
           </details>
 

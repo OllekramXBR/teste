@@ -46,7 +46,7 @@ export function PianoDiagram({
       height={height}
       viewBox={`0 0 ${width} ${height}`}
       role="img"
-      aria-label={`Piano voicing for ${noteName(root, useFlats)}`}
+      aria-label={`Acorde de ${noteName(root, useFlats)} no teclado`}
       className="select-none"
     >
       {Array.from({ length: octaves }, (_, octave) =>

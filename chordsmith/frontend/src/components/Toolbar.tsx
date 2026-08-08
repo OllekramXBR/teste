@@ -29,14 +29,28 @@ interface ToolbarProps {
 
 const RATES = [0.5, 0.65, 0.75, 0.9, 1, 1.15, 1.25]
 
+/**
+ * A group of controls that belong to one question — what key, how it plays,
+ * how loud. Nine flat controls read as noise; three named groups read as a
+ * mixing desk.
+ */
+function Group({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <fieldset className="min-w-0">
+      <legend className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-ink-faint">
+        {title}
+      </legend>
+      <div className="flex flex-wrap items-start gap-x-5 gap-y-3">{children}</div>
+    </fieldset>
+  )
+}
+
 function Control({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className="flex min-w-0 flex-col gap-1">
-      <span className="text-[10px] font-semibold uppercase tracking-wide text-ink-faint">
-        {label}
-      </span>
+    <label className="flex min-w-0 flex-col gap-1">
+      <span className="text-[11px] font-medium text-ink-soft">{label}</span>
       {children}
-    </div>
+    </label>
   )
 }
 
@@ -46,31 +60,35 @@ function Stepper({
   max,
   onChange,
   format,
+  decreaseLabel,
+  increaseLabel,
 }: {
   value: number
   min: number
   max: number
   onChange: (next: number) => void
   format: (value: number) => string
+  decreaseLabel: string
+  increaseLabel: string
 }) {
   return (
     <div className="flex items-center gap-1">
       <button
         type="button"
-        aria-label="Decrease"
+        aria-label={decreaseLabel}
         disabled={value <= min}
         onClick={() => onChange(value - 1)}
-        className="h-7 w-7 rounded bg-canvas text-sm font-bold text-ink disabled:opacity-40 hover:bg-accent-soft"
+        className="h-7 w-7 rounded bg-canvas text-sm font-bold text-ink transition-colors hover:bg-accent-soft disabled:opacity-40"
       >
         −
       </button>
       <span className="w-14 text-center text-sm font-semibold tabular-nums">{format(value)}</span>
       <button
         type="button"
-        aria-label="Increase"
+        aria-label={increaseLabel}
         disabled={value >= max}
         onClick={() => onChange(value + 1)}
-        className="h-7 w-7 rounded bg-canvas text-sm font-bold text-ink disabled:opacity-40 hover:bg-accent-soft"
+        className="h-7 w-7 rounded bg-canvas text-sm font-bold text-ink transition-colors hover:bg-accent-soft disabled:opacity-40"
       >
         +
       </button>
@@ -96,9 +114,43 @@ function Slider({
       value={value}
       aria-label={label}
       onChange={(event) => onChange(Number(event.target.value))}
-      className="h-1.5 w-24 cursor-pointer appearance-none rounded-full bg-slate-300 accent-indigo-600 dark:bg-slate-600"
+      className="h-7 w-24 text-accent"
     />
   )
+}
+
+function Switch({
+  checked,
+  onToggle,
+  label,
+}: {
+  checked: boolean
+  onToggle: () => void
+  label: string
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      aria-label={label}
+      onClick={onToggle}
+      className={`h-7 w-12 rounded-full px-1 transition-colors ${
+        checked ? 'bg-accent' : 'bg-line'
+      }`}
+    >
+      <span
+        className={`block h-5 w-5 rounded-full bg-panel shadow-sm transition-transform ${
+          checked ? 'translate-x-5' : ''
+        }`}
+      />
+    </button>
+  )
+}
+
+/** A hairline between groups; hidden when the toolbar wraps into one column. */
+function Divider() {
+  return <div className="hidden w-px self-stretch bg-line/70 sm:block" aria-hidden="true" />
 }
 
 export function Toolbar({
@@ -113,115 +165,148 @@ export function Toolbar({
   const soundingKey = noteName(keyTonic + settings.transpose, useFlats)
 
   return (
-    <div className="flex flex-wrap items-end gap-x-6 gap-y-4 rounded-xl border border-line bg-panel p-4">
-      <Control label="Transpose">
-        <Stepper
-          value={settings.transpose}
-          min={-11}
-          max={11}
-          onChange={(next) => onChange({ transpose: next })}
-          format={(value) => (value > 0 ? `+${value}` : `${value}`)}
-        />
-        <span className="text-[10px] text-ink-faint">
-          sounds in {soundingKey} {keyMode}
-        </span>
-      </Control>
-
-      <Control label="Capo">
-        <Stepper
-          value={settings.capo}
-          min={0}
-          max={11}
-          onChange={(next) => onChange({ capo: next })}
-          format={(value) => (value === 0 ? 'off' : `fret ${value}`)}
-        />
-        <span className="text-[10px] text-ink-faint">shapes change, pitch does not</span>
-      </Control>
-
-      <Control label="Tempo">
-        <select
-          value={settings.rate}
-          onChange={(event) => onChange({ rate: Number(event.target.value) })}
-          className="h-7 rounded border border-line bg-panel px-2 text-sm "
-        >
-          {RATES.map((rate) => (
-            <option key={rate} value={rate}>
-              {Math.round(rate * 100)}%
-            </option>
-          ))}
-        </select>
-        <span className="text-[10px] text-ink-faint">pitch preserved</span>
-      </Control>
-
-      <Control label="Instrument">
-        <select
-          value={settings.instrument}
-          onChange={(event) =>
-            onChange({ instrument: event.target.value as ToolbarSettings['instrument'] })
-          }
-          className="h-7 rounded border border-line bg-panel px-2 text-sm "
-        >
-          <option value="guitar">Guitar</option>
-          <option value="ukulele">Ukulele</option>
-          <option value="piano">Piano</option>
-        </select>
-      </Control>
-
-      <Control label="Song volume">
-        <Slider
-          value={settings.songVolume}
-          label="Song volume"
-          onChange={(next) => onChange({ songVolume: next })}
-        />
-      </Control>
-
-      <Control label="Chord volume">
-        <Slider
-          value={settings.chordVolume}
-          label="Chord volume"
-          onChange={(next) => onChange({ chordVolume: next })}
-        />
-      </Control>
-
-      <Control label="Metronome">
-        <Slider
-          value={settings.clickVolume}
-          label="Metronome volume"
-          onChange={(next) => onChange({ clickVolume: next })}
-        />
-      </Control>
-
-      <Control label="Loop">
-        {loopBars ? (
-          <button
-            type="button"
-            onClick={onClearLoop}
-            className="h-7 rounded bg-amber-400 px-3 text-xs font-semibold text-ink hover:bg-amber-300"
-          >
-            bars {loopBars.start}–{loopBars.end} · clear
-          </button>
-        ) : (
-          <span className="text-[11px] text-ink-faint">click a bar number to start</span>
-        )}
-      </Control>
-
-      <Control label="Auto-scroll">
-        <button
-          type="button"
-          role="switch"
-          aria-checked={settings.autoScroll}
-          onClick={() => onChange({ autoScroll: !settings.autoScroll })}
-          className={`h-7 w-14 rounded-full px-1 transition-colors ${
-            settings.autoScroll ? 'bg-indigo-600' : 'bg-slate-300 dark:bg-slate-600'
-          }`}
-        >
-          <span
-            className={`block h-5 w-5 rounded-full bg-panel transition-transform ${
-              settings.autoScroll ? 'translate-x-7' : ''
-            }`}
+    <div className="flex flex-wrap items-stretch gap-x-6 gap-y-5 rounded-xl border border-line bg-panel p-4">
+      <Group title="Tom">
+        <Control label="Transpor">
+          <Stepper
+            value={settings.transpose}
+            min={-11}
+            max={11}
+            onChange={(next) => onChange({ transpose: next })}
+            format={(value) => (value > 0 ? `+${value}` : `${value}`)}
+            decreaseLabel="Baixar meio tom"
+            increaseLabel="Subir meio tom"
           />
-        </button>
-      </Control>
+          <span className="text-[10px] text-ink-faint">
+            soa em {soundingKey} {keyMode === 'minor' ? 'menor' : 'maior'}
+          </span>
+        </Control>
+
+        <Control label="Capotraste">
+          <Stepper
+            value={settings.capo}
+            min={0}
+            max={11}
+            onChange={(next) => onChange({ capo: next })}
+            format={(value) => (value === 0 ? 'sem' : `casa ${value}`)}
+            decreaseLabel="Descer o capotraste"
+            increaseLabel="Subir o capotraste"
+          />
+          <span className="text-[10px] text-ink-faint">muda o desenho, não o som</span>
+        </Control>
+
+        <Control label="Simplificar">
+          <Switch
+            checked={settings.simplify}
+            onToggle={() => onChange({ simplify: !settings.simplify })}
+            label="Simplificar os acordes"
+          />
+          <span className="text-[10px] text-ink-faint">só o acorde que a mão faz</span>
+        </Control>
+      </Group>
+
+      <Divider />
+
+      <Group title="Reprodução">
+        <Control label="Andamento">
+          <select
+            value={settings.rate}
+            onChange={(event) => onChange({ rate: Number(event.target.value) })}
+            className="h-7 rounded border border-line bg-panel px-2 text-sm"
+          >
+            {RATES.map((rate) => (
+              <option key={rate} value={rate}>
+                {Math.round(rate * 100)}%
+              </option>
+            ))}
+          </select>
+          <span className="text-[10px] text-ink-faint">tom preservado</span>
+        </Control>
+
+        <Control label="Contagem">
+          <select
+            value={settings.countIn}
+            onChange={(event) => onChange({ countIn: Number(event.target.value) })}
+            className="h-7 rounded border border-line bg-panel px-2 text-sm"
+          >
+            <option value={0}>sem</option>
+            <option value={1}>1 compasso</option>
+            <option value={2}>2 compassos</option>
+          </select>
+          <span className="text-[10px] text-ink-faint">metrônomo antes de tocar</span>
+        </Control>
+
+        <Control label="Rolagem">
+          <Switch
+            checked={settings.autoScroll}
+            onToggle={() => onChange({ autoScroll: !settings.autoScroll })}
+            label="Rolagem automática"
+          />
+          <span className="text-[10px] text-ink-faint">a grade segue a música</span>
+        </Control>
+      </Group>
+
+      <Divider />
+
+      <Group title="Mixagem">
+        <Control label="Música">
+          <Slider
+            value={settings.songVolume}
+            label="Volume da música"
+            onChange={(next) => onChange({ songVolume: next })}
+          />
+        </Control>
+
+        <Control label="Acordes">
+          <Slider
+            value={settings.chordVolume}
+            label="Volume dos acordes"
+            onChange={(next) => onChange({ chordVolume: next })}
+          />
+        </Control>
+
+        <Control label="Metrônomo">
+          <Slider
+            value={settings.clickVolume}
+            label="Volume do metrônomo"
+            onChange={(next) => onChange({ clickVolume: next })}
+          />
+        </Control>
+      </Group>
+
+      <Divider />
+
+      <Group title="Exibição">
+        <Control label="Instrumento">
+          <select
+            value={settings.instrument}
+            onChange={(event) =>
+              onChange({ instrument: event.target.value as ToolbarSettings['instrument'] })
+            }
+            className="h-7 rounded border border-line bg-panel px-2 text-sm"
+          >
+            <option value="guitar">Violão</option>
+            <option value="ukulele">Ukulele</option>
+            <option value="piano">Teclado</option>
+          </select>
+        </Control>
+
+        <Control label="Loop">
+          {loopBars ? (
+            <button
+              type="button"
+              onClick={onClearLoop}
+              className="h-7 rounded bg-amber-400 px-3 text-xs font-semibold text-slate-900 transition-colors hover:bg-amber-300"
+            >
+              compassos {loopBars.start}–{loopBars.end} · limpar
+            </button>
+          ) : (
+            <span className="max-w-36 text-[11px] leading-tight text-ink-faint">
+              clique no número de um compasso na grade
+            </span>
+          )}
+        </Control>
+      </Group>
     </div>
   )
 }

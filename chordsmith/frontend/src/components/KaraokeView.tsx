@@ -15,6 +15,8 @@ interface Props {
   currentTime: number
   /** Full-bleed, dark, oversized: the version meant to be read from a stand. */
   performance?: boolean
+  /** Multiplier on the stand text, so a short-sighted performer can enlarge it. */
+  fontScale?: number
   onSeek?: (time: number) => void
 }
 
@@ -30,7 +32,14 @@ interface Props {
  * Scrolling keeps the active line above centre rather than in it: what a
  * performer needs to see is the line *after* the one they are singing.
  */
-export function KaraokeView({ lyrics, chords, currentTime, performance = false, onSeek }: Props) {
+export function KaraokeView({
+  lyrics,
+  chords,
+  currentTime,
+  performance = false,
+  fontScale = 1,
+  onSeek,
+}: Props) {
   const lines = useMemo(() => buildLines(lyrics, chords), [lyrics, chords])
   const containerRef = useRef<HTMLDivElement | null>(null)
   const activeRef = useRef<HTMLParagraphElement | null>(null)
@@ -78,6 +87,7 @@ export function KaraokeView({ lyrics, chords, currentTime, performance = false, 
           ? 'relative h-full overflow-y-auto scroll-smooth bg-slate-950 px-6 pb-[45vh] pt-[35vh] text-slate-400'
           : 'relative max-h-[28rem] overflow-y-auto scroll-smooth px-2 pb-[16rem] pt-6'
       }
+      style={performance ? { ['--perf-scale' as string]: String(fontScale) } : undefined}
     >
       {lines.map((line, index) => {
         const active = index === activeLine
@@ -90,8 +100,12 @@ export function KaraokeView({ lyrics, chords, currentTime, performance = false, 
               'mb-6 leading-tight transition-colors duration-300',
               onSeek ? 'cursor-pointer' : '',
               // Sized to be read from a mic stand on a tablet in landscape,
-              // not from a laptop at arm's length.
-              performance ? 'text-[2rem] md:text-[2.75rem] lg:text-[3.25rem]' : 'text-lg',
+              // not from a laptop at arm's length. The multiplier comes from a
+              // CSS variable set on the container, so the responsive sizes all
+              // scale together.
+              performance
+                ? 'text-[calc(2rem*var(--perf-scale))] md:text-[calc(2.75rem*var(--perf-scale))] lg:text-[calc(3.25rem*var(--perf-scale))]'
+                : 'text-lg',
               active ? '' : performance ? 'opacity-35' : 'opacity-60',
             ].join(' ')}
           >
@@ -136,7 +150,9 @@ function ChordRow({ line, performance }: { line: KaraokeLine; performance: boole
     <span
       className={[
         'mb-1 flex flex-wrap gap-x-[0.32em] font-semibold',
-        performance ? 'text-xl text-amber-400 md:text-2xl' : 'text-sm text-accent',
+        performance
+          ? 'text-[calc(1.25rem*var(--perf-scale))] text-amber-400 md:text-[calc(1.5rem*var(--perf-scale))]'
+          : 'text-sm text-accent',
       ].join(' ')}
     >
       {line.words.map((word, index) => {

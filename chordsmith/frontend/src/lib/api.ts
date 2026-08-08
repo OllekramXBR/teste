@@ -343,6 +343,116 @@ export function importMp3pm(
   })
 }
 
+/** One result from the Cifra Club fallback search. */
+export interface CifraclubResult {
+  id: number
+  title: string
+  artist: string
+  dns: string
+  url: string
+  album: string
+  image: string
+}
+
+export function searchCifraclub(query: string): Promise<{ results: CifraclubResult[] }> {
+  return request(`/api/cifraclub/search?q=${encodeURIComponent(query)}`)
+}
+
+export interface WebChartChord {
+  name: string
+  /** Character column in the line's text, where the chord sits. */
+  col: number
+}
+
+export interface WebChartLine {
+  kind: 'verse' | 'tab'
+  text: string
+  chords: WebChartChord[]
+}
+
+/** The web chart stored for a song. */
+export interface WebChart {
+  id: string
+  songId: string
+  sourceId: number
+  title: string
+  artist: string
+  album: string
+  image: string
+  pageUrl: string
+  key: string
+  composers: string[]
+  /** The flat, in-order chord labels of the verse lines. */
+  chords: string[]
+  lines: WebChartLine[]
+  createdAt: string
+  updatedAt: string
+}
+
+export function getWebChart(id: string): Promise<WebChart> {
+  return request(`/api/songs/${id}/cifraclub`)
+}
+
+export function importWebChart(id: string, result: CifraclubResult): Promise<WebChart> {
+  return request(`/api/songs/${id}/cifraclub/import`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      dns: result.dns,
+      url: result.url,
+      source_id: result.id,
+      title: result.title,
+      artist: result.artist,
+      album: result.album,
+      image: result.image,
+    }),
+  })
+}
+
+export function removeWebChart(id: string): Promise<void> {
+  return request(`/api/songs/${id}/cifraclub`, { method: 'DELETE' })
+}
+
+export type Verdict = 'match' | 'partial' | 'diff' | 'missing' | 'unknown' | 'noChord'
+
+export interface SpanVerdict {
+  start: number
+  end: number
+  startBeat: number | null
+  endBeat: number | null
+  detected: string
+  web: string | null
+  verdict: Verdict
+}
+
+export interface BarVerdict {
+  bar: number
+  detected: string | null
+  web: string | null
+  verdict: Verdict
+}
+
+export interface ChartComparison {
+  web: {
+    title: string
+    artist: string
+    album: string
+    image: string
+    key: string
+    composers: string[]
+    chordCount: number
+  }
+  detectedKey: string
+  webKey: string
+  verdicts: SpanVerdict[]
+  perBar: BarVerdict[]
+  stats: Record<string, number>
+}
+
+export function compareWebChart(id: string): Promise<ChartComparison> {
+  return request(`/api/songs/${id}/cifraclub/compare`)
+}
+
 export interface AuthUser {
   id: string
   username: string

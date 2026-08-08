@@ -11,3 +11,6 @@ frontend/dist/
 # Editors / OS
 .DS_Store
 *.swp
+
+# Local server / dev logs
+*.log

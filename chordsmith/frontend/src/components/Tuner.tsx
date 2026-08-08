@@ -103,7 +103,7 @@ export function Tuner() {
       setActive(true)
       loop()
     } catch {
-      setError('Microphone access was denied. Allow it in your browser to use the tuner.')
+      setError('O acesso ao microfone foi negado. Libere no navegador para usar o afinador.')
     }
   }, [])
 
@@ -111,19 +111,21 @@ export function Tuner() {
   const inTune = reading !== null && Math.abs(cents) <= 5
 
   return (
-    <div className="rounded-xl border border-line bg-panel p-4">
+    <div>
       <div className="mb-3 flex items-center justify-between">
-        <h3 className="text-sm font-semibold">Chromatic tuner</h3>
+        <h3 className="text-xs font-semibold uppercase tracking-wide text-ink-faint">
+          Afinador cromático
+        </h3>
         <button
           type="button"
           onClick={() => (active ? stop() : void start())}
-          className={`rounded px-3 py-1 text-xs font-semibold ${
+          className={`rounded px-3 py-1 text-xs font-semibold transition-colors ${
             active
               ? 'bg-rose-500 text-white hover:bg-rose-400'
-              : 'bg-indigo-600 text-white hover:bg-indigo-500'
+              : 'bg-accent text-white hover:opacity-90'
           }`}
         >
-          {active ? 'Stop' : 'Start'}
+          {active ? 'Parar' : 'Ligar'}
         </button>
       </div>
 
@@ -131,7 +133,7 @@ export function Tuner() {
 
       {!active && !error && (
         <p className="text-xs text-ink-soft">
-          Uses your microphone to show the nearest note and how many cents off you are.
+          Usa o microfone para mostrar a nota mais próxima e quantos cents faltam para afinar.
         </p>
       )}
 
@@ -151,7 +153,7 @@ export function Tuner() {
               )}
             </div>
             <div className="text-xs text-ink-faint tabular-nums">
-              {reading ? `${reading.frequency.toFixed(1)} Hz · ${cents > 0 ? '+' : ''}${cents} cents` : 'play a note'}
+              {reading ? `${reading.frequency.toFixed(1)} Hz · ${cents > 0 ? '+' : ''}${cents} cents` : 'toque uma nota'}
             </div>
           </div>
 

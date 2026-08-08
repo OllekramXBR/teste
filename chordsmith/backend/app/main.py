@@ -21,6 +21,7 @@ from .config import (
 )
 from . import auth
 from .routes import auth as auth_routes
+from .routes import cifraclub as cifraclub_routes
 from .routes import library as library_routes
 from .routes import mp3pm as mp3pm_routes
 from .routes import setlists as setlist_routes
@@ -110,6 +111,8 @@ async def require_session(request, call_next):
 
 
 app.include_router(auth_routes.router)
+app.include_router(cifraclub_routes.router)
+app.include_router(cifraclub_routes.song_router)
 app.include_router(library_routes.router)
 app.include_router(mp3pm_routes.router)
 app.include_router(setlist_routes.router)

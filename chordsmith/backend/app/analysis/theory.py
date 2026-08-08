@@ -11,6 +11,14 @@ from typing import Iterable
 SHARP_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
 FLAT_NAMES = ["C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B"]
 
+# Lower-cased spelling of every root name ("c", "c#", "db", ...) to its pitch
+# class, so labels in either convention resolve to the same number.
+NAME_TO_PC: dict[str, int] = {
+    name.lower(): pitch_class
+    for pitch_class, (sharp, flat) in enumerate(zip(SHARP_NAMES, FLAT_NAMES))
+    for name in (sharp, flat)
+}
+
 # Keys whose signature is conventionally written with flats.
 FLAT_MAJOR_TONICS = {5, 10, 3, 8, 1, 6}  # F, Bb, Eb, Ab, Db, Gb
 FLAT_MINOR_TONICS = {2, 7, 0, 5, 10, 3}  # D, G, C, F, Bb, Eb minor

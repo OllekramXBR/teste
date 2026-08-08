@@ -41,8 +41,8 @@ export function Transport({
       <button
         type="button"
         onClick={onToggle}
-        aria-label={playing ? 'Pause' : 'Play'}
-        className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-indigo-600 text-white shadow-lg transition hover:bg-indigo-500"
+        aria-label={playing ? 'Pausar' : 'Tocar'}
+        className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-accent text-white shadow-lg transition hover:opacity-90 active:scale-95"
       >
         {playing ? (
           <svg width="18" height="18" viewBox="0 0 18 18" fill="currentColor">
@@ -63,7 +63,7 @@ export function Transport({
       <div
         role="slider"
         tabIndex={0}
-        aria-label="Seek"
+        aria-label="Posição na música"
         aria-valuemin={0}
         aria-valuemax={Math.round(duration)}
         aria-valuenow={Math.round(currentTime)}

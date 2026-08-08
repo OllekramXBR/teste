@@ -15,6 +15,8 @@ interface Props {
   /** Null when the song has no stems, so the audio cannot follow. */
   onRenderAudio?: (semitones: number) => void
   renderedKeys?: Set<number>
+  /** Render just the list, for a host that already provides card and title. */
+  frameless?: boolean
 }
 
 /** How far a song can move before it stops being the same song to sing. */
@@ -42,6 +44,7 @@ export function KeyChooser({
   onTranspose,
   onRenderAudio,
   renderedKeys,
+  frameless = false,
 }: Props) {
   const rows = useMemo(() => {
     const board = INSTRUMENTS[instrument] ?? INSTRUMENTS.guitar
@@ -69,15 +72,12 @@ export function KeyChooser({
     [rows],
   )
 
-  return (
-    <section className="rounded-xl border border-line bg-panel p-4 ">
-      <div className="mb-3">
-        <h3 className="text-sm font-semibold tracking-tight">Em que tom cantar</h3>
-        <p className="text-xs text-ink-soft">
-          Mova até caber na sua voz. “Abertos” conta quantos acordes saem sem pestana, no{' '}
-          {(INSTRUMENTS[instrument] ?? INSTRUMENTS.guitar).name.toLowerCase()}.
-        </p>
-      </div>
+  const body = (
+    <>
+      <p className="mb-3 text-xs text-ink-soft">
+        Mova até caber na sua voz. O número conta quantos acordes saem sem pestana, no{' '}
+        {(INSTRUMENTS[instrument] ?? INSTRUMENTS.guitar).name.toLowerCase()}.
+      </p>
 
       <ul className="space-y-1">
         {rows.map((row) => {
@@ -144,6 +144,15 @@ export function KeyChooser({
           muda só a grade.
         </p>
       )}
+    </>
+  )
+
+  if (frameless) return <div>{body}</div>
+
+  return (
+    <section className="rounded-xl border border-line bg-panel p-4">
+      <h3 className="mb-2 text-sm font-semibold tracking-tight">Em que tom cantar</h3>
+      {body}
     </section>
   )
 }

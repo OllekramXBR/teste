@@ -93,7 +93,7 @@ export function ChordGrid({
   }, [activeBarNumber, autoScroll])
 
   if (!bars.length) {
-    return <p className="p-8 text-center text-ink-soft">No chords were detected in this track.</p>
+    return <p className="p-8 text-center text-ink-soft">Nenhum acorde detectado nesta faixa.</p>
   }
 
   return (
@@ -142,7 +142,7 @@ export function ChordGrid({
                         label || 'sem acorde'
                       } (${Math.round(beat.confidence * 100)}% de confiança)`}
                       className={[
-                        'flex h-12 flex-1 flex-col items-center justify-center rounded text-sm font-semibold transition-all',
+                        'flex h-12 flex-1 flex-col items-center justify-center rounded text-sm font-semibold transition-all duration-200 ease-out',
                         isCurrent
                           ? 'scale-105 bg-accent text-canvas shadow-lg'
                           : 'bg-canvas text-ink hover:bg-accent-soft',

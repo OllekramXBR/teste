@@ -19,6 +19,40 @@ interface Props {
   onSeek?: (time: number) => void
 }
 
+export interface ChordCard {
+  label: string
+  start: number
+  end: number
+}
+
+/**
+ * Consecutive spans that reduce to the same shape become one card: a player
+ * does not need the same diagram drawn four times because the decoder split it
+ * across four beats. Shared between the filmstrip and the now-playing panel so
+ * "current chord" means the same thing in both.
+ */
+export function buildChordCards(
+  chords: ChordSpan[],
+  transpose: number,
+  capo: number,
+  useFlats: boolean,
+  simplify: boolean,
+): ChordCard[] {
+  const out: ChordCard[] = []
+  for (const span of chords) {
+    if (span.root === null) continue
+    const label = displayLabel(span.label, transpose, capo, useFlats, simplify)
+    if (!label) continue
+    const last = out[out.length - 1]
+    if (last && last.label === label) {
+      last.end = span.end
+      continue
+    }
+    out.push({ label, start: span.start, end: span.end })
+  }
+  return out
+}
+
 /**
  * The chords of the song as a strip of diagrams that moves with the music.
  *
@@ -44,24 +78,10 @@ export function ChordFilmstrip({
   const containerRef = useRef<HTMLDivElement | null>(null)
   const activeRef = useRef<HTMLButtonElement | null>(null)
 
-  // Consecutive spans that reduce to the same shape are one card: a learner
-  // does not need the same diagram drawn four times because the decoder split
-  // it across four beats.
-  const cards = useMemo(() => {
-    const out: { label: string; start: number; end: number }[] = []
-    for (const span of chords) {
-      if (span.root === null) continue
-      const label = displayLabel(span.label, transpose, capo, useFlats, simplify)
-      if (!label) continue
-      const last = out[out.length - 1]
-      if (last && last.label === label) {
-        last.end = span.end
-        continue
-      }
-      out.push({ label, start: span.start, end: span.end })
-    }
-    return out
-  }, [chords, transpose, capo, useFlats, simplify])
+  const cards = useMemo(
+    () => buildChordCards(chords, transpose, capo, useFlats, simplify),
+    [chords, transpose, capo, useFlats, simplify],
+  )
 
   const activeIndex = useMemo(() => {
     for (let index = cards.length - 1; index >= 0; index -= 1) {
@@ -120,7 +140,7 @@ export function ChordFilmstrip({
             type="button"
             onClick={() => onSeek?.(card.start)}
             className={[
-              'flex shrink-0 flex-col items-center gap-2 rounded-xl px-4 py-3 transition-all duration-300',
+              'flex shrink-0 flex-col items-center gap-2 rounded-xl px-4 py-3 transition-all duration-500 ease-out',
               // The played chord is bigger, not just tinted. From a stand,
               // colour alone is a weak signal and size is an unmissable one.
               // The played chord is ringed, lifted and full strength; the rest
@@ -128,7 +148,7 @@ export function ChordFilmstrip({
               // before a colour one does, so it has to be a large difference,
               // not a polite one.
               active
-                ? 'scale-100 bg-accent-soft opacity-100 ring-2 ring-accent'
+                ? 'scale-100 bg-accent-soft opacity-100 shadow-lg ring-2 ring-accent'
                 : 'scale-[0.62] opacity-35 hover:opacity-70',
             ].join(' ')}
           >

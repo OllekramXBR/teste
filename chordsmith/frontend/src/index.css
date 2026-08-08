@@ -31,6 +31,38 @@
   /* Chord charts are columnar: a chord above a syllable only lines up if the
      letters and digits share one advance width. */
   --font-mono: ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
+
+  /* A chord change is the one event the player is waiting for, so it gets a
+     motion cue; everything else stays still. Both curves settle fast — this
+     plays while someone is trying to read the label. */
+  --animate-chord-pop: chord-pop 320ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-count-pulse: count-pulse 700ms cubic-bezier(0.16, 1, 0.3, 1) both;
+
+  @keyframes chord-pop {
+    from {
+      opacity: 0;
+      transform: scale(0.92) translateY(5px);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1) translateY(0);
+    }
+  }
+
+  @keyframes count-pulse {
+    0% {
+      opacity: 0;
+      transform: scale(1.4);
+    }
+    35% {
+      opacity: 1;
+      transform: scale(1);
+    }
+    100% {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
 }
 
 /* Dark is not the light palette inverted. The canvas lifts off pure black so

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 
+import { br } from '../lib/brazilian'
 import { INSTRUMENTS, type Instrument } from '../lib/fretboard'
 import { chordPitchClasses, mod12, noteName, parseLabel, QUALITY_LABELS } from '../lib/theory'
 import { ChordToneLegend, FretDiagram } from './FretDiagram'
@@ -87,7 +88,7 @@ export function ChordPopover({ label, useFlats, onClose }: Props) {
       >
         <div className="mb-4 flex items-baseline justify-between gap-3">
           <div>
-            <p className="text-3xl font-bold tracking-tight">{label}</p>
+            <p className="text-3xl font-bold tracking-tight">{br(label, useFlats)}</p>
             {parsed && (
               <p className="text-xs text-ink-soft">
                 {QUALITY_LABELS[parsed.quality]} ·{' '}

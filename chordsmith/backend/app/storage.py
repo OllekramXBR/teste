@@ -56,6 +56,27 @@ CREATE TABLE IF NOT EXISTS setlist_songs (
     PRIMARY KEY (setlist_id, song_id)
 );
 CREATE INDEX IF NOT EXISTS setlist_order ON setlist_songs (setlist_id, position);
+
+-- The web chart imported for a song, so the comparison view does not re-fetch
+-- the page every time it is opened. One chart per song: re-importing replaces
+-- it rather than stacking versions nobody can choose between.
+CREATE TABLE IF NOT EXISTS cifras (
+    id         TEXT PRIMARY KEY,
+    song_id    TEXT NOT NULL UNIQUE REFERENCES songs (id) ON DELETE CASCADE,
+    source_id  INTEGER NOT NULL,
+    title      TEXT NOT NULL,
+    artist     TEXT NOT NULL DEFAULT '',
+    album      TEXT NOT NULL DEFAULT '',
+    image      TEXT NOT NULL DEFAULT '',
+    page_url   TEXT NOT NULL DEFAULT '',
+    key        TEXT NOT NULL DEFAULT '',
+    composers  TEXT NOT NULL DEFAULT '[]',
+    chords     TEXT NOT NULL DEFAULT '[]',
+    lines      TEXT NOT NULL DEFAULT '[]',
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS cifras_song ON cifras (song_id);
 """
 
 # Columns added after the first release. SQLite has no "ADD COLUMN IF NOT
@@ -266,6 +287,111 @@ def stale_stems_ids() -> Iterable[str]:
             "SELECT id FROM songs WHERE stems_status IN ('pending', 'separating')"
         ).fetchall()
     return [row["id"] for row in rows]
+
+
+def save_cifra(
+    song_id: str,
+    *,
+    source_id: int,
+    title: str,
+    artist: str = "",
+    album: str = "",
+    image: str = "",
+    page_url: str = "",
+    key: str = "",
+    composers: list[str] | None = None,
+    chords: list[str] | None = None,
+    lines: list[dict] | None = None,
+) -> dict[str, Any]:
+    """Store a web chart for a song, replacing any chart it already had."""
+    timestamp = _now()
+    json_compact = lambda value: json.dumps(value, separators=(",", ":"), ensure_ascii=False)
+    with _write_lock, connect() as connection:
+        exists = connection.execute(
+            "SELECT 1 FROM cifras WHERE song_id = ?", (song_id,)
+        ).fetchone()
+        if exists:
+            connection.execute(
+                """
+                UPDATE cifras
+                   SET source_id = ?, title = ?, artist = ?, album = ?, image = ?,
+                       page_url = ?, key = ?, composers = ?, chords = ?, lines = ?,
+                       updated_at = ?
+                 WHERE song_id = ?
+                """,
+                (
+                    source_id,
+                    title,
+                    artist,
+                    album,
+                    image,
+                    page_url,
+                    key,
+                    json_compact(composers or []),
+                    json_compact(chords or []),
+                    json_compact(lines or []),
+                    timestamp,
+                    song_id,
+                ),
+            )
+        else:
+            connection.execute(
+                """
+                INSERT INTO cifras (id, song_id, source_id, title, artist, album, image,
+                                    page_url, key, composers, chords, lines,
+                                    created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    new_id(),
+                    song_id,
+                    source_id,
+                    title,
+                    artist,
+                    album,
+                    image,
+                    page_url,
+                    key,
+                    json_compact(composers or []),
+                    json_compact(chords or []),
+                    json_compact(lines or []),
+                    timestamp,
+                    timestamp,
+                ),
+            )
+    return get_cifra(song_id)  # type: ignore[return-value]
+
+
+def get_cifra(song_id: str) -> dict[str, Any] | None:
+    """The web chart imported for this song, if one exists."""
+    with connect() as connection:
+        row = connection.execute(
+            "SELECT * FROM cifras WHERE song_id = ?", (song_id,)
+        ).fetchone()
+    if not row:
+        return None
+    return {
+        "id": row["id"],
+        "songId": row["song_id"],
+        "sourceId": row["source_id"],
+        "title": row["title"],
+        "artist": row["artist"],
+        "album": row["album"],
+        "image": row["image"],
+        "pageUrl": row["page_url"],
+        "key": row["key"],
+        "composers": json.loads(row["composers"]),
+        "chords": json.loads(row["chords"]),
+        "lines": json.loads(row["lines"]),
+        "createdAt": row["created_at"],
+        "updatedAt": row["updated_at"],
+    }
+
+
+def delete_cifra(song_id: str) -> bool:
+    with _write_lock, connect() as connection:
+        cursor = connection.execute("DELETE FROM cifras WHERE song_id = ?", (song_id,))
+    return cursor.rowcount > 0
 
 
 def _row_to_song(row: sqlite3.Row, include_analysis: bool) -> dict[str, Any]:

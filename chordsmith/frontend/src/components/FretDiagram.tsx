@@ -33,7 +33,7 @@ export function FretDiagram({
   if (!fingering) {
     return (
       <div className="flex h-32 items-center justify-center text-xs text-ink-soft">
-        No playable shape
+        Sem posição tocável
       </div>
     )
   }
@@ -61,7 +61,7 @@ export function FretDiagram({
       height={height}
       viewBox={`0 0 ${width} ${height}`}
       role="img"
-      aria-label={`${noteName(root, useFlats)}${quality} on ${instrument.name}`}
+      aria-label={`${noteName(root, useFlats)}${quality} no ${instrument.name.toLowerCase()}`}
       className="select-none"
     >
       {showNut && (
@@ -175,10 +175,10 @@ export function ChordToneLegend({ quality }: { quality: string }) {
   return (
     <div className="flex flex-wrap items-center gap-2 text-[10px] text-ink-soft">
       <span className="flex items-center gap-1">
-        <span className="inline-block h-2.5 w-2.5 rounded-full bg-amber-400" /> root
+        <span className="inline-block h-2.5 w-2.5 rounded-full bg-amber-400" /> tônica
       </span>
       <span className="flex items-center gap-1">
-        <span className="inline-block h-2.5 w-2.5 rounded-full bg-indigo-500" /> chord tone
+        <span className="inline-block h-2.5 w-2.5 rounded-full bg-indigo-500" /> nota do acorde
       </span>
       <span className="text-ink-faint">{intervalNames(quality).join(' · ')}</span>
     </div>

@@ -22,19 +22,19 @@ export const QUALITIES: Record<string, number[]> = {
 
 /** Human-readable name for each quality, used in tooltips. */
 export const QUALITY_LABELS: Record<string, string> = {
-  '': 'major',
-  m: 'minor',
-  '7': 'dominant 7th',
-  m7: 'minor 7th',
-  maj7: 'major 7th',
-  sus4: 'suspended 4th',
-  sus2: 'suspended 2nd',
-  '6': 'major 6th',
-  m6: 'minor 6th',
-  dim: 'diminished',
-  aug: 'augmented',
-  m7b5: 'half-diminished',
-  dim7: 'diminished 7th',
+  '': 'maior',
+  m: 'menor',
+  '7': 'com sétima',
+  m7: 'menor com sétima',
+  maj7: 'sétima maior',
+  sus4: 'suspenso (4ª)',
+  sus2: 'suspenso (2ª)',
+  '6': 'com sexta',
+  m6: 'menor com sexta',
+  dim: 'diminuto',
+  aug: 'aumentado',
+  m7b5: 'meio-diminuto',
+  dim7: 'diminuto com sétima',
 }
 
 const FLAT_MAJOR_TONICS = new Set([5, 10, 3, 8, 1, 6])
@@ -48,6 +48,11 @@ export function mod12(value: number): number {
 
 export function noteName(pitchClass: number, useFlats = false): string {
   return (useFlats ? FLAT_NAMES : SHARP_NAMES)[mod12(pitchClass)]
+}
+
+/** Key name in Portuguese — "G maior", "Em menor" territory but spelt out. */
+export function keyNamePt(tonic: number, mode: string, useFlats = false): string {
+  return `${noteName(mod12(tonic), useFlats)} ${mode === 'minor' ? 'menor' : 'maior'}`
 }
 
 export function keyUsesFlats(tonic: number, mode: string): boolean {

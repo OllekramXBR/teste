@@ -24,7 +24,7 @@ export interface Instrument {
 
 export const GUITAR: Instrument = {
   id: 'guitar',
-  name: 'Guitar',
+  name: 'Violão',
   tuning: [40, 45, 50, 55, 59, 64], // E2 A2 D3 G3 B3 E4
   stringNames: ['E', 'A', 'D', 'G', 'B', 'e'],
   frets: 15,

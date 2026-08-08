@@ -3,6 +3,8 @@ import { Link, useParams, useSearchParams } from 'react-router-dom'
 
 import * as api from '../lib/api'
 import type { Setlist, Song, Stem } from '../lib/api'
+import { br } from '../lib/brazilian'
+import { keyNamePt } from '../lib/theory'
 import { displayLabel } from '../components/ChordGrid'
 import { KaraokeView } from '../components/KaraokeView'
 import { StemMixer } from '../components/StemMixer'
@@ -34,6 +36,7 @@ export function PerformancePage() {
   const [showMixer, setShowMixer] = useState(false)
   const [transpose, setTranspose] = useState(0)
   const [locked, setLocked] = useState(false)
+  const [fontScale, setFontScale] = useState(1)
 
   const [variantState, setVariantState] = useState<'original' | 'rendering' | 'ready'>('original')
 
@@ -164,7 +167,7 @@ export function PerformancePage() {
     return analysis.chords
       .filter((chord) => chord.root !== null)
       .map((chord) => ({
-        label: displayLabel(chord.label, transpose, 0, analysis.useFlats),
+        label: br(displayLabel(chord.label, transpose, 0, analysis.useFlats), analysis.useFlats),
         start: chord.start,
       }))
   }, [song, transpose])
@@ -216,7 +219,9 @@ export function PerformancePage() {
           <p className="truncate text-xs text-slate-500">
             {setlist && position >= 0 ? `${position + 1}/${setlist.songs.length} · ` : ''}
             {song.artist || 'Sem artista'}
-            {song.analysis ? ` · ${song.analysis.key.name} · ${Math.round(song.analysis.bpm)} BPM` : ''}
+            {song.analysis
+              ? ` · ${keyNamePt(song.analysis.key.tonic, song.analysis.key.mode, song.analysis.useFlats)} · ${Math.round(song.analysis.bpm)} BPM`
+              : ''}
           </p>
           {transpose !== 0 && (
             <p
@@ -232,6 +237,7 @@ export function PerformancePage() {
           )}
         </div>
         <div className={locked ? 'pointer-events-none opacity-30' : 'flex items-center gap-2'}>
+          <FontStepper value={fontScale} onChange={setFontScale} />
           <Stepper value={transpose} onChange={setTranspose} />
           <StageButton onClick={() => setShowMixer((previous) => !previous)} active={showMixer}>
             Mixer
@@ -274,6 +280,7 @@ export function PerformancePage() {
             chords={chords}
             currentTime={player.currentTime}
             performance
+            fontScale={fontScale}
             onSeek={locked ? undefined : player.seek}
           />
         ) : (
@@ -442,6 +449,35 @@ function Stepper({ value, onChange }: { value: number; onChange: (value: number)
         aria-label="Subir meio tom"
       >
         +
+      </button>
+    </div>
+  )
+}
+
+/**
+ * The text-size control for the lyric being read from a stand. A half-step is
+ * the unit a musician already thinks in, so the whole thing is expressed in
+ * tenths: 1.0 is the default size, 1.3 is a third larger.
+ */
+function FontStepper({ value, onChange }: { value: number; onChange: (value: number) => void }) {
+  return (
+    <div className="flex items-center rounded-full border border-slate-700" title="Tamanho da letra">
+      <button
+        type="button"
+        onClick={() => onChange(Math.max(0.7, Number((value - 0.1).toFixed(1))))}
+        className="h-11 w-11 rounded-l-full text-base font-semibold text-slate-300 active:bg-slate-800"
+        aria-label="Diminuir a letra"
+      >
+        A−
+      </button>
+      <span className="w-9 text-center text-sm tabular-nums text-slate-300">{value.toFixed(1)}×</span>
+      <button
+        type="button"
+        onClick={() => onChange(Math.min(1.6, Number((value + 0.1).toFixed(1))))}
+        className="h-11 w-11 rounded-r-full text-base font-semibold text-slate-300 active:bg-slate-800"
+        aria-label="Aumentar a letra"
+      >
+        A+
       </button>
     </div>
   )
