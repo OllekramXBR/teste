@@ -2,13 +2,25 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 
 import * as api from '../lib/api'
-import type { Setlist, Song, Stem } from '../lib/api'
+import type { Setlist, Song, Stem, StemName } from '../lib/api'
 import { br } from '../lib/brazilian'
 import { keyNamePt } from '../lib/theory'
 import { displayLabel } from '../components/ChordGrid'
 import { KaraokeView } from '../components/KaraokeView'
 import { StemMixer } from '../components/StemMixer'
 import { useStemPlayer } from '../hooks/useStemPlayer'
+
+/**
+ * The three sentences a rehearsal actually says, as one-tap mixes. Each names
+ * the stems to silence; everything else plays. Opening the mixer remains the
+ * fine-grained path — these are the doors, not the corridor.
+ */
+const MIX_PRESETS: { id: string; label: string; hint: string; muted: StemName[] }[] = [
+  { id: 'sing', label: 'Eu canto', hint: 'Só os instrumentos — a voz é sua', muted: ['lead', 'backing'] },
+  { id: 'play', label: 'Eu toco', hint: 'Vozes e bateria — a harmonia é sua', muted: ['bass', 'other'] },
+  { id: 'acapella', label: 'A capella', hint: 'Somente as vozes originais', muted: ['drums', 'bass', 'other'] },
+  { id: 'all', label: 'Tudo', hint: 'A gravação inteira', muted: [] },
+]
 
 /**
  * The stage view, designed for a tablet held by someone whose hands are on a
@@ -171,6 +183,18 @@ export function PerformancePage() {
         start: chord.start,
       }))
   }, [song, transpose])
+
+  // Which preset the current mix equals, if any — hand-tweaked mixes match
+  // none and no chip lights, which is the honest answer.
+  const activePreset = useMemo(() => {
+    if (player.solo) return null
+    const names = Object.keys(player.mix) as StemName[]
+    if (!names.length) return null
+    const match = MIX_PRESETS.find((preset) =>
+      names.every((name) => Boolean(player.mix[name]?.muted) === preset.muted.includes(name)),
+    )
+    return match?.id ?? null
+  }, [player.mix, player.solo])
 
   // The beat under the playhead, for the bar-pulse dots in the strip.
   const activeStageBeat = useMemo(() => {
@@ -403,6 +427,33 @@ export function PerformancePage() {
               : `Carregando as pistas… ${Math.round(player.loaded * 100)}%`}
           </p>
         )}
+
+        {/* One-tap mixes, big enough for a thumb, no mixer required. */}
+        <div
+          className={[
+            'mb-3 flex flex-wrap items-center justify-center gap-2',
+            locked ? 'pointer-events-none opacity-30' : '',
+          ].join(' ')}
+        >
+          {MIX_PRESETS.map((preset) => (
+            <button
+              key={preset.id}
+              type="button"
+              onClick={() => player.applyPreset(preset.muted)}
+              disabled={!player.ready}
+              title={preset.hint}
+              aria-pressed={activePreset === preset.id}
+              className={[
+                'h-11 rounded-full border px-4 text-sm font-semibold transition disabled:opacity-30',
+                activePreset === preset.id
+                  ? 'border-amber-400 bg-amber-400 text-slate-950'
+                  : 'border-slate-700 text-slate-300 hover:border-amber-400/60',
+              ].join(' ')}
+            >
+              {preset.label}
+            </button>
+          ))}
+        </div>
         <div className="mb-3 flex items-center gap-3">
           <span className="w-12 shrink-0 text-xs tabular-nums text-slate-500">
             {formatTime(player.currentTime)}

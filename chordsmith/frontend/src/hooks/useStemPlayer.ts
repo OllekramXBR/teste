@@ -244,6 +244,22 @@ export function useStemPlayer(stems: Stem[]) {
     setSolo((previous) => (previous === name ? null : name))
   }, [])
 
+  /**
+   * One tap, one whole mix: mute exactly the named stems, unmute the rest,
+   * drop any solo. This is what lets "Eu canto" exist as a button instead of
+   * five mute taps inside the mixer.
+   */
+  const applyPreset = useCallback((mutedNames: StemName[]) => {
+    setSolo(null)
+    setMix((previous) => {
+      const next: Record<string, StemMix> = {}
+      for (const [name, settings] of Object.entries(previous)) {
+        next[name] = { ...settings, muted: mutedNames.includes(name as StemName) }
+      }
+      return next
+    })
+  }, [])
+
   // Position is computed from the audio clock, never from a timer: the audio
   // clock is the one the ear is listening to.
   useEffect(() => {
@@ -288,6 +304,7 @@ export function useStemPlayer(stems: Stem[]) {
     setStemVolume,
     toggleMute,
     toggleSolo,
+    applyPreset,
   }
 }
 
