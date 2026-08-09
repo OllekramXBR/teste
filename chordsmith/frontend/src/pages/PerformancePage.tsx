@@ -314,6 +314,24 @@ export function PerformancePage() {
         </div>
       )}
 
+      {/* The song's parts, tappable mid-rehearsal: "vai pro refrão" is said
+          to the screen instead of scrubbed for. Hidden while locked — a
+          brushed elbow must not teleport the band. */}
+      {!locked && song.lyrics?.sections?.length ? (
+        <div className="flex items-center justify-center gap-1.5 px-6 pb-0.5">
+          {song.lyrics.sections.map((section, index) => (
+            <button
+              key={`${section.start}-${index}`}
+              type="button"
+              onClick={() => player.seek(section.start)}
+              className="rounded-full border border-slate-700 px-3 py-1 text-xs font-medium text-slate-300 transition hover:border-amber-400 hover:text-amber-400"
+            >
+              {section.name}
+            </button>
+          ))}
+        </div>
+      ) : null}
+
       {/* The chord strip: readable from the mic stand, out of the lyric's way.
           The singer's guitarist glances here; the singer never has to. */}
       {stageCards.length > 0 && (

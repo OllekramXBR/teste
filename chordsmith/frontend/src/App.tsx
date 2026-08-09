@@ -110,7 +110,7 @@ export default function App() {
         </nav>
       )}
 
-      <main>
+      <main className={bare ? '' : 'min-h-[calc(100vh-8rem)]'}>
         <Routes>
           <Route path="/" element={<LibraryPage />} />
           <Route path="/song/:songId" element={<SongPage />} />
@@ -137,6 +137,18 @@ export default function App() {
           />
         </Routes>
       </main>
+
+      {!bare && (
+        <footer className="py-6 text-center text-[11px] tracking-wide text-ink-faint print:hidden">
+          <span className="eq mr-2 inline-flex !h-2.5 align-baseline" aria-hidden="true">
+            <i />
+            <i />
+            <i />
+            <i />
+          </span>
+          Metatron by Marcelo Rocha · 2026
+        </footer>
+      )}
     </div>
   )
 }

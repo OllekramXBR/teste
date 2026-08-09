@@ -197,6 +197,12 @@ export function SongPage() {
 
   const bars = useMemo(() => (analysis ? groupIntoBars(analysis.beats) : []), [analysis])
 
+  // The melody's MIDI notes, for judging keys against the singer's range.
+  const melodyMidi = useMemo(
+    () => analysis?.lead.notes.map((note) => note.midi) ?? [],
+    [analysis],
+  )
+
   // One deduplicated sequence of chord cards, shared by the now-playing panel
   // and the filmstrip so both agree on what "the current chord" is.
   const chordCards = useMemo(
@@ -1095,6 +1101,7 @@ export function SongPage() {
                 useFlats={analysis.useFlats}
                 instrument={settings.instrument === 'piano' ? 'guitar' : settings.instrument}
                 transpose={settings.transpose}
+                melodyMidi={melodyMidi}
                 onTranspose={(semitones) => handleSettings({ transpose: semitones })}
                 onRenderAudio={stems.length ? handleRenderAudio : undefined}
                 renderedKeys={renderedKeys}

@@ -1,62 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { detectPitch, type PitchReading } from '../lib/pitch'
 import { noteName } from '../lib/theory'
 
-interface Reading {
-  frequency: number
-  midi: number
-  cents: number
-  clarity: number
-}
+type Reading = PitchReading
 
 const SAMPLE_SIZE = 2048
 const MIN_CLARITY = 0.55
-
-/**
- * Pitch detection by normalised autocorrelation.
- *
- * The plain autocorrelation peak is biased toward long lags, so each lag is
- * normalised by the energy in its window; the returned clarity is that
- * normalised peak, which doubles as a "is this actually a pitch" test.
- */
-function detectPitch(buffer: Float32Array, sampleRate: number): Reading | null {
-  let rms = 0
-  for (const sample of buffer) rms += sample * sample
-  rms = Math.sqrt(rms / buffer.length)
-  if (rms < 0.008) return null // effectively silence
-
-  const minLag = Math.floor(sampleRate / 1200) // ~1200 Hz ceiling
-  const maxLag = Math.floor(sampleRate / 60) // ~60 Hz floor
-  let bestLag = -1
-  let bestScore = 0
-
-  for (let lag = minLag; lag <= maxLag && lag < buffer.length; lag += 1) {
-    let correlation = 0
-    let energy = 0
-    for (let index = 0; index + lag < buffer.length; index += 1) {
-      correlation += buffer[index] * buffer[index + lag]
-      energy += buffer[index + lag] * buffer[index + lag]
-    }
-    const score = energy > 0 ? correlation / Math.sqrt(energy) : 0
-    if (score > bestScore) {
-      bestScore = score
-      bestLag = lag
-    }
-  }
-  if (bestLag < 0) return null
-
-  const clarity = bestScore / Math.sqrt(buffer.length)
-  if (clarity < MIN_CLARITY) return null
-
-  const frequency = sampleRate / bestLag
-  const midi = 69 + 12 * Math.log2(frequency / 440)
-  const nearest = Math.round(midi)
-  return {
-    frequency,
-    midi: nearest,
-    cents: Math.round((midi - nearest) * 100),
-    clarity: Math.min(clarity, 1),
-  }
-}
 
 /** Chromatic tuner driven by the microphone. */
 export function Tuner() {
@@ -97,7 +46,8 @@ export function Tuner() {
       const buffer = new Float32Array(SAMPLE_SIZE)
       const loop = () => {
         analyser.getFloatTimeDomainData(buffer)
-        setReading(detectPitch(buffer, context.sampleRate))
+        const detected = detectPitch(buffer, context.sampleRate)
+        setReading(detected && detected.clarity >= MIN_CLARITY ? detected : null)
         frameRef.current = requestAnimationFrame(loop)
       }
       setActive(true)
