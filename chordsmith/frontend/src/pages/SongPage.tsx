@@ -110,6 +110,7 @@ export function SongPage() {
   const [editingLyrics, setEditingLyrics] = useState(false)
   const [popoverChord, setPopoverChord] = useState<string | null>(null)
   const [countdown, setCountdown] = useState(0)
+  const [alignError, setAlignError] = useState<string | null>(null)
   const [tracks, setTracks] = useState<{
     status: 'none' | 'pending' | 'ready'
     tracks: api.TranscribedTrack[]
@@ -573,6 +574,23 @@ export function SongPage() {
     [song],
   )
 
+  // Swap the heard words for the imported chart's, keeping the sung clock.
+  const handleAlignChart = useCallback(async () => {
+    if (!song) return
+    setBusy('align')
+    setAlignError(null)
+    try {
+      const { lyrics } = await api.alignLyricsToChart(song.id)
+      setSong({ ...song, lyrics })
+    } catch (error) {
+      setAlignError(
+        error instanceof Error ? error.message : 'Não consegui sincronizar com a cifra',
+      )
+    } finally {
+      setBusy(null)
+    }
+  }, [song])
+
   const handleSaveLyrics = useCallback(
     async (segments: api.LyricSegment[]) => {
       if (!song) return
@@ -811,14 +829,32 @@ export function SongPage() {
                       (song.lyrics.source === 'lead' ? ' · da voz separada' : '')}
                     {!song.lyrics.edited && song.lyrics.promptedByChart && ' · guiada pela cifra'}
                   </span>
-                  <button
-                    type="button"
-                    onClick={() => setEditingLyrics(true)}
-                    className="rounded-full border border-line px-3 py-1 text-xs font-medium transition hover:border-accent hover:text-accent "
-                  >
-                    Corrigir letra
-                  </button>
+                  <div className="flex shrink-0 items-center gap-1.5">
+                    {!song.lyrics.correctedByChart && (
+                      <button
+                        type="button"
+                        onClick={handleAlignChart}
+                        disabled={busy === 'align'}
+                        title="Troca as palavras ouvidas pelas da cifra importada, mantendo o tempo do canto"
+                        className="rounded-full border border-line px-3 py-1 text-xs font-medium transition hover:border-flame hover:text-flame disabled:opacity-40"
+                      >
+                        {busy === 'align' ? 'Sincronizando…' : 'Sincronizar com a cifra'}
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => setEditingLyrics(true)}
+                      className="rounded-full border border-line px-3 py-1 text-xs font-medium transition hover:border-accent hover:text-accent "
+                    >
+                      Corrigir letra
+                    </button>
+                  </div>
                 </div>
+                {alignError && (
+                  <p className="border-b border-line px-4 py-2 text-xs text-rose-500">
+                    {alignError}
+                  </p>
+                )}
                 <KaraokeView
                   lyrics={song.lyrics}
                   chords={analysis.chords

@@ -272,6 +272,11 @@ export function getLyrics(id: string): Promise<{
   return request(`/api/songs/${id}/lyrics`)
 }
 
+/** Swap the transcribed words for the chart's, keeping the sung timing. */
+export function alignLyricsToChart(id: string): Promise<{ lyrics: Lyrics }> {
+  return request(`/api/songs/${id}/lyrics/align-chart`, { method: 'POST' })
+}
+
 export function editLyrics(id: string, segments: LyricSegment[]): Promise<{ lyrics: Lyrics }> {
   return request(`/api/songs/${id}/lyrics`, {
     method: 'PUT',

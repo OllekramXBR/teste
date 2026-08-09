@@ -108,6 +108,47 @@ def remove_chart(song_id: str) -> dict:
     return {"ok": True}
 
 
+@song_router.post("/{song_id}/lyrics/align-chart")
+def align_lyrics_to_chart(song_id: str) -> dict:
+    """Replace the transcribed words with the chart's, keeping the sung clock.
+
+    The transcription supplies word times, the imported chart supplies the
+    words a person actually wrote, and the alignment marries the two. The
+    result is saved as an edited lyric — human words must not be overwritten
+    by the next automatic transcription.
+    """
+    from ..analysis.align import align_chart_lyrics
+    from ..analysis.lyrics import rebuild_from_segments
+
+    song = storage.get_song(song_id, include_analysis=False)
+    if not song:
+        raise HTTPException(status_code=404, detail="Song not found")
+    lyrics = storage.get_lyrics(song_id)
+    if not lyrics or not lyrics.get("words"):
+        raise HTTPException(
+            status_code=409, detail="Transcreva a letra primeiro — ela dá o relógio"
+        )
+    chart = storage.get_cifra(song_id)
+    if not chart:
+        raise HTTPException(
+            status_code=409, detail="Importe a cifra primeiro, na aba Cifra"
+        )
+    verse_lines = [
+        line["text"] for line in chart.get("lines", []) if line.get("kind") == "verse"
+    ]
+    try:
+        segments = align_chart_lyrics(lyrics["words"], verse_lines)
+    except ValueError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+
+    result = rebuild_from_segments(segments, previous=lyrics)
+    # The flag the lyric header already knows how to read: "corrigida pela
+    # cifra" rather than "corrigida à mão".
+    result["correctedByChart"] = True
+    storage.save_lyrics(song_id, result)
+    return {"lyrics": result}
+
+
 @song_router.get("/{song_id}/cifraclub/compare")
 def compare_chart(song_id: str) -> dict:
     """How the imported web chart and the detected analysis agree."""
