@@ -117,8 +117,7 @@ def align_lyrics_to_chart(song_id: str) -> dict:
     result is saved as an edited lyric — human words must not be overwritten
     by the next automatic transcription.
     """
-    from ..analysis.align import align_chart_lyrics
-    from ..analysis.lyrics import rebuild_from_segments
+    from ..analysis.align import apply_chart
 
     song = storage.get_song(song_id, include_analysis=False)
     if not song:
@@ -133,18 +132,11 @@ def align_lyrics_to_chart(song_id: str) -> dict:
         raise HTTPException(
             status_code=409, detail="Importe a cifra primeiro, na aba Cifra"
         )
-    verse_lines = [
-        line["text"] for line in chart.get("lines", []) if line.get("kind") == "verse"
-    ]
     try:
-        segments = align_chart_lyrics(lyrics["words"], verse_lines)
+        result = apply_chart(lyrics, chart)
     except ValueError as error:
         raise HTTPException(status_code=422, detail=str(error)) from error
 
-    result = rebuild_from_segments(segments, previous=lyrics)
-    # The flag the lyric header already knows how to read: "corrigida pela
-    # cifra" rather than "corrigida à mão".
-    result["correctedByChart"] = True
     storage.save_lyrics(song_id, result)
     return {"lyrics": result}
 

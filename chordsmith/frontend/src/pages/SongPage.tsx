@@ -15,6 +15,7 @@ import { KeyChooser } from '../components/KeyChooser'
 import { LyricEditor } from '../components/LyricEditor'
 import { NowPlaying } from '../components/NowPlaying'
 import { ProductionCard } from '../components/ProductionCard'
+import { SectionRail } from '../components/SectionRail'
 import { useJobProgress } from '../hooks/useJobProgress'
 import { StaffNotation } from '../components/StaffNotation'
 import { LeadSummary, TabStaff } from '../components/TabStaff'
@@ -771,6 +772,19 @@ export function SongPage() {
             onSeek={handleSeek}
           />
           </div>
+
+          {song.lyrics?.sections?.length ? (
+            <div className="animate-fade-up [animation-delay:.21s]">
+              <SectionRail
+                sections={song.lyrics.sections}
+                currentTime={player.currentTime}
+                duration={player.duration || analysis.duration}
+                bars={bars}
+                onSeek={handleSeek}
+                onLoop={(start, end) => setLoopBars({ start, end })}
+              />
+            </div>
+          ) : null}
 
           <div className="glass animate-fade-up flex items-center gap-1 overflow-x-auto rounded-full p-1 [animation-delay:.24s]">
             {(['chords', 'estudo', 'tab', 'letra', 'cifra', 'partitura', 'both'] as View[]).map((option) => (

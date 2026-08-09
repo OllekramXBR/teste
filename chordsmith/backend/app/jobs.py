@@ -115,6 +115,20 @@ def _run_lyrics(song_id: str, path: Path, model_name: str | None) -> None:
         result["transcribeSeconds"] = round(time.perf_counter() - started, 2)
         result["source"] = "lead" if lead else "mix"
         result["promptedByChart"] = bool(prompt)
+
+        # With a chart in hand, finish the job: swap the heard words for the
+        # written ones on the sung clock, automatically. A failed alignment
+        # (wrong chart, unmatched take) keeps the raw transcription — worse
+        # words, but honest ones — and the manual button stays available.
+        if chart:
+            from .analysis.align import apply_chart
+
+            progress.stage(song_id, "lyrics", "sincronizando com a cifra")
+            try:
+                result = apply_chart(result, chart)
+            except ValueError as error:
+                logger.info("chart alignment skipped for %s: %s", song_id, error)
+
         storage.save_lyrics(song_id, result)
         logger.info(
             "transcribed %s from %s%s: %d words in %.1fs",

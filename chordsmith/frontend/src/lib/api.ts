@@ -106,6 +106,8 @@ export interface Lyrics {
   promptedByChart?: boolean
   /** True when the imported web chart's lyric lines replaced the words. */
   correctedByChart?: boolean
+  /** Song structure from the chart's [markers], anchored to sung time. */
+  sections?: { name: string; start: number }[]
 }
 
 /** Stems are produced together, so one status covers the whole set. */

@@ -12,6 +12,12 @@ lines with no match at all — a bridge the singer skipped, a mishearing so
 complete nothing survived — are interpolated between their timed neighbours
 rather than dropped, because a lyric line with a slightly wrong time is
 usable on stage and a missing one is not.
+
+Chart lines written in brackets — ``[Intro]``, ``[Refrão]``, ``[Primeira
+Parte]`` — are not lyric at all: they are the song's structure. They come out
+separately as sections, each anchored to the start of the first sung line
+that follows it, which is what lets the app offer "repeat the chorus" instead
+of "repeat bars 17 to 24".
 """
 
 from __future__ import annotations
@@ -21,20 +27,48 @@ from difflib import SequenceMatcher
 
 _WORD_CLEAN = re.compile(r"[^\wÀ-ſ]+", re.UNICODE)
 
+# A whole line inside square brackets is a section marker on Cifra Club.
+_SECTION = re.compile(r"^\[\s*([^\]]{1,48}?)\s*\]:?$")
+
 
 def _norm(word: str) -> str:
     return _WORD_CLEAN.sub("", word.lower())
 
 
-def align_chart_lyrics(words: list[dict], chart_lines: list[str]) -> list[dict]:
-    """Chart lines with times, as ``{start, end, text}`` segments.
+def split_markers(chart_lines: list[str]) -> tuple[list[str], list[tuple[int, str]]]:
+    """Sung lines, and ``(sung_line_index, name)`` for each section marker.
+
+    The index is the position *in the sung list* of the first line after the
+    marker, so a marker anchors to whatever gets sung next. Markers at the
+    very end (nothing sung after them) are kept and anchored past the last
+    line; the caller clamps them.
+    """
+    sung: list[str] = []
+    markers: list[tuple[int, str]] = []
+    for raw in chart_lines:
+        line = (raw or "").strip()
+        if not line:
+            continue
+        match = _SECTION.match(line)
+        if match:
+            markers.append((len(sung), match.group(1)))
+        else:
+            sung.append(line)
+    return sung, markers
+
+
+def align_chart_lyrics(
+    words: list[dict], chart_lines: list[str]
+) -> tuple[list[dict], list[dict]]:
+    """``(segments, sections)`` for the chart sung against this recording.
 
     ``words`` are the transcription's words (``text``/``start``/``end``);
-    ``chart_lines`` are the verse lines of the imported chart, in order.
-    Returns one segment per non-empty chart line. Raises ``ValueError`` when
-    there is nothing to align on either side.
+    ``chart_lines`` are the verse lines of the imported chart, in order,
+    section markers included. Segments are ``{start, end, text}``, one per
+    sung line; sections are ``{name, start}``. Raises ``ValueError`` when
+    there is nothing to align or too little matches to be the same song.
     """
-    lines = [line.strip() for line in chart_lines if line and line.strip()]
+    lines, markers = split_markers(chart_lines)
     if not lines:
         raise ValueError("the chart has no lyric lines")
     if not words:
@@ -119,4 +153,37 @@ def align_chart_lyrics(words: list[dict], chart_lines: list[str]) -> list[dict]:
         if current["end"] < current["start"]:
             current["end"] = current["start"] + 0.4
 
-    return segments
+    # Sections anchor to the first sung line at or after their marker; a
+    # marker with nothing sung after it points at the last line instead of
+    # falling off the end. Consecutive markers at one spot keep the last name
+    # ("[Solo]" directly followed by "[Refrão]" is a chorus for our purposes).
+    sections: list[dict] = []
+    for line_index, name in markers:
+        anchored = segments[min(line_index, len(segments) - 1)]
+        entry = {"name": name, "start": anchored["start"]}
+        if sections and sections[-1]["start"] == entry["start"]:
+            sections[-1] = entry
+        else:
+            sections.append(entry)
+
+    return segments, sections
+
+
+def apply_chart(lyrics: dict, chart: dict) -> dict:
+    """An aligned copy of ``lyrics``: the chart's words, the sung clock.
+
+    Shared by the align endpoint and the transcription job, so a manual
+    "Sincronizar" and the automatic pass after transcription can never
+    disagree about what alignment means. Raises ``ValueError`` like
+    :func:`align_chart_lyrics` when the two sides do not fit.
+    """
+    from .lyrics import rebuild_from_segments
+
+    verse_lines = [
+        line["text"] for line in chart.get("lines", []) if line.get("kind") == "verse"
+    ]
+    segments, sections = align_chart_lyrics(lyrics.get("words") or [], verse_lines)
+    result = rebuild_from_segments(segments, previous=lyrics)
+    result["correctedByChart"] = True
+    result["sections"] = sections
+    return result
