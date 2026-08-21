@@ -634,6 +634,11 @@ export function retryFailed(
   return request(`/api/songs/retry-failed?${query}`, { method: 'POST' })
 }
 
+/** Queue lyrics and stems for every analysed song that still has neither. */
+export function sweepLibrary(): Promise<{ lyrics: number; stems: number }> {
+  return request('/api/songs/sweep', { method: 'POST' })
+}
+
 export function getSongProgress(id: string): Promise<SongProgress> {
   return request(`/api/songs/${id}/progress`)
 }

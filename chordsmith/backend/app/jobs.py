@@ -14,16 +14,31 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from . import progress, storage
-from .config import ANALYSIS_WORKERS, AUDIO_DIR, AUTO_LYRICS, AUTO_STEMS
+from .config import (
+    ANALYSIS_WORKERS,
+    AUDIO_DIR,
+    AUTO_LYRICS,
+    AUTO_STEMS,
+    LIBRARY_SWEEP_MINUTES,
+    LYRICS_WORKERS,
+)
 
 logger = logging.getLogger(__name__)
 
 _executor: ThreadPoolExecutor | None = None
+_lyrics_executor: ThreadPoolExecutor | None = None
 _heavy_executor: ThreadPoolExecutor | None = None
 _executor_lock = threading.Lock()
+_sweep_stop_event = threading.Event()
+_sweep_thread: threading.Thread | None = None
 
 
 def get_executor() -> ThreadPoolExecutor:
+    """The fast pool: chord analysis only, seconds of work per song.
+
+    Nothing minutes-long belongs here — see :func:`get_lyrics_executor` and
+    :func:`get_heavy_executor` for why that used to be true only in theory.
+    """
     global _executor
     with _executor_lock:
         if _executor is None:
@@ -31,6 +46,24 @@ def get_executor() -> ThreadPoolExecutor:
                 max_workers=ANALYSIS_WORKERS, thread_name_prefix="analysis"
             )
         return _executor
+
+
+def get_lyrics_executor() -> ThreadPoolExecutor:
+    """Transcription's own queue, kept off the fast analysis pool.
+
+    It used to share :func:`get_executor` with chord analysis. That meant a
+    song uploaded while transcriptions already filled both slots waited behind
+    several minutes of someone else's lyrics before its own few seconds of
+    chord detection could even start — which is what made the app look frozen
+    the moment a transcription was running.
+    """
+    global _lyrics_executor
+    with _executor_lock:
+        if _lyrics_executor is None:
+            _lyrics_executor = ThreadPoolExecutor(
+                max_workers=LYRICS_WORKERS, thread_name_prefix="lyrics"
+            )
+        return _lyrics_executor
 
 
 def get_heavy_executor() -> ThreadPoolExecutor:
@@ -53,12 +86,14 @@ def get_heavy_executor() -> ThreadPoolExecutor:
 
 
 def shutdown() -> None:
-    global _executor, _heavy_executor
+    _sweep_stop_event.set()
+    global _executor, _lyrics_executor, _heavy_executor
     with _executor_lock:
-        for pool in (_executor, _heavy_executor):
+        for pool in (_executor, _lyrics_executor, _heavy_executor):
             if pool is not None:
                 pool.shutdown(wait=False, cancel_futures=True)
         _executor = None
+        _lyrics_executor = None
         _heavy_executor = None
 
 
@@ -336,7 +371,7 @@ def enqueue_lyrics(song_id: str, filename: str, model_name: str | None = None) -
     """
     storage.set_lyrics_status(song_id, "pending")
     progress.enqueued(song_id, "lyrics")
-    get_executor().submit(_run_lyrics, song_id, AUDIO_DIR / filename, model_name)
+    get_lyrics_executor().submit(_run_lyrics, song_id, AUDIO_DIR / filename, model_name)
 
 
 def requeue_incomplete() -> int:
@@ -373,6 +408,67 @@ def requeue_incomplete() -> int:
             continue
         enqueue_stems(song_id, stored[0])
     return count
+
+
+def sweep_untreated_library() -> dict[str, int]:
+    """Find every analysed song still missing lyrics or stems, and start them.
+
+    Both already run automatically the moment a song's own analysis finishes
+    (`_continue_after_analysis`) — this exists for the ones that missed that
+    moment: a track whose analysis completed while ``CHORDSMITH_AUTO_LYRICS``
+    or ``CHORDSMITH_AUTO_STEMS`` was off, or one a restart's queue lost before
+    :func:`requeue_incomplete` learned to resume it. Safe to call as often as
+    wanted — every song already pending, running, or done is skipped, the
+    same guard the manual buttons rely on, so nothing is ever queued twice.
+    """
+    from .analysis import stems as stem_module
+
+    queued = {"lyrics": 0, "stems": 0}
+    for song in storage.list_songs(limit=2000):
+        if song["status"] != "ready":
+            continue
+        stored = storage.get_song_file(song["id"])
+        if not stored or not (AUDIO_DIR / stored[0]).exists():
+            continue
+        if song["lyricsStatus"] == "none":
+            enqueue_lyrics(song["id"], stored[0])
+            queued["lyrics"] += 1
+        if song["stemsStatus"] == "none" and not stem_module.available_stems(song["id"]):
+            enqueue_stems(song["id"], stored[0])
+            queued["stems"] += 1
+    if queued["lyrics"] or queued["stems"]:
+        logger.info(
+            "library sweep queued %d lyrics and %d separations",
+            queued["lyrics"],
+            queued["stems"],
+        )
+    return queued
+
+
+def start_library_sweep_loop() -> None:
+    """Re-run :func:`sweep_untreated_library` on an interval.
+
+    The first pass belongs at startup, called directly and synchronously
+    alongside :func:`requeue_incomplete` — it is a database scan, not the work
+    itself, so it costs nothing to run before serving the first request. This
+    only starts the *repeat*: a thread that sleeps for
+    ``CHORDSMITH_LIBRARY_SWEEP_MINUTES`` and sweeps again, so a track dropped
+    straight into the audio folder while the server is already running still
+    gets found. Zero disables the repeat without touching the startup pass.
+    """
+    if LIBRARY_SWEEP_MINUTES <= 0:
+        return
+    global _sweep_thread
+
+    def _loop() -> None:
+        while not _sweep_stop_event.wait(LIBRARY_SWEEP_MINUTES * 60):
+            try:
+                sweep_untreated_library()
+            except Exception:  # noqa: BLE001 - a missed sweep must not kill the loop
+                logger.exception("library sweep failed")
+
+    _sweep_thread = threading.Thread(target=_loop, name="library-sweep", daemon=True)
+    _sweep_thread.start()
 
 
 def retry_failed(kind: str = "both", quality: str | None = None) -> dict[str, int]:

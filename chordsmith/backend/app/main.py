@@ -55,6 +55,14 @@ async def lifespan(app: FastAPI):
     requeued = jobs.requeue_incomplete()
     if requeued:
         logger.info("requeued %d interrupted analyses", requeued)
+    swept = jobs.sweep_untreated_library()
+    if swept["lyrics"] or swept["stems"]:
+        logger.info(
+            "startup sweep queued %d lyrics and %d separations",
+            swept["lyrics"],
+            swept["stems"],
+        )
+    jobs.start_library_sweep_loop()
     jobs.warm_up()
     yield
     jobs.shutdown()

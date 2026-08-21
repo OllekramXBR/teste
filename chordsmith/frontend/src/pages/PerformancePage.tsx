@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 
 import * as api from '../lib/api'
@@ -46,6 +46,8 @@ export function PerformancePage() {
   const [stems, setStems] = useState<Stem[]>([])
   const [error, setError] = useState<string | null>(null)
   const [showMixer, setShowMixer] = useState(false)
+  const mixerRef = useRef<HTMLDivElement | null>(null)
+  const mixerToggleRef = useRef<HTMLButtonElement | null>(null)
   const [transpose, setTranspose] = useState(0)
   const [locked, setLocked] = useState(false)
   const [fontScale, setFontScale] = useState(1)
@@ -255,6 +257,29 @@ export function PerformancePage() {
     return () => window.removeEventListener('keydown', onKeyDown)
   }, [onKeyDown])
 
+  // Close the mixer on an outside tap or Escape, without a full-screen
+  // catcher: the listener is added only once the panel is already open, so it
+  // never fires for the very tap that opened it, and it never intercepts a
+  // tap meant for the transport underneath.
+  useEffect(() => {
+    if (!showMixer) return
+    const onPointerDown = (event: PointerEvent) => {
+      const target = event.target as Node
+      if (mixerRef.current?.contains(target)) return
+      if (mixerToggleRef.current?.contains(target)) return
+      setShowMixer(false)
+    }
+    const onEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setShowMixer(false)
+    }
+    document.addEventListener('pointerdown', onPointerDown)
+    document.addEventListener('keydown', onEscape)
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown)
+      document.removeEventListener('keydown', onEscape)
+    }
+  }, [showMixer])
+
   if (error) return <Stage><p className="text-rose-400">{error}</p></Stage>
   if (!song) return <Stage><p className="text-slate-500">Carregando…</p></Stage>
 
@@ -304,9 +329,18 @@ export function PerformancePage() {
         <div className={locked ? 'pointer-events-none opacity-30' : 'flex items-center gap-2'}>
           <FontStepper value={fontScale} onChange={setFontScale} />
           <Stepper value={transpose} onChange={setTranspose} />
-          <StageButton onClick={() => setShowMixer((previous) => !previous)} active={showMixer}>
+          <button
+            ref={mixerToggleRef}
+            type="button"
+            onClick={() => setShowMixer((previous) => !previous)}
+            aria-pressed={showMixer}
+            className={[
+              'h-11 rounded-full border px-5 text-sm font-medium',
+              showMixer ? 'border-white bg-white text-slate-950' : 'border-slate-700 text-slate-300',
+            ].join(' ')}
+          >
             Mixer
-          </StageButton>
+          </button>
           {nextSong && (
             <Link
               to={`/song/${nextSong.id}/perform?setlist=${setlistId}`}
@@ -325,8 +359,32 @@ export function PerformancePage() {
         </div>
       </header>
 
+      {/* The mixer floats above the lyric instead of pushing it off the
+          stand: the singer keeps reading and singing while a hand rides a
+          fader. It does NOT sit behind a full-screen tap-catcher — that would
+          silently block the transport underneath, trading one unreachable
+          control for another. Outside taps close it via the effect below;
+          the transport stays live the whole time. */}
       {showMixer && (
-        <div className="mx-6 mb-2 [&>section]:border-slate-800 [&>section]:bg-slate-900">
+        <div
+          ref={mixerRef}
+          className="fixed bottom-32 right-4 top-24 z-30 w-[360px] max-w-[88vw] overflow-y-auto rounded-2xl border border-slate-700 bg-slate-900/95 shadow-2xl backdrop-blur [&>section]:border-0 [&>section]:bg-transparent"
+          role="dialog"
+          aria-label="Mixer das pistas"
+        >
+          <div className="flex items-center justify-between px-4 pt-3">
+            <span className="text-xs font-bold uppercase tracking-widest text-slate-500">
+              Mixer
+            </span>
+            <button
+              type="button"
+              onClick={() => setShowMixer(false)}
+              aria-label="Fechar o mixer"
+              className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-700 text-sm text-slate-400"
+            >
+              ✕
+            </button>
+          </div>
           <StemMixer
             stems={stems}
             mix={player.mix}
@@ -529,30 +587,6 @@ export function PerformancePage() {
         </div>
       </footer>
     </div>
-  )
-}
-
-function StageButton({
-  children,
-  onClick,
-  active,
-}: {
-  children: React.ReactNode
-  onClick: () => void
-  active?: boolean
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={active}
-      className={[
-        'h-11 rounded-full border px-5 text-sm font-medium',
-        active ? 'border-white bg-white text-slate-950' : 'border-slate-700 text-slate-300',
-      ].join(' ')}
-    >
-      {children}
-    </button>
   )
 }
 

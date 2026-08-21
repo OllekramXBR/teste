@@ -28,6 +28,15 @@ LIBRARY_ROOT = Path(_library) if _library else None
 # Analysis is CPU-bound; keep a small pool so a burst of uploads cannot starve
 # the request handlers.
 ANALYSIS_WORKERS = int(os.environ.get("CHORDSMITH_ANALYSIS_WORKERS", "2"))
+# Its own pool, deliberately not shared with chord analysis above. The two used
+# to queue on the same executor, which sounds harmless until one lyric job runs
+# long: chord analysis is seconds of work and a fresh upload expects to see it
+# almost immediately, but a transcription is minutes — so a song uploaded while
+# two transcriptions were already running sat behind both of them, and nothing
+# in the app looked like it was doing anything. One worker, matching the
+# separation pool below: it is minutes-long CPU work either way, and giving it
+# its own lane is what keeps it from ever blocking the fast path again.
+LYRICS_WORKERS = int(os.environ.get("CHORDSMITH_LYRICS_WORKERS", "1"))
 
 # Lyric transcription. The model is downloaded on first use into the data
 # volume, so a rebuilt container does not fetch it again — which also means the
@@ -110,6 +119,15 @@ STEM_FORMAT = os.environ.get("CHORDSMITH_STEM_FORMAT", "mp3")
 # quick chord analysis of the next upload still goes to the other pool.
 AUTO_LYRICS = os.environ.get("CHORDSMITH_AUTO_LYRICS", "1") not in ("0", "false", "no")
 AUTO_STEMS = os.environ.get("CHORDSMITH_AUTO_STEMS", "1") not in ("0", "false", "no")
+
+# The follow-up above only fires the instant a song's own analysis finishes.
+# This is the safety net behind it: a periodic re-scan of the whole library
+# for anything analysed but still untouched — a track dropped straight into
+# the audio folder outside the app, or a song that finished analysing during
+# a stretch where AUTO_LYRICS/AUTO_STEMS was off. Runs once at startup
+# regardless, then on this interval; 0 turns off only the repeat, not the
+# startup pass.
+LIBRARY_SWEEP_MINUTES = int(os.environ.get("CHORDSMITH_LIBRARY_SWEEP_MINUTES", "30"))
 
 # Accounts exist as soon as someone creates one; they are only *enforced* when
 # this says so. Default "open" because this app has always run without a login,

@@ -34,6 +34,16 @@ export function QueuePanel({ songs, onQueued }: Props) {
   const failed = songs.filter(
     (song) => song.stemsStatus === 'failed' || song.lyricsStatus === 'failed',
   ).length
+  // Analysed but never asked for letter or pistas — a track dropped straight
+  // into the audio folder, or one that finished analysing while the
+  // automatic follow-up happened to be off. The server sweeps for these on
+  // its own on a timer; this count is what makes that fact visible instead of
+  // silent, and the button is for not waiting for the timer.
+  const untreated = songs.filter(
+    (song) =>
+      song.status === 'ready' &&
+      (song.lyricsStatus === 'none' || song.stemsStatus === 'none'),
+  ).length
   const active = running.length > 0 || Object.keys(queued).length > 0
 
   useEffect(() => {
@@ -83,7 +93,26 @@ export function QueuePanel({ songs, onQueued }: Props) {
     }
   }, [onQueued])
 
-  if (!active && failed === 0) return null
+  const sweep = useCallback(async () => {
+    setBusy(true)
+    setNote(null)
+    try {
+      const result = await api.sweepLibrary()
+      const total = result.lyrics + result.stems
+      setNote(
+        total === 0
+          ? 'Toda a biblioteca já tem letra e pistas.'
+          : `Na fila: ${result.stems} separações e ${result.lyrics} letras.`,
+      )
+      onQueued()
+    } catch (error) {
+      setNote(error instanceof Error ? error.message : 'Não consegui falar com o servidor.')
+    } finally {
+      setBusy(false)
+    }
+  }, [onQueued])
+
+  if (!active && failed === 0 && untreated === 0) return null
 
   const waiting = Object.entries(queued).reduce((sum, [, count]) => sum + count, 0)
 
@@ -109,6 +138,14 @@ export function QueuePanel({ songs, onQueued }: Props) {
         </p>
       )}
 
+      {!active && untreated > 0 && (
+        <p className="mt-2 text-xs text-ink-soft">
+          {untreated} {untreated === 1 ? 'música' : 'músicas'} analisada
+          {untreated === 1 ? '' : 's'} ainda sem letra ou pistas. O servidor confere isso sozinho
+          de tempos em tempos — ou processa agora.
+        </p>
+      )}
+
       {failed > 0 && (
         <button
           type="button"
@@ -117,6 +154,16 @@ export function QueuePanel({ songs, onQueued }: Props) {
           className="mt-3 w-full rounded-lg border border-line px-4 py-2 text-xs font-medium transition hover:border-accent hover:text-accent disabled:opacity-40"
         >
           {busy ? 'Enfileirando…' : `Refazer as que falharam (${failed})`}
+        </button>
+      )}
+      {untreated > 0 && (
+        <button
+          type="button"
+          onClick={sweep}
+          disabled={busy}
+          className="mt-2 w-full rounded-lg border border-line px-4 py-2 text-xs font-medium transition hover:border-accent hover:text-accent disabled:opacity-40"
+        >
+          {busy ? 'Enfileirando…' : `Processar letra e pistas (${untreated})`}
         </button>
       )}
       {note && <p className="mt-2 text-center text-[11px] text-ink-faint">{note}</p>}

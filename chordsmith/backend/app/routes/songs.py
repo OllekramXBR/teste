@@ -345,6 +345,17 @@ def separate_everything() -> dict:
     return {"queued": len(queued), "songs": queued}
 
 
+@router.post("/sweep", status_code=202)
+def sweep_library() -> dict:
+    """Queue lyrics and stems for every analysed song that still has neither.
+
+    Both already start on their own the moment a song finishes analysing —
+    this is the manual trigger for the same check, for anyone who does not
+    want to wait for the periodic sweep to get to a track they just noticed.
+    """
+    return jobs.sweep_untreated_library()
+
+
 @router.post("/retry-failed", status_code=202)
 def retry_failed(
     kind: str = Query("both", pattern="^(both|lyrics|stems)$"),
