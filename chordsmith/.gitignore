@@ -1,0 +1,16 @@
+# Python
+__pycache__/
+*.py[cod]
+backend/.venv/
+backend/data/
+
+# Node
+node_modules/
+frontend/dist/
+
+# Editors / OS
+.DS_Store
+*.swp
+
+# Local server / dev logs
+*.log

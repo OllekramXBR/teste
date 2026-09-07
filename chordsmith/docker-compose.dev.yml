@@ -1,0 +1,71 @@
+# Development stack: the source lives on an Unraid share, the app runs on the
+# Unraid box, and you edit the files from your desktop over SMB.
+#
+#   docker compose -f docker-compose.dev.yml up -d --build
+#
+# The two things that make this work over a share:
+#
+#   * `node_modules` and the Python bytecode never touch the share. They live in
+#     named volumes on the Docker disk, because thousands of small files over
+#     SMB/shfs is where this setup otherwise falls apart.
+#   * File watching is forced to polling. inotify does not fire reliably through
+#     Unraid's shfs layer, so without this the reloaders simply never notice
+#     that you saved anything.
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      # Stops here rather than at `runtime`: no frontend build, because Vite
+      # serves the UI in development.
+      target: backend
+    image: chordsmith-dev-api:latest
+    container_name: chordsmith-dev-api
+    command:
+      - uvicorn
+      - app.main:app
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8000"
+      - --reload
+      - --app-dir
+      - /app/backend
+    volumes:
+      - ./backend:/app/backend
+      - ${DATA_DIR:-/mnt/user/appdata/chordsmith/data}:/data
+    ports:
+      # Left side is the published port, right side is fixed: inside the network
+      # the API is always 8000, so `VITE_API_TARGET` never changes with this.
+      - "${BIND_IP:-0.0.0.0}:${API_PORT:-8000}:8000"
+    environment:
+      PUID: ${PUID:-99}
+      PGID: ${PGID:-100}
+      CHORDSMITH_DATA_DIR: /data
+      # uvicorn's reloader is watchfiles; this is its polling switch.
+      WATCHFILES_FORCE_POLLING: "true"
+      PYTHONDONTWRITEBYTECODE: "1"
+    restart: unless-stopped
+
+  web:
+    image: node:22-alpine
+    container_name: chordsmith-dev-web
+    working_dir: /app
+    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
+    volumes:
+      - ./frontend:/app
+      - web-node-modules:/app/node_modules
+    ports:
+      - "${BIND_IP:-0.0.0.0}:${WEB_PORT:-5173}:5173"
+    environment:
+      # Vite proxies /api to the API container over the compose network, so the
+      # browser only ever talks to one origin and CORS never enters into it.
+      VITE_API_TARGET: http://api:8000
+      VITE_USE_POLLING: "true"
+    depends_on:
+      - api
+    restart: unless-stopped
+
+volumes:
+  web-node-modules:

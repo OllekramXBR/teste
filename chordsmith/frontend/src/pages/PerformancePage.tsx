@@ -1,0 +1,684 @@
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Link, useParams, useSearchParams } from 'react-router-dom'
+
+import * as api from '../lib/api'
+import type { Setlist, Song, Stem, StemName } from '../lib/api'
+import { br } from '../lib/brazilian'
+import { keyNamePt } from '../lib/theory'
+import { displayLabel } from '../components/ChordGrid'
+import { KaraokeView } from '../components/KaraokeView'
+import { StemMixer } from '../components/StemMixer'
+import { useStemPlayer } from '../hooks/useStemPlayer'
+
+/**
+ * The three sentences a rehearsal actually says, as one-tap mixes. Each names
+ * the stems to silence; everything else plays. Opening the mixer remains the
+ * fine-grained path — these are the doors, not the corridor.
+ */
+const MIX_PRESETS: { id: string; label: string; hint: string; muted: StemName[] }[] = [
+  { id: 'sing', label: 'Eu canto', hint: 'Só os instrumentos — a voz é sua', muted: ['lead', 'backing'] },
+  { id: 'play', label: 'Eu toco', hint: 'Vozes e bateria — a harmonia é sua', muted: ['bass', 'other'] },
+  { id: 'acapella', label: 'A capella', hint: 'Somente as vozes originais', muted: ['drums', 'bass', 'other'] },
+  { id: 'all', label: 'Tudo', hint: 'A gravação inteira', muted: [] },
+]
+
+/**
+ * The stage view, designed for a tablet held by someone whose hands are on a
+ * guitar.
+ *
+ * That premise decides nearly everything here. Every control is a touch target
+ * rather than a click target, and none of them depends on hover, which does not
+ * exist on the device this runs on. The transport sits at the bottom corners
+ * where a thumb reaches without letting go of the neck. Text cannot be selected
+ * and double-tap cannot zoom, because both are what actually happens when a
+ * guitarist brushes the screen mid-song. And there is a lock, because the most
+ * likely input during a performance is an accidental one.
+ *
+ * Nothing is loaded from the network after playback starts: the stems are
+ * decoded into memory before the transport will let anyone press play.
+ */
+export function PerformancePage() {
+  const { songId = '' } = useParams()
+  const [params] = useSearchParams()
+  const setlistId = params.get('setlist')
+  const [setlist, setSetlist] = useState<Setlist | null>(null)
+  const [song, setSong] = useState<Song | null>(null)
+  const [stems, setStems] = useState<Stem[]>([])
+  const [error, setError] = useState<string | null>(null)
+  const [showMixer, setShowMixer] = useState(false)
+  const mixerRef = useRef<HTMLDivElement | null>(null)
+  const mixerToggleRef = useRef<HTMLButtonElement | null>(null)
+  const [transpose, setTranspose] = useState(0)
+  const [locked, setLocked] = useState(false)
+  const [fontScale, setFontScale] = useState(1)
+
+  const [variantState, setVariantState] = useState<'original' | 'rendering' | 'ready'>('original')
+
+  // Transposition swaps the audio for a pre-rendered copy in the new key rather
+  // than shifting pitch during playback. Until that copy exists the original
+  // keeps playing, and the header says so — a chart in one key over a recording
+  // in another is the one thing worse than no transposition at all.
+  const playing = useMemo(() => {
+    if (transpose === 0 || variantState !== 'ready') return stems
+    const key = api.variantKey(transpose)
+    return stems.map((stem) => ({ ...stem, url: api.variantStemUrl(songId, key, stem.name) }))
+  }, [stems, transpose, variantState, songId])
+
+  const player = useStemPlayer(playing)
+
+  useEffect(() => {
+    let cancelled = false
+    const load = async () => {
+      try {
+        const [fetched, stemResponse] = await Promise.all([
+          api.getSong(songId),
+          api.getStems(songId).catch(() => ({ status: 'none' as const, error: null, stems: [] })),
+        ])
+        if (cancelled) return
+        setSong(fetched)
+        setStems(stemResponse.stems)
+      } catch (loadError) {
+        if (cancelled) return
+        setError(loadError instanceof Error ? loadError.message : 'Não consegui abrir esta música')
+      }
+    }
+    void load()
+    return () => {
+      cancelled = true
+    }
+  }, [songId])
+
+  useEffect(() => {
+    if (!setlistId) return
+    let cancelled = false
+    api
+      .getSetlist(setlistId)
+      .then((fetched) => !cancelled && setSetlist(fetched))
+      .catch(() => !cancelled && setSetlist(null))
+    return () => {
+      cancelled = true
+    }
+  }, [setlistId])
+
+  useEffect(() => {
+    if (transpose === 0 || !stems.length) {
+      setVariantState('original')
+      return
+    }
+    let cancelled = false
+    let timer: number | undefined
+
+    const ask = async () => {
+      try {
+        const response = await api.renderVariant(songId, transpose)
+        if (cancelled) return
+        if (response.status === 'ready') {
+          setVariantState('ready')
+          return
+        }
+        setVariantState('rendering')
+        // A few minutes of phase vocoder per stem; polling slowly costs nothing
+        // and the answer only changes once.
+        timer = window.setTimeout(ask, 15000)
+      } catch {
+        if (!cancelled) setVariantState('original')
+      }
+    }
+
+    void ask()
+    return () => {
+      cancelled = true
+      if (timer) window.clearTimeout(timer)
+    }
+  }, [songId, transpose, stems.length])
+
+  const position = setlist?.songs.findIndex((entry) => entry.id === songId) ?? -1
+  const nextSong = position >= 0 ? setlist?.songs[position + 1] : undefined
+
+  // Pull the next song's stems into the browser cache while this one plays.
+  // Five files is enough of a wait to be noticeable between songs, and the gap
+  // between two songs in a set is the one moment nobody wants to fill.
+  useEffect(() => {
+    if (!nextSong) return
+    let cancelled = false
+    void api
+      .getStems(nextSong.id)
+      .then((response) => {
+        if (cancelled) return
+        for (const stem of response.stems) void fetch(stem.url).catch(() => undefined)
+      })
+      .catch(() => undefined)
+    return () => {
+      cancelled = true
+    }
+  }, [nextSong])
+
+  // A phone that sleeps in the middle of the second verse is worse than no
+  // screen at all. The lock is released automatically when the page goes away.
+  useEffect(() => {
+    let sentinel: WakeLockSentinel | null = null
+    const request = async () => {
+      try {
+        sentinel = await navigator.wakeLock?.request('screen')
+      } catch {
+        // Unsupported or denied: the show goes on, the screen may dim.
+      }
+    }
+    void request()
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') void request()
+    }
+    document.addEventListener('visibilitychange', onVisibility)
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility)
+      void sentinel?.release()
+    }
+  }, [])
+
+  const chords = useMemo(() => {
+    const analysis = song?.analysis
+    if (!analysis) return []
+    return analysis.chords
+      .filter((chord) => chord.root !== null)
+      .map((chord) => ({
+        label: br(displayLabel(chord.label, transpose, 0, analysis.useFlats), analysis.useFlats),
+        start: chord.start,
+      }))
+  }, [song, transpose])
+
+  // Which preset the current mix equals, if any — hand-tweaked mixes match
+  // none and no chip lights, which is the honest answer.
+  const activePreset = useMemo(() => {
+    if (player.solo) return null
+    const names = Object.keys(player.mix) as StemName[]
+    if (!names.length) return null
+    const match = MIX_PRESETS.find((preset) =>
+      names.every((name) => Boolean(player.mix[name]?.muted) === preset.muted.includes(name)),
+    )
+    return match?.id ?? null
+  }, [player.mix, player.solo])
+
+  // The beat under the playhead, for the bar-pulse dots in the strip.
+  const activeStageBeat = useMemo(() => {
+    const beats = song?.analysis?.beats
+    if (!beats?.length) return null
+    let low = 0
+    let high = beats.length - 1
+    let found = -1
+    while (low <= high) {
+      const middle = (low + high) >> 1
+      if (beats[middle].time <= player.currentTime) {
+        found = middle
+        low = middle + 1
+      } else high = middle - 1
+    }
+    return found >= 0 ? beats[found] : null
+  }, [song, player.currentTime])
+
+  // Deduplicated chord run for the stage strip: what sounds now, what's next.
+  const stageCards = useMemo(() => {
+    const out: { label: string; start: number }[] = []
+    for (const chord of chords) {
+      const last = out[out.length - 1]
+      if (last && last.label === chord.label) continue
+      out.push(chord)
+    }
+    return out
+  }, [chords])
+
+  const stageActive = useMemo(() => {
+    for (let index = stageCards.length - 1; index >= 0; index -= 1) {
+      if (player.currentTime >= stageCards[index].start) return index
+    }
+    return -1
+  }, [stageCards, player.currentTime])
+
+  const stageNow = stageActive >= 0 ? stageCards[stageActive] : null
+  const stageNext = stageCards[stageActive + 1] ?? (stageActive < 0 ? stageCards[0] : null)
+  const stageCountdown = stageNext
+    ? Math.max(0, Math.ceil(stageNext.start - player.currentTime))
+    : null
+
+  const onKeyDown = useCallback(
+    (event: KeyboardEvent) => {
+      if ((event.target as HTMLElement | null)?.tagName === 'INPUT') return
+      if (event.code === 'Space') {
+        event.preventDefault()
+        player.toggle()
+      }
+      if (event.code === 'ArrowLeft') player.seek(player.currentTime - 5)
+      if (event.code === 'ArrowRight') player.seek(player.currentTime + 5)
+    },
+    [player],
+  )
+
+  useEffect(() => {
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [onKeyDown])
+
+  // Close the mixer on an outside tap or Escape, without a full-screen
+  // catcher: the listener is added only once the panel is already open, so it
+  // never fires for the very tap that opened it, and it never intercepts a
+  // tap meant for the transport underneath.
+  useEffect(() => {
+    if (!showMixer) return
+    const onPointerDown = (event: PointerEvent) => {
+      const target = event.target as Node
+      if (mixerRef.current?.contains(target)) return
+      if (mixerToggleRef.current?.contains(target)) return
+      setShowMixer(false)
+    }
+    const onEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setShowMixer(false)
+    }
+    document.addEventListener('pointerdown', onPointerDown)
+    document.addEventListener('keydown', onEscape)
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown)
+      document.removeEventListener('keydown', onEscape)
+    }
+  }, [showMixer])
+
+  if (error) return <Stage><p className="text-rose-400">{error}</p></Stage>
+  if (!song) return <Stage><p className="text-slate-500">Carregando…</p></Stage>
+
+  if (!stems.length) {
+    return (
+      <Stage>
+        <h1 className="text-2xl font-semibold text-white">{song.title}</h1>
+        <p className="max-w-md text-center text-slate-400">
+          O modo palco toca as pistas separadas, para tirar a voz principal e deixar você cantar.
+          Esta música ainda não foi separada.
+        </p>
+        <Link to={`/song/${song.id}`} className="text-sm text-accent hover:underline">
+          Voltar e separar as pistas
+        </Link>
+      </Stage>
+    )
+  }
+
+  const lyrics = song.lyrics
+  const progress = player.duration ? player.currentTime / player.duration : 0
+
+  return (
+    <div className="fixed inset-0 flex touch-manipulation select-none flex-col bg-slate-950 text-slate-200">
+      <header className="flex items-center justify-between gap-4 px-5 py-2.5 text-sm">
+        <div className="min-w-0">
+          <p className="truncate font-semibold text-white">{song.title}</p>
+          <p className="truncate text-xs text-slate-500">
+            {setlist && position >= 0 ? `${position + 1}/${setlist.songs.length} · ` : ''}
+            {song.artist || 'Sem artista'}
+            {song.analysis
+              ? ` · ${keyNamePt(song.analysis.key.tonic, song.analysis.key.mode, song.analysis.useFlats)} · ${Math.round(song.analysis.bpm)} BPM`
+              : ''}
+          </p>
+          {transpose !== 0 && (
+            <p
+              className={[
+                'truncate text-xs',
+                variantState === 'ready' ? 'text-emerald-400' : 'text-amber-400',
+              ].join(' ')}
+            >
+              {variantState === 'ready'
+                ? `áudio transposto ${transpose > 0 ? '+' : ''}${transpose}`
+                : 'grade transposta — o áudio ainda está no tom original, renderizando…'}
+            </p>
+          )}
+        </div>
+        <div className={locked ? 'pointer-events-none opacity-30' : 'flex items-center gap-2'}>
+          <FontStepper value={fontScale} onChange={setFontScale} />
+          <Stepper value={transpose} onChange={setTranspose} />
+          <button
+            ref={mixerToggleRef}
+            type="button"
+            onClick={() => setShowMixer((previous) => !previous)}
+            aria-pressed={showMixer}
+            className={[
+              'h-11 rounded-full border px-5 text-sm font-medium',
+              showMixer ? 'border-white bg-white text-slate-950' : 'border-slate-700 text-slate-300',
+            ].join(' ')}
+          >
+            Mixer
+          </button>
+          {nextSong && (
+            <Link
+              to={`/song/${nextSong.id}/perform?setlist=${setlistId}`}
+              className="flex h-11 items-center rounded-full border border-slate-600 px-5 text-sm font-medium text-white"
+              title={nextSong.title}
+            >
+              Próxima →
+            </Link>
+          )}
+          <Link
+            to={setlistId ? `/setlists/${setlistId}` : `/song/${song.id}`}
+            className="flex h-11 items-center rounded-full border border-slate-700 px-5 text-sm font-medium text-slate-300"
+          >
+            Sair
+          </Link>
+        </div>
+      </header>
+
+      {/* The mixer floats above the lyric instead of pushing it off the
+          stand: the singer keeps reading and singing while a hand rides a
+          fader. It does NOT sit behind a full-screen tap-catcher — that would
+          silently block the transport underneath, trading one unreachable
+          control for another. Outside taps close it via the effect below;
+          the transport stays live the whole time. */}
+      {showMixer && (
+        <div
+          ref={mixerRef}
+          className="fixed bottom-32 right-4 top-24 z-30 w-[360px] max-w-[88vw] overflow-y-auto rounded-2xl border border-slate-700 bg-slate-900/95 shadow-2xl backdrop-blur [&>section]:border-0 [&>section]:bg-transparent"
+          role="dialog"
+          aria-label="Mixer das pistas"
+        >
+          <div className="flex items-center justify-between px-4 pt-3">
+            <span className="text-xs font-bold uppercase tracking-widest text-slate-500">
+              Mixer
+            </span>
+            <button
+              type="button"
+              onClick={() => setShowMixer(false)}
+              aria-label="Fechar o mixer"
+              className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-700 text-sm text-slate-400"
+            >
+              ✕
+            </button>
+          </div>
+          <StemMixer
+            stems={stems}
+            mix={player.mix}
+            solo={player.solo}
+            onVolume={player.setStemVolume}
+            onMute={player.toggleMute}
+            onSolo={player.toggleSolo}
+          />
+        </div>
+      )}
+
+      {/* The song's parts, tappable mid-rehearsal: "vai pro refrão" is said
+          to the screen instead of scrubbed for. Hidden while locked — a
+          brushed elbow must not teleport the band. */}
+      {!locked && song.lyrics?.sections?.length ? (
+        <div className="flex items-center justify-center gap-1.5 px-6 pb-0.5">
+          {song.lyrics.sections.map((section, index) => (
+            <button
+              key={`${section.start}-${index}`}
+              type="button"
+              onClick={() => player.seek(section.start)}
+              className="rounded-full border border-slate-700 px-3 py-1 text-xs font-medium text-slate-300 transition hover:border-amber-400 hover:text-amber-400"
+            >
+              {section.name}
+            </button>
+          ))}
+        </div>
+      ) : null}
+
+      {/* The chord strip: readable from the mic stand, out of the lyric's way.
+          The singer's guitarist glances here; the singer never has to. */}
+      {stageCards.length > 0 && (
+        <div className="flex items-baseline justify-center gap-8 px-6 pb-1 pt-0.5">
+          {player.playing && activeStageBeat && song.analysis && (
+            <span className="flex items-center gap-1 self-center" aria-hidden="true">
+              {Array.from({ length: song.analysis.beatsPerBar }, (_, index) => (
+                <span
+                  key={index}
+                  className={[
+                    'h-1.5 w-1.5 rounded-full transition-all duration-100',
+                    index + 1 === activeStageBeat.beatInBar
+                      ? index === 0
+                        ? 'scale-125 bg-amber-400'
+                        : 'scale-125 bg-violet-400'
+                      : 'bg-slate-700',
+                  ].join(' ')}
+                />
+              ))}
+            </span>
+          )}
+          <p className="flex items-baseline gap-3">
+            <span className="text-[10px] font-bold uppercase tracking-[0.22em] text-slate-500">
+              agora
+            </span>
+            <span className="text-3xl font-extrabold leading-none text-amber-400">
+              {stageNow?.label ?? '—'}
+            </span>
+          </p>
+          {stageNext && (
+            <p className="flex items-baseline gap-3 opacity-80">
+              <span className="text-[10px] font-bold uppercase tracking-[0.22em] text-slate-500">
+                próximo{stageCountdown !== null && stageCountdown <= 30 ? ` em ${stageCountdown}s` : ''}
+              </span>
+              <span className="text-2xl font-bold leading-none text-slate-200">
+                {stageNext.label}
+              </span>
+            </p>
+          )}
+        </div>
+      )}
+
+      <main className="min-h-0 flex-1">
+        {lyrics ? (
+          <KaraokeView
+            lyrics={lyrics}
+            chords={chords}
+            currentTime={player.currentTime}
+            performance
+            fontScale={fontScale}
+            onSeek={locked ? undefined : player.seek}
+          />
+        ) : (
+          <div className="flex h-full items-center justify-center px-8 text-center text-slate-500">
+            Esta música ainda não tem letra transcrita.
+          </div>
+        )}
+      </main>
+
+      {/* The transport lives at the bottom edge, where a thumb reaches without
+          letting go of the neck of the guitar. Everything in it is at least 56px
+          across, which is the smallest thing a finger hits reliably while the
+          other hand is busy. */}
+      <footer className="border-t border-slate-800 px-5 pb-5 pt-3">
+        {!player.ready && (
+          <p className="mb-2 text-center text-sm text-slate-500">
+            {player.error
+              ? player.error
+              : `Carregando as pistas… ${Math.round(player.loaded * 100)}%`}
+          </p>
+        )}
+
+        {/* One-tap mixes, big enough for a thumb, no mixer required. */}
+        <div
+          className={[
+            'mb-3 flex flex-wrap items-center justify-center gap-2',
+            locked ? 'pointer-events-none opacity-30' : '',
+          ].join(' ')}
+        >
+          {MIX_PRESETS.map((preset) => (
+            <button
+              key={preset.id}
+              type="button"
+              onClick={() => player.applyPreset(preset.muted)}
+              disabled={!player.ready}
+              title={preset.hint}
+              aria-pressed={activePreset === preset.id}
+              className={[
+                'h-11 rounded-full border px-4 text-sm font-semibold transition disabled:opacity-30',
+                activePreset === preset.id
+                  ? 'border-amber-400 bg-amber-400 text-slate-950'
+                  : 'border-slate-700 text-slate-300 hover:border-amber-400/60',
+              ].join(' ')}
+            >
+              {preset.label}
+            </button>
+          ))}
+        </div>
+        <div className="mb-3 flex items-center gap-3">
+          <span className="w-12 shrink-0 text-xs tabular-nums text-slate-500">
+            {formatTime(player.currentTime)}
+          </span>
+          <input
+            type="range"
+            min={0}
+            max={1}
+            step={0.001}
+            value={progress}
+            disabled={locked}
+            onChange={(event) => player.seek(Number(event.target.value) * player.duration)}
+            className="w-full text-sky-400 disabled:opacity-40"
+            aria-label="Posição"
+          />
+          <span className="w-12 shrink-0 text-right text-xs tabular-nums text-slate-500">
+            {formatTime(player.duration)}
+          </span>
+        </div>
+
+        <div className="flex items-center justify-between gap-3">
+          <button
+            type="button"
+            onClick={() => setLocked((previous) => !previous)}
+            className={[
+              'flex h-14 w-14 shrink-0 items-center justify-center rounded-full border text-xs font-semibold',
+              locked
+                ? 'border-amber-400 bg-amber-400 text-slate-950'
+                : 'border-slate-700 text-slate-400',
+            ].join(' ')}
+            aria-pressed={locked}
+            aria-label={locked ? 'Destravar a tela' : 'Travar a tela'}
+          >
+            {locked ? 'TRAV' : 'LIVRE'}
+          </button>
+
+          <div className="flex items-center gap-3">
+            <SeekButton
+              label="Voltar 10 segundos"
+              disabled={locked}
+              onClick={() => player.seek(player.currentTime - 10)}
+            >
+              −10
+            </SeekButton>
+            <button
+              type="button"
+              onClick={player.toggle}
+              disabled={!player.ready || locked}
+              className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full bg-white text-slate-950 active:bg-slate-300 disabled:opacity-30"
+              aria-label={player.playing ? 'Pausar' : 'Tocar'}
+            >
+              {player.playing ? (
+                <svg width="28" height="28" viewBox="0 0 20 20" aria-hidden="true">
+                  <rect x="4" y="3" width="4" height="14" rx="1" fill="currentColor" />
+                  <rect x="12" y="3" width="4" height="14" rx="1" fill="currentColor" />
+                </svg>
+              ) : (
+                <svg width="28" height="28" viewBox="0 0 20 20" aria-hidden="true">
+                  <path d="M5 3.5 16 10 5 16.5Z" fill="currentColor" />
+                </svg>
+              )}
+            </button>
+            <SeekButton
+              label="Avançar 10 segundos"
+              disabled={locked}
+              onClick={() => player.seek(player.currentTime + 10)}
+            >
+              +10
+            </SeekButton>
+          </div>
+
+          <div className="w-14 shrink-0" />
+        </div>
+      </footer>
+    </div>
+  )
+}
+
+function SeekButton({
+  children,
+  label,
+  disabled,
+  onClick,
+}: {
+  children: React.ReactNode
+  label: string
+  disabled: boolean
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={label}
+      className="h-14 w-14 shrink-0 rounded-full border border-slate-700 text-sm font-semibold text-slate-300 active:bg-slate-800 disabled:opacity-30"
+    >
+      {children}
+    </button>
+  )
+}
+
+function Stepper({ value, onChange }: { value: number; onChange: (value: number) => void }) {
+  return (
+    <div className="flex items-center rounded-full border border-slate-700">
+      <button
+        type="button"
+        onClick={() => onChange(Math.max(-11, value - 1))}
+        className="h-11 w-11 rounded-l-full text-lg text-slate-300 active:bg-slate-800"
+        aria-label="Baixar meio tom"
+      >
+        −
+      </button>
+      <span className="w-10 text-center text-sm tabular-nums text-slate-300">
+        {value > 0 ? `+${value}` : value}
+      </span>
+      <button
+        type="button"
+        onClick={() => onChange(Math.min(11, value + 1))}
+        className="h-11 w-11 rounded-r-full text-lg text-slate-300 active:bg-slate-800"
+        aria-label="Subir meio tom"
+      >
+        +
+      </button>
+    </div>
+  )
+}
+
+/**
+ * The text-size control for the lyric being read from a stand. A half-step is
+ * the unit a musician already thinks in, so the whole thing is expressed in
+ * tenths: 1.0 is the default size, 1.3 is a third larger.
+ */
+function FontStepper({ value, onChange }: { value: number; onChange: (value: number) => void }) {
+  return (
+    <div className="flex items-center rounded-full border border-slate-700" title="Tamanho da letra">
+      <button
+        type="button"
+        onClick={() => onChange(Math.max(0.7, Number((value - 0.1).toFixed(1))))}
+        className="h-11 w-11 rounded-l-full text-base font-semibold text-slate-300 active:bg-slate-800"
+        aria-label="Diminuir a letra"
+      >
+        A−
+      </button>
+      <span className="w-9 text-center text-sm tabular-nums text-slate-300">{value.toFixed(1)}×</span>
+      <button
+        type="button"
+        onClick={() => onChange(Math.min(1.6, Number((value + 0.1).toFixed(1))))}
+        className="h-11 w-11 rounded-r-full text-base font-semibold text-slate-300 active:bg-slate-800"
+        aria-label="Aumentar a letra"
+      >
+        A+
+      </button>
+    </div>
+  )
+}
+
+function Stage({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="fixed inset-0 flex flex-col items-center justify-center gap-4 bg-slate-950 px-6">
+      {children}
+    </div>
+  )
+}
+
+function formatTime(seconds: number): string {
+  if (!Number.isFinite(seconds)) return '0:00'
+  const whole = Math.floor(seconds)
+  return `${Math.floor(whole / 60)}:${String(whole % 60).padStart(2, '0')}`
+}

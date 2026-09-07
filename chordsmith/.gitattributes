@@ -1,0 +1,6 @@
+# Shell scripts must reach the container with LF endings. A clone or an edit made
+# from Windows otherwise writes CRLF, and `entrypoint.sh` then fails inside the
+# image with a `no such file or directory` that says nothing about the cause.
+*.sh text eol=lf
+docker/entrypoint.sh text eol=lf
+docker/dev-run.sh text eol=lf
